@@ -1,0 +1,29 @@
+com/immersive/annotations/DataModelEntity.java
+ com.immersive.annotations.DataModelEntity
+com/immersive/core/LogicalObjectTree.java
+ com.immersive.core.LogicalObjectTree
+com/immersive/core/LogicalObjectKey.java
+ com.immersive.core.LogicalObjectKey
+com/immersive/core/DataModelInfo.java
+ com.immersive.core.DataModelInfo
+com/immersive/annotations/CrossReference.java
+ com.immersive.annotations.CrossReference
+com/immersive/annotations/ChildField.java
+ com.immersive.annotations.ChildField
+com/immersive/core/TransactionManager.java
+ com.immersive.core.TransactionManager
+ com.immersive.core.TransactionManager$1
+ com.immersive.core.TransactionManager$CrossReferenceToDo
+ com.immersive.core.TransactionManager$Pull
+com/immersive/core/CommitId.java
+ com.immersive.core.CommitId
+com/immersive/annotations/TransactionalEntity.java
+ com.immersive.annotations.TransactionalEntity
+com/immersive/annotations/OwnerField.java
+ com.immersive.annotations.OwnerField
+com/immersive/core/Commit.java
+ com.immersive.core.Commit
+com/immersive/annotations/RootEntity.java
+ com.immersive.annotations.RootEntity
+com/immersive/core/Workcopy.java
+ com.immersive.core.Workcopy

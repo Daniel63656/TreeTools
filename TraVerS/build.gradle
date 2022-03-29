@@ -1,0 +1,94 @@
+buildscript {
+    if(aspectsEnabled) {
+        configurations {
+            ajc
+            aspects
+            aspectCompile
+            compile {
+                extendsFrom aspects
+            }
+        }
+    }
+}
+
+plugins {
+    id 'java-library'
+    id 'io.freefair.aspectj' version '5.3.3.3'
+}
+
+java {
+    //1_8 necessary for jetbrain annotation and unit tests!
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+if(aspectsEnabled) {
+    aspectj {
+        version = "1.9.6"
+    }
+}
+
+dependencies {
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
+    implementation 'org.apache.commons:commons-collections4:4.4'
+    implementation group: 'org.jetbrains', name: 'annotations', version: '21.0.1'
+
+    //for unit tests
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    implementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+
+    if(aspectsEnabled) {
+        //Dependencies required for aspect compilation
+        ajc "org.aspectj:aspectjtools:1.9.6"
+        // Without this library the caller can't use aspects
+        implementation group: 'org.aspectj', name: 'aspectjrt', version: '1.9.6'
+        testImplementation group: 'org.aspectj', name: 'aspectjrt', version: '1.9.6'
+        api group: 'org.aspectj', name: 'aspectjrt', version: '1.9.6'
+    }
+}
+
+if(aspectsEnabled){
+    // Source-Set definitions required to make aspectj compile time weaving work in our context
+    sourceSets.main.aspectj.srcDirs = files(['src/main/java', 'src/test/java'])
+    // needed if we use ajc (which is here the case) in order to have unit tests compiled
+    sourceSets.test.aspectj.srcDirs = files(['src/test/java'])
+}
+
+compileAspectj {
+    sourceSets.main.aspectj.srcDirs = files(['src/main/java', 'src/test/java'])
+    println "destinationDirectory.get() ="+destinationDirectory.get()+" --- "+destinationDirectory.get().getClass().getSimpleName()
+    destinationDirectory.set(new File("build\\classes\\java\\main"))
+    println "destinationDirectory ="+destinationDirectory.get()
+}
+compileTestAspectj {
+    println "destinationDirectory.get() ="+destinationDirectory.get()+" --- "+destinationDirectory.get().getClass().getSimpleName()
+    destinationDirectory.set(new File("build\\classes\\java\\test"))
+    println "destinationDirectory ="+destinationDirectory.get()
+    ajcOptions {
+    }
+}
+
+//to avoid 'duplicate class' error
+jar { duplicatesStrategy(DuplicatesStrategy.INCLUDE)}
+
+
+test {
+    outputs.upToDateWhen {false}
+    // enable TestNG support (default is JUnit)
+    useTestNG()
+    // enable JUnit Platform (a.k.a. JUnit 5) support
+    useJUnitPlatform()
+    // show standard out and standard error of the test JVM(s) on the console
+    testLogging.showStandardStreams = true
+    testLogging.exceptionFormat  "full"
+
+    beforeSuite{ testSuite->
+        println "*****************"+testSuite+"*****************"
+    }
+
+    testLogging {
+        events 'PASSED', 'FAILED', 'SKIPPED', 'STANDARD_OUT'
+        stackTraceFilters = []
+    }
+}
