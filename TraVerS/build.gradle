@@ -1,5 +1,5 @@
 buildscript {
-    if(aspectsEnabled) {
+    if(aspectsEnabled.toBoolean()) {
         configurations {
             ajc
             aspects
@@ -13,19 +13,19 @@ buildscript {
 
 plugins {
     id 'java-library'
-    id 'io.freefair.aspectj' version '5.3.3.3'
+    id 'io.freefair.aspectj' version '5.3.3.3' apply false
+}
+if (aspectsEnabled.toBoolean()) {
+    apply plugin: 'io.freefair.aspectj'
+    aspectj {
+        version = "1.9.6"
+    }
 }
 
 java {
     //1_8 necessary for jetbrain annotation and unit tests!
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-if(aspectsEnabled) {
-    aspectj {
-        version = "1.9.6"
-    }
 }
 
 dependencies {
@@ -38,7 +38,7 @@ dependencies {
     //For reasons only God knows, this prevents UnitTests imports to stay valid when using aspectj!!
     implementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
 
-    if(aspectsEnabled) {
+    if(aspectsEnabled.toBoolean()) {
         //Dependencies required for aspect compilation
         ajc "org.aspectj:aspectjtools:1.9.6"
         // Without this library the caller can't use aspects
@@ -48,24 +48,28 @@ dependencies {
     }
 }
 
-if (aspectsEnabled) {
+if (aspectsEnabled.toBoolean()) {
     // Source-Set definitions required to make aspectj compile time weaving work in our context
-    sourceSets.main.aspectj.srcDirs = files(['src/main/java', 'src/test/java'])
+    if (testWhenBuilding.toBoolean()) {
+        sourceSets.main.aspectj.srcDirs = files(['src/main/java', 'src/test/java'])
+    }
+    else {
+        sourceSets.main.aspectj.srcDirs = files(['src/main/java'])
+    }
     // needed if we use ajc (which is here the case) in order to have unit tests compiled
     sourceSets.test.aspectj.srcDirs = files(['src/test/java'])
-}
 
-compileAspectj {
-    sourceSets.main.aspectj.srcDirs = files(['src/main/java', 'src/test/java'])
-    println "destinationDirectory.get() ="+destinationDirectory.get()+" --- "+destinationDirectory.get().getClass().getSimpleName()
-    destinationDirectory.set(new File("build\\classes\\java\\main"))
-    println "destinationDirectory ="+destinationDirectory.get()
-}
-compileTestAspectj {
-    println "destinationDirectory.get() ="+destinationDirectory.get()+" --- "+destinationDirectory.get().getClass().getSimpleName()
-    destinationDirectory.set(new File("build\\classes\\java\\test"))
-    println "destinationDirectory ="+destinationDirectory.get()
-    ajcOptions {
+    compileAspectj {
+        println "destinationDirectory.get() ="+destinationDirectory.get()+" --- "+destinationDirectory.get().getClass().getSimpleName()
+        destinationDirectory.set(new File("build\\classes\\java\\main"))
+        println "destinationDirectory ="+destinationDirectory.get()
+    }
+    compileTestAspectj {
+        println "destinationDirectory.get() ="+destinationDirectory.get()+" --- "+destinationDirectory.get().getClass().getSimpleName()
+        destinationDirectory.set(new File("build\\classes\\java\\test"))
+        println "destinationDirectory ="+destinationDirectory.get()
+        ajcOptions {
+        }
     }
 }
 
@@ -80,7 +84,7 @@ test {
     useJUnitPlatform()
     // show standard out and standard error of the test JVM(s) on the console
     testLogging.showStandardStreams = true
-    testLogging.exceptionFormat  "full"
+    testLogging.exceptionFormat "full"
 
     testLogging {
         events 'PASSED', 'FAILED', 'SKIPPED', 'STANDARD_OUT'
@@ -89,7 +93,8 @@ test {
 }
 
 //This configuration for the jar task ensures that junit-test are performed while trying to create the jar library!
-if (testWhenBuilding) {
+if (testWhenBuilding.toBoolean()) {
+
     jar.configure {
         dependsOn('test')
     }
