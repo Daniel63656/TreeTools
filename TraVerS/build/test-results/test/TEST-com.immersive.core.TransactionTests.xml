@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.immersive.core.TransactionTests" tests="6" skipped="0" failures="0" errors="0" timestamp="2022-03-29T18:35:44" hostname="DANIEL-LAPTOP" time="0.104">
+<testsuite name="com.immersive.core.TransactionTests" tests="6" skipped="0" failures="0" errors="0" timestamp="2022-03-30T10:34:55" hostname="DANIEL-LAPTOP" time="0.035">
   <properties/>
-  <testcase name="testDeletionOverridesChangedOrCreatedObjectsInCommitAlsoPull()" classname="com.immersive.core.TransactionTests" time="0.073"/>
-  <testcase name="testLOTCreation()" classname="com.immersive.core.TransactionTests" time="0.002"/>
+  <testcase name="testDeletionOverridesChangedOrCreatedObjectsInCommitAlsoPull()" classname="com.immersive.core.TransactionTests" time="0.016"/>
+  <testcase name="testLOTCreation()" classname="com.immersive.core.TransactionTests" time="0.001"/>
   <testcase name="testPullingAChange()" classname="com.immersive.core.TransactionTests" time="0.002"/>
-  <testcase name="testPullingDeletions()" classname="com.immersive.core.TransactionTests" time="0.003"/>
-  <testcase name="testPullingSeveralCommitsAtOnce()" classname="com.immersive.core.TransactionTests" time="0.005"/>
-  <testcase name="testPullingCreations()" classname="com.immersive.core.TransactionTests" time="0.007"/>
+  <testcase name="testPullingDeletions()" classname="com.immersive.core.TransactionTests" time="0.002"/>
+  <testcase name="testPullingSeveralCommitsAtOnce()" classname="com.immersive.core.TransactionTests" time="0.004"/>
+  <testcase name="testPullingCreations()" classname="com.immersive.core.TransactionTests" time="0.004"/>
   <system-out><![CDATA[Note change detected
 Note change detected
 NoteGroup got deleted

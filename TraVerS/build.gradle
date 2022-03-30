@@ -34,8 +34,8 @@ dependencies {
     implementation group: 'org.jetbrains', name: 'annotations', version: '21.0.1'
 
     //for unit tests
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+    //For reasons only God knows, this prevents UnitTests imports to stay valid when using aspectj!!
     implementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
 
     if(aspectsEnabled) {
@@ -48,7 +48,7 @@ dependencies {
     }
 }
 
-if(aspectsEnabled){
+if (aspectsEnabled) {
     // Source-Set definitions required to make aspectj compile time weaving work in our context
     sourceSets.main.aspectj.srcDirs = files(['src/main/java', 'src/test/java'])
     // needed if we use ajc (which is here the case) in order to have unit tests compiled
@@ -72,7 +72,6 @@ compileTestAspectj {
 //to avoid 'duplicate class' error
 jar { duplicatesStrategy(DuplicatesStrategy.INCLUDE)}
 
-
 test {
     outputs.upToDateWhen {false}
     // enable TestNG support (default is JUnit)
@@ -83,12 +82,15 @@ test {
     testLogging.showStandardStreams = true
     testLogging.exceptionFormat  "full"
 
-    beforeSuite{ testSuite->
-        println "*****************"+testSuite+"*****************"
-    }
-
     testLogging {
         events 'PASSED', 'FAILED', 'SKIPPED', 'STANDARD_OUT'
         stackTraceFilters = []
+    }
+}
+
+//This configuration for the jar task ensures that junit-test are performed while trying to create the jar library!
+if (testWhenBuilding) {
+    jar.configure {
+        dependsOn('test')
     }
 }
