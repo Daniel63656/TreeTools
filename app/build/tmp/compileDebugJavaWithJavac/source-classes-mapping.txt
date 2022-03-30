@@ -1,2 +1,0 @@
-com/immersive/travers/BuildConfig.java
- com.immersive.travers.BuildConfig
