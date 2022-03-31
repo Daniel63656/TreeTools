@@ -21,11 +21,11 @@ public class NoteGroup extends NoteGroupOrTuplet {
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     private void destruct() {
-        noteTimeTick.noteGroupOrTuplets.remove(this);
+        getOwner().noteGroupOrTuplets.remove(this);
     }
 
     public void clear() {
-        noteTimeTick.noteGroupOrTuplets.remove(this);
+        getOwner().noteGroupOrTuplets.remove(this);
         new ArrayList<>(notes).forEach(Note::clear);
     }
 

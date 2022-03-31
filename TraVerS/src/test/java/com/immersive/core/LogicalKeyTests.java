@@ -18,13 +18,13 @@ public class LogicalKeyTests {
         staff = new Staff(track, true);
         voice = new Voice(track, 0);
 
-        NoteTimeTick ntt = new NoteTimeTick(track, 0);
+        NoteTimeTick ntt = new NoteTimeTick(track, 0L);
         note = new Note(new NoteGroup(ntt, staff, voice, 8, true), 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(this.track, 8);
+        ntt = new NoteTimeTick(this.track, 8L);
         tieStart = new Note(new NoteGroup(ntt, this.staff, this.voice, 8, true), 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(this.track, 16);
+        ntt = new NoteTimeTick(this.track, 16L);
         tieEnd = new Note(new NoteGroup(ntt, this.staff, this.voice, 8, true), 69, false, NoteName.A);
         tieStart.tieWith(tieEnd);
 

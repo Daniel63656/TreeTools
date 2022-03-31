@@ -7,6 +7,4 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface CrossReference {
-  public String value() default "defaultReference";
-}
+public @interface CrossReference {}

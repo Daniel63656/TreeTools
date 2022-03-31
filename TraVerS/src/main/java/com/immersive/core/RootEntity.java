@@ -10,7 +10,11 @@
  *
  */
 
-package com.immersive.annotations;
+package com.immersive.core;
 
-public interface RootEntity extends DataModelEntity {
+public abstract class RootEntity extends DataModelEntity {
+    @Override
+    LogicalObjectKey[] getConstructorParams(LogicalObjectTree LOT) {
+        return new LogicalObjectKey[0];
+    }
 }

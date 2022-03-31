@@ -2,10 +2,6 @@ package com.immersive.core;
 
 import com.immersive.annotations.ChildField;
 import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.DataModelEntity;
-import com.immersive.annotations.OwnerField;
-import com.immersive.annotations.RootEntity;
-import com.immersive.annotations.TransactionalEntity;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -15,6 +11,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * class to hold and cache for transactions relevant fields and methods so they don't have to
@@ -27,14 +24,17 @@ class DataModelInfo {
     Constructor<?> constructor;     //different for RootEntity
     Method destructor;              //no destructor for RootEntity
 
-    DataModelInfo(Class<? extends DataModelEntity> clazz, Class<? extends DataModelEntity> ownerClass) {
+    DataModelInfo(Class<? extends DataModelEntity> clazz, Class<? extends DataModelEntity> ownerClass, Class<?> keyClass) {
         this.clazz = clazz;
         traceClassFields();
         try {
-            if (!(RootEntity.class.isAssignableFrom(clazz))) {
-                constructor = clazz.getDeclaredConstructor(ownerClass);
+            if (ownerClass != null) {
+                if (keyClass == null)                                       //ChildEntity
+                    constructor = clazz.getDeclaredConstructor(ownerClass);
+                else                                                        //KeyedChildEntity
+                    constructor = clazz.getDeclaredConstructor(ownerClass, keyClass);
                 destructor = clazz.getDeclaredMethod("destruct");
-            } else {
+            } else {                                                        //RootEntity
                 constructor = clazz.getDeclaredConstructor();
             }
         } catch (NoSuchMethodException e) {
@@ -47,7 +47,10 @@ class DataModelInfo {
         ArrayList<Field> contentFieldList = new ArrayList<>();
         Field[] relevantFields = new Field[0];
         Class<?> iterator = clazz;
+        Package abstractionsPackage = DataModelEntity.class.getPackage();
         while (DataModelEntity.class.isAssignableFrom(iterator)) {
+            if (iterator.getPackage() == abstractionsPackage)
+                break;
             relevantFields = ArrayUtils.addAll(relevantFields, iterator.getDeclaredFields());
             if (iterator.getSuperclass() == null)
                 break;
@@ -55,8 +58,8 @@ class DataModelInfo {
         }
 
         for (Field field : relevantFields) {
-            //field is a collection
-            if (Collection.class.isAssignableFrom(field.getType())) {
+            //field is a collection or
+            if (Collection.class.isAssignableFrom(field.getType()) || Map.class.isAssignableFrom(field.getType())) {
                 if (field.getAnnotation(ChildField.class) == null) {
                     throw new RuntimeException("Collections on non child objects are not allowed in data model!");
                 }
@@ -70,8 +73,8 @@ class DataModelInfo {
                 else if (field.getAnnotation(ChildField.class) != null) {
                     childFieldList.add(field);
                 }
-                else if (field.getAnnotation(OwnerField.class) == null) {
-                    throw new RuntimeException("Found reference to class of the data model neither annotated as cross-reference nor owner nor child!");
+                else {
+                    throw new RuntimeException("Found reference to class of the data model in " + clazz.getSimpleName() + " neither annotated as cross-reference nor nor child!");
                 }
             }
             //field is of primitive data type
@@ -86,17 +89,21 @@ class DataModelInfo {
 
     //---------Getting fields for specific OBJECTS----------//
 
-    ArrayList<TransactionalEntity<?>> getChildren(DataModelEntity dme) {
-        ArrayList<TransactionalEntity<?>> children = new ArrayList<>();
+    ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
+        ArrayList<ChildEntity<?>> children = new ArrayList<>();
         for (Field field : childFields) {
             field.setAccessible(true);
             try {
                 //field is a collection
                 if (Collection.class.isAssignableFrom(field.getType())) {
-                    children.addAll(new ArrayList<TransactionalEntity<?>>((Collection)field.get(dme)));
+                    children.addAll(new ArrayList<>((Collection<ChildEntity<?>>)field.get(dme)));  //TODO what to do here to stop xlint from complaining "unsafe"
+                }
+                //field is a map
+                else if (Map.class.isAssignableFrom(field.getType())) {
+                    children.addAll(new ArrayList<>(((Map<?,ChildEntity<?>>)field.get(dme)).values()));  //TODO what to do here to stop xlint from complaining "unsafe"
                 }
                 else {
-                    children.add((TransactionalEntity<?>) field.get(dme));
+                    children.add((ChildEntity<?>) field.get(dme));
                 }
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
@@ -105,16 +112,15 @@ class DataModelInfo {
         return children;
     }
 
-    DataModelEntity construct(DataModelEntity owner) {
+    DataModelEntity construct(DataModelEntity owner, Class<?> key) {
+        constructor.setAccessible(true);
         try {
             //RootEntity
-            if (owner == null) {
-                constructor.setAccessible(true);
+            if (owner == null)
                 return (DataModelEntity) constructor.newInstance();
-            }
-            //TransactionalEntity
             else {
-                constructor.setAccessible(true);
+                if (key != null)
+                    return (DataModelEntity) constructor.newInstance(owner, key);
                 return (DataModelEntity) constructor.newInstance(owner);
             }
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
@@ -123,7 +129,7 @@ class DataModelInfo {
         throw new RuntimeException("Error invoking class constructor!");
     }
 
-    void destruct(TransactionalEntity<?> te) {
+    void destruct(ChildEntity<?> te) {
         try {
             destructor.setAccessible(true);
             destructor.invoke(te);
@@ -132,6 +138,25 @@ class DataModelInfo {
             e.printStackTrace();
         }
         throw new RuntimeException("Error invoking class destructor!");
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder strb = new StringBuilder();
+        strb.append(">Info of ").append(clazz.getSimpleName()).append(":");
+        if (contentFields.length > 0) {
+            strb.append("\ncontentFields: ");
+            for (Field field : contentFields) {
+                strb.append(field.getName()).append(" ");
+            }
+        }
+        if (childFields.length > 0) {
+            strb.append("\nchildFields: ");
+            for (Field field : childFields) {
+                strb.append(field.getName()).append(" ");
+            }
+        }
+        return strb.append("\n").toString();
     }
 
 }

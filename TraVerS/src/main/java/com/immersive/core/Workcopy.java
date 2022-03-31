@@ -1,9 +1,5 @@
 package com.immersive.core;
 
-import com.immersive.annotations.DataModelEntity;
-import com.immersive.annotations.RootEntity;
-import com.immersive.annotations.TransactionalEntity;
-
 import java.util.HashSet;
 import java.util.Set;
 
@@ -14,7 +10,7 @@ public class Workcopy {
     LogicalObjectTree LOT;
     CommitId currentCommitId;
 
-    Set<TransactionalEntity<?>> locallyDeleted = new HashSet<>();
+    Set<ChildEntity<?>> locallyDeleted = new HashSet<>();
     Set<DataModelEntity> locallyChangedOrCreated = new HashSet<>();
 
     Workcopy(RootEntity rootEntity, LogicalObjectTree LOT, CommitId currentCommitId) {

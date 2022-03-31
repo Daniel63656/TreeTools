@@ -1,12 +1,9 @@
 package com.immersive.test_model;
 
 import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.OwnerField;
-import com.immersive.annotations.TransactionalEntity;
+import com.immersive.core.ChildEntity;
 
-public abstract class NoteGroupOrTuplet implements TransactionalEntity<NoteTimeTick> {
-    @OwnerField
-    NoteTimeTick noteTimeTick;
+public abstract class NoteGroupOrTuplet extends ChildEntity<NoteTimeTick> {
     @CrossReference
     Staff staff;
     @CrossReference
@@ -15,17 +12,12 @@ public abstract class NoteGroupOrTuplet implements TransactionalEntity<NoteTimeT
 
     //this constructor the transactional logic is looking for
     protected NoteGroupOrTuplet(NoteTimeTick noteTimeTick) {
-        this.noteTimeTick = noteTimeTick;
+        super(noteTimeTick);
         noteTimeTick.noteGroupOrTuplets.add(this);
     }
 
-    @Override
-    public NoteTimeTick getOwner() {
-        return noteTimeTick;
-    }
-
     public NoteGroupOrTuplet(NoteTimeTick noteTimeTick, Staff staff, Voice voice, int duration) {
-        this.noteTimeTick = noteTimeTick;
+        super(noteTimeTick);
         this.staff = staff;
         this.voice = voice;
         this.duration = duration;

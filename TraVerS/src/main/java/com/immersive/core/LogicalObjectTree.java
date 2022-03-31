@@ -1,8 +1,6 @@
 package com.immersive.core;
 
 import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.DataModelEntity;
-import com.immersive.annotations.TransactionalEntity;
 
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
@@ -16,6 +14,7 @@ class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataModelEntit
             return getKey(dme);
         }
         LogicalObjectKey logicalObjectKey = new LogicalObjectKey(dme.getClass());
+        //this avoids infinite recursion when two cross-references point on each other!
         put(logicalObjectKey, dme);
         //start iterating over fields using reflections
         for (Field field : TransactionManager.getContentFields(dme)) {
@@ -41,7 +40,7 @@ class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataModelEntit
         return logicalObjectKey;
     }
 
-    LogicalObjectKey getLogicalObjectKeyOfOwner(TransactionalEntity<?> te) {
+    LogicalObjectKey getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
         if (!this.containsValue(te.getOwner())) {
             throw new RuntimeException("Owner not found in LOT!");
         }

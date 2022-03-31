@@ -31,15 +31,15 @@ public class TransactionTests {
         staff = new Staff(track, true);
         voice = new Voice(track, 0);
 
-        NoteTimeTick ntt = new NoteTimeTick(track, 0);
+        NoteTimeTick ntt = new NoteTimeTick(track, 0L);
         NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         note = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 8);
+        ntt = new NoteTimeTick(track, 8L);
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         tieStart = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 16);
+        ntt = new NoteTimeTick(track, 16L);
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         tieEnd = new Note(noteGroup, 69, false, NoteName.A);
         tieStart.tieWith(tieEnd);
@@ -54,7 +54,7 @@ public class TransactionTests {
         Track track = new Track(fullScore);
         Staff staff = new Staff(track, true);
         Voice voice = new Voice(track, 0);
-        NoteTimeTick ntt = new NoteTimeTick(track, 0);
+        NoteTimeTick ntt = new NoteTimeTick(track, 0L);
         NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         Note note = new Note(noteGroup, 69, false, NoteName.A);
 
@@ -69,6 +69,16 @@ public class TransactionTests {
         Assertions.assertTrue(LOT.containsValue(noteGroup));
         Assertions.assertTrue(LOT.containsValue(note));
         Assertions.assertEquals(LOT.size(), 7);
+    }
+
+    @Test
+    public void foo() {
+        Workcopy workcopy = createTransactionWorkcopy();
+/*        for (DataModelInfo info : TransactionManager.dataModelInfo.values()) {
+            System.out.println(info);
+        }*/
+        FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
+        Track track = read.getTrack(0);
     }
 
     @Test

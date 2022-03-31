@@ -3,6 +3,7 @@ package com.immersive.aspects;
 import com.immersive.core.TransactionManager;
 import com.immersive.core.Workcopy;
 import com.immersive.annotations.*;
+import com.immersive.abstractions.*;
 import com.immersive.test_model.*;
 
 privileged aspect EntityStateListener {
@@ -10,14 +11,13 @@ private static TransactionManager tm = TransactionManager.getInstance();
 
     pointcut contentFieldSetter(DataModelEntity dme) : set(!static !final * DataModelEntity+.*)
         && target(dme)
-        && !@annotation(ChildField)
-        && !@annotation(OwnerField);
+        && !@annotation(ChildField);
 
-    pointcut creation(TransactionalEntity te, DataModelEntity owner) : execution(TransactionalEntity+.new(..))
+    pointcut creation(ChildEntity te, DataModelEntity owner) : execution(ChildEntity+.new(..))
         && target(te)
         && args(owner,..);
 
-    pointcut deletion(TransactionalEntity te) : execution(* TransactionalEntity+.clear())
+    pointcut deletion(ChildEntity te) : execution(* ChildEntity+.clear())
         && target(te);
 
     //this will not be called when pulling changes cause reflections do not trigger set!
@@ -32,7 +32,7 @@ private static TransactionManager tm = TransactionManager.getInstance();
     }
 
     //creations triggered by pull must be stopped here!
-    Object around(TransactionalEntity te, DataModelEntity owner) : creation(te, owner) {
+    Object around(ChildEntity te, DataModelEntity owner) : creation(te, owner) {
         Workcopy workcopy = getWorkcopy(owner);
         if (workcopy != null) {
             if (!workcopy.ongoingPull) {
@@ -53,7 +53,7 @@ private static TransactionManager tm = TransactionManager.getInstance();
     }
 
     //not triggered by pulling because pulling uses its separate destructor methods
-    before(TransactionalEntity te) : deletion(te) {
+    before(ChildEntity te) : deletion(te) {
         Workcopy workcopy = getWorkcopy(te);
         if (workcopy != null) {
             workcopy.locallyDeleted.add(te);
@@ -63,7 +63,7 @@ private static TransactionManager tm = TransactionManager.getInstance();
 
     private Workcopy getWorkcopy(DataModelEntity dme) {
         while(!(dme instanceof RootEntity)) {
-          dme = ((TransactionalEntity<?>)dme).getOwner();
+          dme = ((ChildEntity<?>)dme).getOwner();
         }
         return tm.workcopies.get(dme);
       }

@@ -15,7 +15,7 @@ public class Tuplet extends NoteGroupOrTuplet {
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     private void destruct() {
-        noteTimeTick.noteGroupOrTuplets.remove(this);
+        getOwner().noteGroupOrTuplets.remove(this);
     }
 
     public Tuplet(NoteTimeTick noteTimeTick, Staff staff, Voice voice, int duration) {

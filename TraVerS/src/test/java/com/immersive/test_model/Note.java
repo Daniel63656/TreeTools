@@ -1,12 +1,9 @@
 package com.immersive.test_model;
 
 import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.OwnerField;
-import com.immersive.annotations.TransactionalEntity;
+import com.immersive.core.ChildEntity;
 
-public class Note implements TransactionalEntity<NoteGroup> {
-    @OwnerField
-    NoteGroup noteGroup;
+public class Note extends ChildEntity<NoteGroup> {
     int pitch;
     boolean accidental;
     NoteName noteName;
@@ -17,16 +14,16 @@ public class Note implements TransactionalEntity<NoteGroup> {
 
     //this constructor the transactional logic is looking for
     private Note(NoteGroup noteGroup) {
-        this.noteGroup = noteGroup;
+        super(noteGroup);
         noteGroup.notes.add(this);
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     private void destruct() {
-        noteGroup.notes.remove(this);
+        getOwner().notes.remove(this);
     }
 
     public Note(NoteGroup noteGroup, int pitch, boolean accidental, NoteName noteName) {
-        this.noteGroup = noteGroup;
+        super(noteGroup);
         this.pitch = pitch;
         this.noteName = noteName;
         this.accidental = accidental;
@@ -34,7 +31,7 @@ public class Note implements TransactionalEntity<NoteGroup> {
     }
 
     public void clear() {
-        noteGroup.notes.remove(this);
+        getOwner().notes.remove(this);
     }
 
     public void setPitch(int pitch) {
@@ -56,10 +53,5 @@ public class Note implements TransactionalEntity<NoteGroup> {
     public void tieWith(Note note) {
         this.nextTied = note;
         note.previousTied = this;
-    }
-
-    @Override
-    public NoteGroup getOwner() {
-        return noteGroup;
     }
 }

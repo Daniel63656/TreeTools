@@ -1,14 +1,12 @@
 package com.immersive.core;
 
-import com.immersive.annotations.DataModelEntity;
-
 import java.lang.reflect.Field;
 import java.util.HashMap;
 
 /**
  * Logical unit containing the information of an object as field-object pair. Entity owner and children are
  * omitted, since they can be received via the links provided in LogicalObjectTrees. This way big cascading effects
- * are avoided.
+ * are avoided. Also omitted are keys, needed for construction (because owner maps object). These are assumed to be FINAL.
  * These Keys are used in the LogicalObjectTrees, as well as in modificationRecords respectively.
  */
 class LogicalObjectKey extends HashMap<Field, Object> {
