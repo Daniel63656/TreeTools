@@ -15,9 +15,12 @@ public abstract class ChildEntity<O extends DataModelEntity> extends DataModelEn
     Class<?>[] getClassesOfConstructorParams() {
         return new Class<?>[]{owner.getClass()};
     }
-
     @Override
-    Object[] getConstructorParams(LogicalObjectTree LOT) {
+    Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT) {
         return new Object[]{LOT.getLogicalObjectKeyOfOwner(this)};
+    }
+    @Override
+    DataModelEntity[] getConstructorParamsAsObjects() {
+        return new DataModelEntity[]{owner};
     }
 }

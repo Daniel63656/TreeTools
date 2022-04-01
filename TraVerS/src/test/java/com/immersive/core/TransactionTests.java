@@ -72,16 +72,6 @@ public class TransactionTests {
     }
 
     @Test
-    public void foo() {
-        Workcopy workcopy = createTransactionWorkcopy();
-/*        for (DataModelInfo info : TransactionManager.dataModelInfo.values()) {
-            System.out.println(info);
-        }*/
-        FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
-        Track track = read.getTrack(0);
-    }
-
-    @Test
     public void testPullingAChange(){
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
@@ -90,7 +80,7 @@ public class TransactionTests {
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(note));
         tm.commit(workcopy.rootEntity);
         //get note of read workcopy
-        Note note = ((NoteGroup) read.getTrack(0).getNTT(0).getNGOT(0)).getNote(0);
+        Note note = ((NoteGroup) read.getTrack(0).getNTT(0).getNGOT(read.getTrack(0).getVoice(0))).getNote(0);
         //check note is untouched before pull
         Assertions.assertSame(note.getPitch(), 69);
         Assertions.assertSame(note.getAccidental(), false);
@@ -122,8 +112,7 @@ public class TransactionTests {
     public void testPullingDeletions() {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
-
-        NoteGroup noteGroup = ((NoteGroup) ((FullScore)workcopy.rootEntity).getTrack(0).getNTT(0).getNGOT(0));
+        NoteGroup noteGroup = ((NoteGroup) ((FullScore)workcopy.rootEntity).getTrack(0).getNTT(0).getNGOT(voice));
         Note note = noteGroup.getNote(0);
         noteGroup.clear();
         Assertions.assertTrue(workcopy.locallyDeleted.contains(noteGroup));
@@ -138,7 +127,7 @@ public class TransactionTests {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
         NoteTimeTick ntt = track.getNTT(0);
-        NoteGroup noteGroup = ((NoteGroup)track.getNTT(0).getNGOT(0));
+        NoteGroup noteGroup = ((NoteGroup)track.getNTT(0).getNGOT(voice));
         Note note = noteGroup.getNote(0);
         //change a note
         note.setPitch(30);
@@ -173,7 +162,7 @@ public class TransactionTests {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
         NoteTimeTick ntt = track.getNTT(0);
-        NoteGroup noteGroup = ((NoteGroup)track.getNTT(0).getNGOT(0));
+        NoteGroup noteGroup = ((NoteGroup)track.getNTT(0).getNGOT(voice));
         Note note = noteGroup.getNote(0);
         //change a note
         note.setPitch(30);

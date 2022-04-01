@@ -53,7 +53,7 @@ public class LogicalKeyTests {
     @Test
     public void testLogicalKeyContainingInheritedFields() throws NoSuchFieldException {
         FullScore fullScore = createSomeClasses();
-        NoteGroup noteGroup = ((NoteGroup) fullScore.getTrack(0).getNTT(0).getNGOT(0));
+        NoteGroup noteGroup = ((NoteGroup) fullScore.getTrack(0).getNTT(0).getNGOT(voice));
 
         LogicalObjectKey lok = LOT.createLogicalObjectKey(noteGroup);
         Assertions.assertTrue(lok.containsKey(NoteGroupOrTuplet.class.getDeclaredField("duration")));

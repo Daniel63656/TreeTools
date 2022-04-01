@@ -16,16 +16,16 @@ public class NoteGroup extends NoteGroupOrTuplet {
     }
 
     //this constructor the transactional logic is looking for
-    private NoteGroup(NoteTimeTick noteTimeTick) {
-        super(noteTimeTick);
+    private NoteGroup(NoteTimeTick noteTimeTick, Voice voice) {
+        super(noteTimeTick, voice);
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     private void destruct() {
-        getOwner().noteGroupOrTuplets.remove(this);
+        getOwner().noteGroupOrTuplets.remove(getKey());
     }
 
     public void clear() {
-        getOwner().noteGroupOrTuplets.remove(this);
+        getOwner().noteGroupOrTuplets.remove(getKey());
         new ArrayList<>(notes).forEach(Note::clear);
     }
 

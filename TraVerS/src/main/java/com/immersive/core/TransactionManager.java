@@ -73,7 +73,7 @@ public class TransactionManager {
 
   private void buildInitializationCommit(LogicalObjectTree LOT, Commit commit, DataModelEntity dme) {
     if (!(dme instanceof RootEntity))
-      commit.creationRecords.put(LOT.getKey(dme), dme.getConstructorParams(LOT));
+      commit.creationRecords.put(LOT.getKey(dme), dme.getConstructorParamsAsKeys(LOT));
     ArrayList<ChildEntity<?>> children = getChildren(dme);
     if (children != null) {
       for (ChildEntity<?> child : children) {
@@ -115,7 +115,7 @@ public class TransactionManager {
     Iterator<ChildEntity<?>> iterator = workcopy.locallyDeleted.iterator();
     while (iterator.hasNext()) {
       ChildEntity<?> te = iterator.next();
-      commit.deletionRecords.put(LOT.getKey(te), te.getConstructorParams(LOT));
+      commit.deletionRecords.put(LOT.getKey(te), te.getConstructorParamsAsKeys(LOT));
       //don't remove from LOT yet, because this destroys owner information for possible deletion entries below!
       //save this action in a list to do it at the end of the deletion part of the commit instead
       removeFromLOT.add(te);
@@ -140,18 +140,16 @@ public class TransactionManager {
     }
     //object not contained in LOT, so it must have been CREATED
     else {
-      //TODO make key(s) also first (like owner)
-      if (dme instanceof RootEntity) {
+      if (dme instanceof RootEntity)
         throw new RuntimeException("Root Entity can only be CHANGED by commits!");
-      } else {
-        ChildEntity<?> te = (ChildEntity<?>) dme;
-        if (chores.contains(te.getOwner())) {
-          commitCreationOrChange(chores, commit, LOT, te.getOwner());
+      for (DataModelEntity obj : dme.getConstructorParamsAsObjects()) {
+        if (chores.contains(obj)) {
+          commitCreationOrChange(chores, commit, LOT, obj);
         }
-        //now its save to get the LOK from owner via LOT!
-        LogicalObjectKey newKey = LOT.createLogicalObjectKey(dme);  //because this is creation and dme is not currently present in LOT, this generates a NEW key and puts it in LOT!
-        commit.creationRecords.put(newKey, te.getConstructorParams(LOT));
       }
+      //now its save to get the LOK from owner via LOT!
+      LogicalObjectKey newKey = LOT.createLogicalObjectKey(dme);  //because this is creation and dme is not currently present in LOT, this generates a NEW key and puts it in LOT!
+      commit.creationRecords.put(newKey,  dme.getConstructorParamsAsKeys(LOT));
     }
     chores.remove(dme);
   }

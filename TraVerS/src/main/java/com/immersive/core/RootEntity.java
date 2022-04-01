@@ -5,9 +5,10 @@ public abstract class RootEntity extends DataModelEntity {
     Class<?>[] getClassesOfConstructorParams() {
         return new Class<?>[0];
     }
-
     @Override
-    Object[] getConstructorParams(LogicalObjectTree LOT) {
-        return null;
+    Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT) {
+        return new Object[0];
     }
+    @Override
+    DataModelEntity[] getConstructorParamsAsObjects() { return new DataModelEntity[0];}
 }

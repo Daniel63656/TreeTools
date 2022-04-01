@@ -4,11 +4,13 @@ import com.immersive.annotations.ChildField;
 import com.immersive.core.KeyedChildEntity;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class NoteTimeTick extends KeyedChildEntity<Track, Long> {
     @ChildField
-    List<NoteGroupOrTuplet> noteGroupOrTuplets = new ArrayList<>();
+    Map<Voice, NoteGroupOrTuplet> noteGroupOrTuplets = new HashMap<>();
 
     //this method the transactional logic is looking for in order to atomically delete objects
     private void destruct() {
@@ -20,7 +22,7 @@ public class NoteTimeTick extends KeyedChildEntity<Track, Long> {
         track.noteTimeTicks.put(tick, this);
     }
 
-    public NoteGroupOrTuplet getNGOT(int idx) {
-        return noteGroupOrTuplets.get(idx);
+    public NoteGroupOrTuplet getNGOT(Voice voice) {
+        return noteGroupOrTuplets.get(voice);
     }
 }
