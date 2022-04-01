@@ -13,11 +13,15 @@ public abstract class KeyedChildEntity<O extends DataModelEntity, K> extends Chi
     }
 
     @Override
-    LogicalObjectKey[] getConstructorParams(LogicalObjectTree LOT) {
-        LogicalObjectKey[] params = new LogicalObjectKey[2];
-        params[0] = LOT.getLogicalObjectKeyOfOwner(this);
-        params[1] = LOT.getKey(key);
-        params[1] =
-        return params;
+    Class<?>[] getClassesOfConstructorParams() {
+        return new Class<?>[]{owner.getClass(), key.getClass()};
+    }
+
+    @Override
+    Object[] getConstructorParams(LogicalObjectTree LOT) {
+        if (key instanceof DataModelEntity)
+            return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), LOT.getKey(key)};
+        else    //the key instance can be directly used for construction in other workcopy, because primitive wrapper classes are IMMUTABLE in Java
+            return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), key};
     }
 }

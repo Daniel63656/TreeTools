@@ -12,9 +12,12 @@ public abstract class ChildEntity<O extends DataModelEntity> extends DataModelEn
     }
 
     @Override
-    LogicalObjectKey[] getConstructorParams(LogicalObjectTree LOT) {
-        LogicalObjectKey[] params = new LogicalObjectKey[1];
-        params[0] = LOT.getLogicalObjectKeyOfOwner(this);
-        return params;
+    Class<?>[] getClassesOfConstructorParams() {
+        return new Class<?>[]{owner.getClass()};
+    }
+
+    @Override
+    Object[] getConstructorParams(LogicalObjectTree LOT) {
+        return new Object[]{LOT.getLogicalObjectKeyOfOwner(this)};
     }
 }

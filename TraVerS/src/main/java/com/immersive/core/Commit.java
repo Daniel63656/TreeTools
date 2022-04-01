@@ -5,8 +5,9 @@ import java.util.Map;
 
 class Commit {
   CommitId commitId;
-  Map<LogicalObjectKey, ConstructionParams> deletionRecords = new HashMap<>();
-  Map<LogicalObjectKey, ConstructionParams> creationRecords = new HashMap<>();
+  //<ObjectToCreate, ConstructionParams>
+  Map<LogicalObjectKey, Object[]> deletionRecords = new HashMap<>();
+  Map<LogicalObjectKey, Object[]> creationRecords = new HashMap<>();
   //<before, after>
   Map<LogicalObjectKey, LogicalObjectKey> changeRecords = new HashMap<>();
 
@@ -18,10 +19,10 @@ class Commit {
   public String toString() {
     StringBuilder strb = new StringBuilder();
     strb.append("----------Commit number ").append(commitId.id).append(":----------\n");
-    for (Map.Entry<LogicalObjectKey, ConstructionParams> entry : deletionRecords.entrySet()) {
+    for (Map.Entry<LogicalObjectKey, Object[]> entry : deletionRecords.entrySet()) {
       strb.append(">Deleted object\n").append(entry.getKey()).append("\n\n");
     }
-    for (Map.Entry<LogicalObjectKey, ConstructionParams> entry : creationRecords.entrySet()) {
+    for (Map.Entry<LogicalObjectKey, Object[]> entry : creationRecords.entrySet()) {
       strb.append(">Created object\n").append(entry.getKey()).append("\n\n");
     }
     for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : changeRecords.entrySet()) {

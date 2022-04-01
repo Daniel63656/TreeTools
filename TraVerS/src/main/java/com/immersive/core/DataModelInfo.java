@@ -21,22 +21,16 @@ class DataModelInfo {
     Class<? extends DataModelEntity> clazz;
     Field[] contentFields;          //all fields of class and superclass(es) excluding owner and children
     Field[] childFields;
-    Constructor<?> constructor;     //different for RootEntity
+    Constructor<?> constructor;
     Method destructor;              //no destructor for RootEntity
 
-    DataModelInfo(Class<? extends DataModelEntity> clazz, Class<? extends DataModelEntity> ownerClass, Class<?> keyClass) {
+    DataModelInfo(Class<? extends DataModelEntity> clazz, Class<?>...classes) {
         this.clazz = clazz;
         traceClassFields();
         try {
-            if (ownerClass != null) {
-                if (keyClass == null)                                       //ChildEntity
-                    constructor = clazz.getDeclaredConstructor(ownerClass);
-                else                                                        //KeyedChildEntity
-                    constructor = clazz.getDeclaredConstructor(ownerClass, keyClass);
+            constructor = clazz.getDeclaredConstructor(classes);
+            if (!RootEntity.class.isAssignableFrom(clazz))
                 destructor = clazz.getDeclaredMethod("destruct");
-            } else {                                                        //RootEntity
-                constructor = clazz.getDeclaredConstructor();
-            }
         } catch (NoSuchMethodException e) {
             throw new RuntimeException("Unable to find constructor/destructor for class" + clazz.getName());
         }
@@ -112,17 +106,10 @@ class DataModelInfo {
         return children;
     }
 
-    DataModelEntity construct(DataModelEntity owner, Class<?> key) {
+    DataModelEntity construct(Object...objects) {
         constructor.setAccessible(true);
         try {
-            //RootEntity
-            if (owner == null)
-                return (DataModelEntity) constructor.newInstance();
-            else {
-                if (key != null)
-                    return (DataModelEntity) constructor.newInstance(owner, key);
-                return (DataModelEntity) constructor.newInstance(owner);
-            }
+            return (DataModelEntity) constructor.newInstance(objects);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
