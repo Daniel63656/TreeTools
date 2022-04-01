@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class Workcopy {
-    boolean ongoingCreation;    //used by aspect to suppress logging changes during construction
+    boolean ongoingCreation;    //used by aspect to suppress super-constructors triggering aspect again
     boolean ongoingPull;        //used by aspect to suppress logging creations during pull
     RootEntity rootEntity;
     LogicalObjectTree LOT;

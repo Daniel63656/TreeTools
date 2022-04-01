@@ -12,9 +12,13 @@ private static TransactionManager tm = TransactionManager.getInstance();
         && target(dme)
         && !@annotation(ChildField);
 
+
     pointcut creation(ChildEntity te, DataModelEntity owner) : execution(ChildEntity+.new(..))
-        && target(te)
-        && args(owner,..);
+    && !execution(ChildEntity.new(..))
+    && !execution(KeyedChildEntity.new(..))
+                && target(te)
+                && args(owner,..);
+
 
     pointcut deletion(ChildEntity te) : execution(* ChildEntity+.clear())
         && target(te);
@@ -61,9 +65,6 @@ private static TransactionManager tm = TransactionManager.getInstance();
     }
 
     private Workcopy getWorkcopy(DataModelEntity dme) {
-        while(!(dme instanceof RootEntity)) {
-          dme = ((ChildEntity<?>)dme).getOwner();
-        }
-        return tm.workcopies.get(dme);
+        return tm.workcopies.get(dme.getRootEntity());
       }
 }
