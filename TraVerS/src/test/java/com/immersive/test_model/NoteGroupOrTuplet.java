@@ -1,7 +1,7 @@
 package com.immersive.test_model;
 
 import com.immersive.annotations.CrossReference;
-import com.immersive.core.KeyedChildEntity;
+import com.immersive.abstractions.KeyedChildEntity;
 
 public abstract class NoteGroupOrTuplet extends KeyedChildEntity<NoteTimeTick, Voice> {
     @CrossReference

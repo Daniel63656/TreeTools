@@ -1,5 +1,8 @@
 package com.immersive.core;
 
+import com.immersive.abstractions.ChildEntity;
+import com.immersive.abstractions.DataModelEntity;
+import com.immersive.abstractions.RootEntity;
 import com.immersive.annotations.ChildField;
 import com.immersive.annotations.CrossReference;
 

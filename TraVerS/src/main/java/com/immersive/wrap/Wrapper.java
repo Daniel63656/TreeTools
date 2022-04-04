@@ -1,6 +1,6 @@
 package com.immersive.wrap;
 
-import com.immersive.core.DataModelEntity;
+import com.immersive.abstractions.DataModelEntity;
 
 public class Wrapper<WO extends DataModelEntity> {
   public WO wrapped;

@@ -1,6 +1,6 @@
 package com.immersive.test_model;
 
-import com.immersive.core.ChildEntity;
+import com.immersive.abstractions.ChildEntity;
 
 public class Voice extends ChildEntity<Track> {
     int voiceId;

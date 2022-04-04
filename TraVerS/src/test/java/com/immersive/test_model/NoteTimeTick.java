@@ -1,11 +1,9 @@
 package com.immersive.test_model;
 
 import com.immersive.annotations.ChildField;
-import com.immersive.core.KeyedChildEntity;
+import com.immersive.abstractions.KeyedChildEntity;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class NoteTimeTick extends KeyedChildEntity<Track, Long> {

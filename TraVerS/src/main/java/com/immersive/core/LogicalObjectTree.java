@@ -1,12 +1,14 @@
 package com.immersive.core;
 
+import com.immersive.abstractions.ChildEntity;
+import com.immersive.abstractions.DataModelEntity;
 import com.immersive.annotations.CrossReference;
 
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 import java.lang.reflect.Field;
 
-class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataModelEntity> {
+public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataModelEntity> {
 
     LogicalObjectKey createLogicalObjectKey(DataModelEntity dme) {
         //avoid creating duplicate LOKs for same object inside a LOT!
@@ -40,7 +42,7 @@ class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataModelEntit
         return logicalObjectKey;
     }
 
-    LogicalObjectKey getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
+    public LogicalObjectKey getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
         if (!this.containsValue(te.getOwner())) {
             throw new RuntimeException("Owner not found in LOT!");
         }

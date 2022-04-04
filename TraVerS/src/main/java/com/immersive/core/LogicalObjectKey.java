@@ -1,5 +1,7 @@
 package com.immersive.core;
 
+import com.immersive.abstractions.DataModelEntity;
+
 import java.lang.reflect.Field;
 import java.util.HashMap;
 

@@ -1,8 +1,18 @@
-package com.immersive.core;
+package com.immersive.abstractions;
 
+import com.immersive.core.LogicalObjectTree;
 import com.immersive.wrap.Wrapper;
+import com.immersive.wrap.WrapperScope;
 
-public abstract class ChildEntity<O extends DataModelEntity> extends DataModelEntity {
+import java.util.HashMap;
+import java.util.Map;
+
+public abstract class ChildEntity<O extends DataModelEntity> implements DataModelEntity {
+    final Map<WrapperScope, Wrapper<?>> registeredWrappers = new HashMap<>();
+    @Override
+    public Map<WrapperScope, Wrapper<?>> getRegisteredWrappers() {
+        return registeredWrappers;
+    }
     private boolean clearingInProgress;
     final RootEntity root;
     final O owner;
@@ -24,25 +34,25 @@ public abstract class ChildEntity<O extends DataModelEntity> extends DataModelEn
         if (clearingInProgress)
             return;
         clearingInProgress = true;
-        for (Wrapper<?> wrapper : registeredWrappers.values()) {
+        for (Wrapper<?> wrapper : getRegisteredWrappers().values()) {
             wrapper.onWrappedCleared();
         }
     }
 
     @Override
-    Class<?>[] getClassesOfConstructorParams() {
+    public Class<?>[] getClassesOfConstructorParams() {
         return new Class<?>[]{owner.getClass()};
     }
     @Override
-    Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT) {
+    public Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT) {
         return new Object[]{LOT.getLogicalObjectKeyOfOwner(this)};
     }
     @Override
-    DataModelEntity[] getConstructorParamsAsObjects() {
+    public DataModelEntity[] getConstructorParamsAsObjects() {
         return new DataModelEntity[]{owner};
     }
     @Override
-    RootEntity getRootEntity() {
+    public RootEntity getRootEntity() {
         return root;
     }
 
