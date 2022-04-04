@@ -1,6 +1,9 @@
 package com.immersive.core;
 
+import com.immersive.wrap.Wrapper;
+
 public abstract class ChildEntity<O extends DataModelEntity> extends DataModelEntity {
+    private boolean clearingInProgress;
     final RootEntity root;
     final O owner;
 
@@ -15,6 +18,15 @@ public abstract class ChildEntity<O extends DataModelEntity> extends DataModelEn
 
     public O getOwner() {
         return owner;
+    }
+
+    public void clear() {
+        if (clearingInProgress)
+            return;
+        clearingInProgress = true;
+        for (Wrapper<?> wrapper : registeredWrappers.values()) {
+            wrapper.onWrappedCleared();
+        }
     }
 
     @Override
@@ -33,4 +45,5 @@ public abstract class ChildEntity<O extends DataModelEntity> extends DataModelEn
     RootEntity getRootEntity() {
         return root;
     }
+
 }

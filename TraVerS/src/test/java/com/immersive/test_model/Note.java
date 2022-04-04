@@ -30,10 +30,6 @@ public class Note extends ChildEntity<NoteGroup> {
         noteGroup.notes.add(this);
     }
 
-    public void clear() {
-        getOwner().notes.remove(this);
-    }
-
     public void setPitch(int pitch) {
         this.pitch = pitch;
     }
@@ -53,5 +49,11 @@ public class Note extends ChildEntity<NoteGroup> {
     public void tieWith(Note note) {
         this.nextTied = note;
         note.previousTied = this;
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        getOwner().notes.remove(this);
     }
 }

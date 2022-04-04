@@ -25,4 +25,9 @@ public class Tuplet extends NoteGroupOrTuplet {
     public NoteGroup getNoteGroup(int idx) {
         return noteGroups.get(idx);
     }
+
+    @Override
+    public void clear() {
+
+    }
 }

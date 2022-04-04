@@ -10,6 +10,7 @@ public class Staff extends ChildEntity<Track> {
         super(track);
         track.staffs.add(this);
     }
+
     //this method the transactional logic is looking for in order to atomically delete objects
     private void destruct() {
         getOwner().staffs.remove(this);
@@ -27,5 +28,10 @@ public class Staff extends ChildEntity<Track> {
 
     public void setTreble(boolean treble) {
         this.treble = treble;
+    }
+
+    @Override
+    public void clear() {
+
     }
 }

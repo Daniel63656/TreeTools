@@ -24,6 +24,7 @@ public class NoteGroup extends NoteGroupOrTuplet {
         getOwner().noteGroupOrTuplets.remove(getKey());
     }
 
+    @Override
     public void clear() {
         getOwner().noteGroupOrTuplets.remove(getKey());
         new ArrayList<>(notes).forEach(Note::clear);
