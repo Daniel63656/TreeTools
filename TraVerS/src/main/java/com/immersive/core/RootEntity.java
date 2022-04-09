@@ -1,6 +1,5 @@
-package com.immersive.abstractions;
+package com.immersive.core;
 
-import com.immersive.core.LogicalObjectTree;
 import com.immersive.wrap.Wrapper;
 import com.immersive.wrap.WrapperScope;
 
@@ -29,5 +28,12 @@ public abstract class RootEntity implements DataModelEntity {
     @Override
     public RootEntity getRootEntity() {
         return this;
+    }
+
+    public synchronized void commit() {
+        TransactionManager.getInstance().commit(this);
+    }
+    public synchronized boolean pull() {
+        return TransactionManager.getInstance().pull(this);
     }
 }

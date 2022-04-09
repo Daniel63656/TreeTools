@@ -1,7 +1,7 @@
 package com.immersive.test_model;
 
 import com.immersive.annotations.ChildField;
-import com.immersive.abstractions.KeyedChildEntity;
+import com.immersive.core.KeyedChildEntity;
 
 import java.util.HashMap;
 import java.util.Map;

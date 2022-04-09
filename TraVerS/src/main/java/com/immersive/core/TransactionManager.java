@@ -1,9 +1,7 @@
 package com.immersive.core;
 
-import com.immersive.abstractions.ChildEntity;
-import com.immersive.abstractions.DataModelEntity;
-import com.immersive.abstractions.RootEntity;
 import com.immersive.annotations.CrossReference;
+import com.immersive.wrap.Wrapper;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -16,16 +14,24 @@ import java.util.Set;
 import java.util.TreeMap;
 
 public class TransactionManager {
-    private static final TransactionManager transactionManager = new TransactionManager();
-    private TransactionManager() {}
-    public static TransactionManager getInstance() {
-      return transactionManager;
-    }
+  private static final TransactionManager transactionManager = new TransactionManager();
+  private TransactionManager() {}
+  public static TransactionManager getInstance() {
+    return transactionManager;
+  }
 
-    static Map<Class<? extends DataModelEntity>, DataModelInfo> dataModelInfo = new HashMap<>();
-    TreeMap<CommitId,Commit> commits = new TreeMap<>();
-    Map<RootEntity, Workcopy> workcopies = new HashMap<>();
+  static Map<Class<? extends DataModelEntity>, DataModelInfo> dataModelInfo = new HashMap<>();
+  TreeMap<CommitId,Commit> commits = new TreeMap<>();
+  Map<RootEntity, Workcopy> workcopies = new HashMap<>();
+  private boolean logAspects;   //used to log aspects kicking in
 
+  public void logAspects(boolean log) {
+    logAspects = log;
+  }
+
+  public boolean transactionsEnabled(RootEntity rootEntity) {
+    return workcopies.containsKey(rootEntity);
+  }
 
   public void enableTransactionsForRootEntity(RootEntity rootEntity) {
     //transactions already enabled
@@ -44,7 +50,7 @@ public class TransactionManager {
 
   public RootEntity getWorkcopyOf(RootEntity rootEntity) {
     if (!workcopies.containsKey(rootEntity))
-      throw new RuntimeException("No Transactions enabled for specified RootEntity to create a workcopy of. Use enableTransactionsForRootEntity() first to enable Transactions for your RootEntity.");
+      throw new RuntimeException("No Transactions enabled for specified RootEntity. Use enableTransactionsForRootEntity() first to enable Transactions for your RootEntity.");
     Commit initializationCommit = new Commit(null);  //since this is only a temporary commit the commitId doesn't really matter!
     //this is necessary to get a DataModel SPECIFIC class!
     RootEntity newRootEntity = (RootEntity) construct(rootEntity.getClass());
@@ -57,6 +63,12 @@ public class TransactionManager {
     new Pull(workcopy, initializationCommit);
     workcopies.put(newRootEntity, workcopy);
     return newRootEntity;
+  }
+
+  public CommitId getCurrentCommitId(RootEntity rootEntity) {
+    if (!workcopies.containsKey(rootEntity))
+      throw new RuntimeException("No Transactions enabled for specified RootEntity. Use enableTransactionsForRootEntity() first to enable Transactions for your RootEntity.");
+    return workcopies.get(rootEntity).currentCommitId;
   }
 
   public void shutdown() {
@@ -85,9 +97,27 @@ public class TransactionManager {
     }
   }
 
-  //---------------COMMIT---------------//
+  //----------get corresponding objects----------//
 
-  public void commit(RootEntity rootEntity) {
+  public DataModelEntity getCorrespondingObjectIn(DataModelEntity dme, RootEntity dstRootEntity) {
+    RootEntity srcRootEntity = dme.getRootEntity();
+    synchronized (srcRootEntity) {
+      CommitId srcCommitId = getCurrentCommitId(srcRootEntity);
+      CommitId dstCommitId = getCurrentCommitId(dstRootEntity);
+      LogicalObjectKey LOK = workcopies.get(srcRootEntity).LOT.getKey(dme);
+      for (Commit commit : commits.subMap(srcCommitId, false, dstCommitId, true).values()) {
+        if (commit.deletionRecords.containsKey(LOK))
+          return null;
+        if (commit.changeRecords.containsKey(LOK))
+          LOK = commit.changeRecords.get(LOK);
+      }
+      return workcopies.get(dstRootEntity).LOT.get(LOK);
+    }
+  }
+
+  //=========these methods are synchronized per RootEntity and therefore package-private============
+
+  void commit(RootEntity rootEntity) {
     Workcopy workcopy = workcopies.get(rootEntity);
     if (workcopy == null)
       throw new RuntimeException("No Transactions enabled for specified RootEntity. Use enableTransactionsForRootEntity() first to enable Transactions for your RootEntity.");
@@ -130,6 +160,7 @@ public class TransactionManager {
     }
     workcopy.locallyDeleted.clear();
     workcopy.locallyChangedOrCreated.clear();
+    workcopy.currentCommitId = commitId;
     commits.put(commitId, commit);
   }
 
@@ -157,15 +188,15 @@ public class TransactionManager {
     chores.remove(dme);
   }
 
-
   //---------------PULL---------------//
-  
-  public void pull(RootEntity rootEntity) {
-    new Pull(rootEntity);
+
+  boolean pull(RootEntity rootEntity) {
+    return new Pull(rootEntity).pulledSomething;
   }
 
   //for local context
   private class Pull {
+    boolean pulledSomething;
     Workcopy workcopy;
     LogicalObjectTree LOT;
     Map<LogicalObjectKey, Object[]> creationChores;
@@ -186,13 +217,14 @@ public class TransactionManager {
       if (workcopy == null)
         throw new RuntimeException("No Transactions enabled for specified RootEntity.");
       if (commits.isEmpty())
-        throw new RuntimeException("No commits found!");
+        return;
       if (commits.lastKey() == workcopy.currentCommitId)
         return;
       workcopy.ongoingPull = true;
       for (Commit commit : commits.tailMap(workcopy.currentCommitId, false).values()) {
         pullOneCommit(commit);
       }
+      pulledSomething = true;
       workcopy.ongoingPull = false;
       workcopy.currentCommitId = commits.lastKey();
     }
@@ -207,6 +239,9 @@ public class TransactionManager {
       //DELETION - Assumes Deletion Records are created for all subsequent children!!!
       for (Map.Entry<LogicalObjectKey, Object[]> entry : commit.deletionRecords.entrySet()) {
         ChildEntity<?> objectToDelete = (ChildEntity<?>) LOT.get(entry.getKey());
+        for (Wrapper<?> wrapper : objectToDelete.getRegisteredWrappers().values()) {
+          wrapper.onWrappedCleared();
+        }
         destruct(objectToDelete);
         LOT.removeValue(objectToDelete);
       }
@@ -235,7 +270,7 @@ public class TransactionManager {
         crtd.setCrossReference(LOT);
       }
     }
-    
+
     //-----recursive functions-----//
 
     private void pullCreationRecord(LogicalObjectKey objKey, Object[] constKeys) throws IllegalAccessException {
@@ -266,6 +301,8 @@ public class TransactionManager {
     private void pullChangeRecord(LogicalObjectKey before, LogicalObjectKey after) throws IllegalAccessException {
       DataModelEntity objectToChange = LOT.get(before);
       imprintLogicalContentOntoObject(after, objectToChange);
+      for (Wrapper<?> wrapper : objectToChange.getRegisteredWrappers().values())
+        wrapper.onDataChange();
       LOT.put(after, objectToChange);
       changeChores.remove(before);
     }
@@ -309,8 +346,7 @@ public class TransactionManager {
   }
 
 
-  //-----getting and caching class fields and methods-----//
-
+  //=====getting and caching class fields and methods===============================================
 
   static ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
     if (!dataModelInfo.containsKey(dme.getClass()))

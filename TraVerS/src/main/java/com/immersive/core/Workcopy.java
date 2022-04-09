@@ -1,9 +1,5 @@
 package com.immersive.core;
 
-import com.immersive.abstractions.ChildEntity;
-import com.immersive.abstractions.DataModelEntity;
-import com.immersive.abstractions.RootEntity;
-
 import java.util.HashSet;
 import java.util.Set;
 

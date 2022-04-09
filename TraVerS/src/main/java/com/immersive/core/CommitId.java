@@ -2,7 +2,7 @@ package com.immersive.core;
 
 import org.jetbrains.annotations.NotNull;
 
-class CommitId implements Comparable<CommitId> {
+public class CommitId implements Comparable<CommitId> {
   int id;
 
   CommitId(int id) {

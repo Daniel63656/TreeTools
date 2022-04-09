@@ -1,6 +1,4 @@
-package com.immersive.abstractions;
-
-import com.immersive.core.LogicalObjectTree;
+package com.immersive.core;
 
 public abstract class DoubleKeyedChildEntity<O extends DataModelEntity, K> extends KeyedChildEntity<O, K> {
     final K endKey;

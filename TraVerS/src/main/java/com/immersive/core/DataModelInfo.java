@@ -1,8 +1,5 @@
 package com.immersive.core;
 
-import com.immersive.abstractions.ChildEntity;
-import com.immersive.abstractions.DataModelEntity;
-import com.immersive.abstractions.RootEntity;
 import com.immersive.annotations.ChildField;
 import com.immersive.annotations.CrossReference;
 
@@ -12,6 +9,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -55,10 +53,12 @@ class DataModelInfo {
         }
 
         for (Field field : relevantFields) {
+            if (Modifier.isStatic(field.getModifiers()))
+                continue;
             //field is a collection or
             if (Collection.class.isAssignableFrom(field.getType()) || Map.class.isAssignableFrom(field.getType())) {
                 if (field.getAnnotation(ChildField.class) == null) {
-                    throw new RuntimeException("Collections on non child objects are not allowed in data model!");
+                    throw new RuntimeException("Collections on non child objects are not allowed in data model class "+clazz.getName() + ", field: "+field.getName());
                 }
                 childFieldList.add(field);
             }
@@ -71,7 +71,7 @@ class DataModelInfo {
                     childFieldList.add(field);
                 }
                 else {
-                    throw new RuntimeException("Found reference to class of the data model in " + clazz.getSimpleName() + " neither annotated as cross-reference nor nor child!");
+                    throw new RuntimeException("Found reference to class of the data model in " + clazz.getSimpleName() + " neither annotated as cross-reference nor nor child, field: "+field.getName());
                 }
             }
             //field is of primitive data type

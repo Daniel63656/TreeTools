@@ -1,7 +1,7 @@
 package com.immersive.collection;
 
-import com.immersive.abstractions.DataModelEntity;
-import com.immersive.abstractions.DoubleKeyedChildEntity;
+import com.immersive.core.DataModelEntity;
+import com.immersive.core.DoubleKeyedChildEntity;
 
 import java.util.Map;
 import java.util.TreeMap;

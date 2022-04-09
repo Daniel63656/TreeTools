@@ -1,6 +1,6 @@
 package com.immersive.test_model;
 
-import com.immersive.abstractions.ChildEntity;
+import com.immersive.core.ChildEntity;
 
 public class Staff extends ChildEntity<Track> {
     boolean treble;

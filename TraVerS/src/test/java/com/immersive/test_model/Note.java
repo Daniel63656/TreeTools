@@ -1,7 +1,7 @@
 package com.immersive.test_model;
 
 import com.immersive.annotations.CrossReference;
-import com.immersive.abstractions.ChildEntity;
+import com.immersive.core.ChildEntity;
 
 public class Note extends ChildEntity<NoteGroup> {
     int pitch;

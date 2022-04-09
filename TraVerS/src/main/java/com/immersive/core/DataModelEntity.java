@@ -1,6 +1,5 @@
-package com.immersive.abstractions;
+package com.immersive.core;
 
-import com.immersive.core.LogicalObjectTree;
 import com.immersive.wrap.Wrapper;
 import com.immersive.wrap.WrapperScope;
 
