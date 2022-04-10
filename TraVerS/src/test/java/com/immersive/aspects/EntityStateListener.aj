@@ -1,7 +1,6 @@
 package com.immersive.aspects;
 
-import com.immersive.core.TransactionManager;
-import com.immersive.core.*;
+import com.immersive.transactions.*;
 import com.immersive.annotations.*;
 import com.immersive.test_model.*;
 

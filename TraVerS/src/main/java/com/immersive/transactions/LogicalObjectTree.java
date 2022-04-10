@@ -1,4 +1,4 @@
-package com.immersive.core;
+package com.immersive.transactions;
 
 import com.immersive.annotations.CrossReference;
 

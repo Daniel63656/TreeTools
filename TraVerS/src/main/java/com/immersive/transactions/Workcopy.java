@@ -1,4 +1,4 @@
-package com.immersive.core;
+package com.immersive.transactions;
 
 import java.util.HashSet;
 import java.util.Set;

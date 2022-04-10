@@ -1,4 +1,4 @@
-package com.immersive.core;
+package com.immersive.transactions;
 
 public abstract class KeyedChildEntity<O extends DataModelEntity, K> extends ChildEntity<O> {
     final K key;

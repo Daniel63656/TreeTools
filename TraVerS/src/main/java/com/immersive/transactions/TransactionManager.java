@@ -1,6 +1,7 @@
-package com.immersive.core;
+package com.immersive.transactions;
 
 import com.immersive.annotations.CrossReference;
+import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.wrap.Wrapper;
 
 import java.lang.reflect.Field;
@@ -10,8 +11,10 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 public class TransactionManager {
   private static final TransactionManager transactionManager = new TransactionManager();
@@ -21,7 +24,7 @@ public class TransactionManager {
   }
 
   static Map<Class<? extends DataModelEntity>, DataModelInfo> dataModelInfo = new HashMap<>();
-  TreeMap<CommitId,Commit> commits = new TreeMap<>();
+  final TreeMap<CommitId,Commit> commits = new TreeMap<>();
   Map<RootEntity, Workcopy> workcopies = new HashMap<>();
   private boolean logAspects;   //used to log aspects kicking in
 
@@ -50,7 +53,7 @@ public class TransactionManager {
 
   public RootEntity getWorkcopyOf(RootEntity rootEntity) {
     if (!workcopies.containsKey(rootEntity))
-      throw new RuntimeException("No Transactions enabled for specified RootEntity. Use enableTransactionsForRootEntity() first to enable Transactions for your RootEntity.");
+      throw new NoTransactionsEnabledException();
     Commit initializationCommit = new Commit(null);  //since this is only a temporary commit the commitId doesn't really matter!
     //this is necessary to get a DataModel SPECIFIC class!
     RootEntity newRootEntity = (RootEntity) construct(rootEntity.getClass());
@@ -67,7 +70,7 @@ public class TransactionManager {
 
   public CommitId getCurrentCommitId(RootEntity rootEntity) {
     if (!workcopies.containsKey(rootEntity))
-      throw new RuntimeException("No Transactions enabled for specified RootEntity. Use enableTransactionsForRootEntity() first to enable Transactions for your RootEntity.");
+      throw new NoTransactionsEnabledException();
     return workcopies.get(rootEntity).currentCommitId;
   }
 
@@ -99,28 +102,13 @@ public class TransactionManager {
 
   //----------get corresponding objects----------//
 
-  public DataModelEntity getCorrespondingObjectIn(DataModelEntity dme, RootEntity dstRootEntity) {
-    RootEntity srcRootEntity = dme.getRootEntity();
-    synchronized (srcRootEntity) {
-      CommitId srcCommitId = getCurrentCommitId(srcRootEntity);
-      CommitId dstCommitId = getCurrentCommitId(dstRootEntity);
-      LogicalObjectKey LOK = workcopies.get(srcRootEntity).LOT.getKey(dme);
-      for (Commit commit : commits.subMap(srcCommitId, false, dstCommitId, true).values()) {
-        if (commit.deletionRecords.containsKey(LOK))
-          return null;
-        if (commit.changeRecords.containsKey(LOK))
-          LOK = commit.changeRecords.get(LOK);
-      }
-      return workcopies.get(dstRootEntity).LOT.get(LOK);
-    }
-  }
 
   //=========these methods are synchronized per RootEntity and therefore package-private============
 
   void commit(RootEntity rootEntity) {
     Workcopy workcopy = workcopies.get(rootEntity);
     if (workcopy == null)
-      throw new RuntimeException("No Transactions enabled for specified RootEntity. Use enableTransactionsForRootEntity() first to enable Transactions for your RootEntity.");
+      throw new NoTransactionsEnabledException();
     if (workcopy.locallyChangedOrCreated.isEmpty() && workcopy.locallyDeleted.isEmpty())
       return;
 
@@ -161,7 +149,9 @@ public class TransactionManager {
     workcopy.locallyDeleted.clear();
     workcopy.locallyChangedOrCreated.clear();
     workcopy.currentCommitId = commitId;
-    commits.put(commitId, commit);
+    synchronized (commits) {
+      commits.put(commitId, commit);
+    }
   }
 
   private void commitCreationOrChange(Set<DataModelEntity> chores, Commit commit, LogicalObjectTree LOT, DataModelEntity dme) {
@@ -183,7 +173,7 @@ public class TransactionManager {
       }
       //now its save to get the LOK from owner via LOT!
       LogicalObjectKey newKey = LOT.createLogicalObjectKey(dme);  //because this is creation and dme is not currently present in LOT, this generates a NEW key and puts it in LOT!
-      commit.creationRecords.put(newKey,  dme.getConstructorParamsAsKeys(LOT));
+      commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(LOT));
     }
     chores.remove(dme);
   }
@@ -215,18 +205,22 @@ public class TransactionManager {
     private Pull(RootEntity rootEntity) {
       workcopy = workcopies.get(rootEntity);
       if (workcopy == null)
-        throw new RuntimeException("No Transactions enabled for specified RootEntity.");
-      if (commits.isEmpty())
-        return;
-      if (commits.lastKey() == workcopy.currentCommitId)
-        return;
-      workcopy.ongoingPull = true;
-      for (Commit commit : commits.tailMap(workcopy.currentCommitId, false).values()) {
+        throw new NoTransactionsEnabledException();
+      List<Commit> commitsToPull;
+      //make sure no commits are added to the commit-list while pull copies the list
+      synchronized (commits) {
+        if (commits.isEmpty())
+          return;
+        if (commits.lastKey() == workcopy.currentCommitId)
+          return;
+        workcopy.ongoingPull = true;
+        commitsToPull = new ArrayList<>(commits.tailMap(workcopy.currentCommitId, false).values());
+      }
+      for (Commit commit : commitsToPull) {
         pullOneCommit(commit);
       }
       pulledSomething = true;
       workcopy.ongoingPull = false;
-      workcopy.currentCommitId = commits.lastKey();
     }
 
     private void pullOneCommit(Commit commit) {
@@ -269,6 +263,7 @@ public class TransactionManager {
       for (CrossReferenceToDo crtd : pendingCrossReferences) {
         crtd.setCrossReference(LOT);
       }
+      workcopy.currentCommitId = commit.commitId;
     }
 
     //-----recursive functions-----//

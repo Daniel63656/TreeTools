@@ -1,7 +1,7 @@
 package com.immersive.test_model;
 
 import com.immersive.annotations.ChildField;
-import com.immersive.core.RootEntity;
+import com.immersive.transactions.RootEntity;
 
 import java.util.ArrayList;
 import java.util.List;
