@@ -124,22 +124,31 @@ public class TransactionManager {
     Commit commit = new Commit(commitId);
     LogicalObjectTree LOT = workcopy.LOT; //This corresponds to the rollback version or "remote"
     List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
-    Set<DataModelEntity> chores = new HashSet<>(workcopy.locallyChangedOrCreated);
+    Set<DataModelEntity> changeChores = new HashSet<>();
+    Set<DataModelEntity> creationChores = new HashSet<>();
 
-    //create ModificationRecords for CREATED or CHANGED objects
-    while (!chores.isEmpty()) {
-      DataModelEntity dme = chores.iterator().next();
-      //deletion OVERRIDES creation or change!
+    for (DataModelEntity dme : workcopy.locallyChangedOrCreated) {
       if (dme instanceof ChildEntity<?>) {
         if (workcopy.locallyDeleted.contains(dme)) {
-          chores.remove(dme);
-          //remove deletion instruction if chore was a creation
+          //remove deletion instruction if chore was a CREATION
           if (!LOT.containsValue(dme))
             workcopy.locallyDeleted.remove(dme);
           continue;
         }
       }
-      commitCreationOrChange(chores, commit, LOT, dme);
+      if (!LOT.containsValue(dme))    //Attention, this is no valid criteria once one starts calling commitCreationOrChange!
+        creationChores.add(dme);
+      else
+        changeChores.add(dme);
+    }
+
+    while(!creationChores.isEmpty()) {
+      DataModelEntity dme = creationChores.iterator().next();
+      commitCreationOrChange(false, changeChores, creationChores, commit, LOT, dme);
+    }
+    while(!changeChores.isEmpty()) {
+      DataModelEntity dme = changeChores.iterator().next();
+      commitCreationOrChange(true,  changeChores, creationChores, commit, LOT, dme);
     }
 
     //create ModificationRecords for DELETED objects
@@ -165,9 +174,8 @@ public class TransactionManager {
     return commit;
   }
 
-  private void commitCreationOrChange(Set<DataModelEntity> chores, Commit commit, LogicalObjectTree LOT, DataModelEntity dme) {
-    //object contained in LOT, so it can be a change or exist because cross-referenced earlier
-    if (LOT.containsValue(dme)) {
+  private void commitCreationOrChange(boolean change, Set<DataModelEntity> ch, Set<DataModelEntity> cr, Commit commit, LogicalObjectTree LOT, DataModelEntity dme) {
+    if (change) {
       LogicalObjectKey before = LOT.getKey(dme);
       LOT.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in LOT!
       LogicalObjectKey after = LOT.createLogicalObjectKey(dme);
@@ -177,21 +185,23 @@ public class TransactionManager {
         after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
       }
       commit.changeRecords.put(before, after);
+      ch.remove(dme);
     }
     //object not contained in LOT, so it must have been CREATED
     else {
       if (dme instanceof RootEntity)
         throw new RuntimeException("Root Entity can only be CHANGED by commits!");
       for (DataModelEntity obj : dme.getConstructorParamsAsObjects()) {
-        if (chores.contains(obj)) {
-          commitCreationOrChange(chores, commit, LOT, obj);
-        }
+        if (cr.contains(obj))
+          commitCreationOrChange(false, ch, cr, commit, LOT, obj);
+        if (ch.contains(obj))
+          commitCreationOrChange(true,  ch, cr,  commit, LOT, obj);
       }
       //now its save to get the LOK from owner via LOT!
       LogicalObjectKey newKey = LOT.createLogicalObjectKey(dme);  //because this is creation and dme is not currently present in LOT, this generates a NEW key and puts it in LOT!
       commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(LOT));
+      cr.remove(dme);
     }
-    chores.remove(dme);
   }
 
   //---------------PULL---------------//
@@ -240,8 +250,6 @@ public class TransactionManager {
     }
 
     private void pullOneCommit(Commit commit) {
-      if (commit.commitId != null)
-        System.out.println("----------Pulling commit number " + commit.commitId.id + ":----------");
       //copy modificationRecords to safely cross things off without changing commit itself!
       creationChores = new HashMap<>(commit.creationRecords);
       changeChores   = new HashMap<>(commit.changeRecords);
@@ -254,7 +262,6 @@ public class TransactionManager {
           wrapper.onWrappedCleared();
         }
         destruct(objectToDelete);
-        System.out.println("removed " + LOT.getKey(objectToDelete).clazz.getSimpleName() + ", key " + LOT.getKey(objectToDelete).hashCode());
         LOT.removeValue(objectToDelete);
       }
       //CREATION - Recursion possible because of dependency on owner and cross-references
@@ -316,7 +323,6 @@ public class TransactionManager {
       }
       DataModelEntity objectToCreate = construct(objKey.clazz, params);
       imprintLogicalContentOntoObject(objKey, objectToCreate);
-      System.out.println("created " + objKey.clazz.getSimpleName() + ", key " + objKey.hashCode());
       LOT.put(objKey, objectToCreate);
       creationChores.remove(objKey);
     }
@@ -328,7 +334,6 @@ public class TransactionManager {
       imprintLogicalContentOntoObject(after, objectToChange);
       for (Wrapper<?> wrapper : objectToChange.getRegisteredWrappers().values())
         wrapper.onDataChange();
-      System.out.println("changed " + LOT.getKey(objectToChange).clazz.getSimpleName() + ", key " + LOT.getKey(objectToChange).hashCode() + " to key " + after.hashCode());
       LOT.put(after, objectToChange);
       changeChores.remove(before);
     }
