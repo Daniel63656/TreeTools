@@ -171,10 +171,10 @@ public class TransactionManager {
       LogicalObjectKey before = LOT.getKey(dme);
       LOT.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in LOT!
       LogicalObjectKey after = LOT.createLogicalObjectKey(dme);
-      //we are about to change an object that is cross-referenced! Change LOK accordingly
-      if (LOT.crossReferences.containsKey(before)) {
-        LokField dependent = LOT.crossReferences.get(before);
-        dependent.LOK.put(dependent.field, after);
+      //make all LOKs previously subscribed to before subscribe to after and change their field!
+      for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
+        subscribed.getKey().put(subscribed.getValue(), after);
+        after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
       }
       commit.changeRecords.put(before, after);
     }

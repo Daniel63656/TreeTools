@@ -28,10 +28,10 @@ public class TransactionTests {
     private void verifyTying(LogicalObjectTree LOT) throws NoSuchFieldException {
         LogicalObjectKey lok_tieStart = LOT.getKey(tieStart);
         LogicalObjectKey lok_tieEnd   = LOT.getKey(tieEnd);
-        Assertions.assertSame((LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("nextTied")), lok_tieEnd);
-        Assertions.assertSame((LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("previousTied")), null);
-        Assertions.assertSame((LogicalObjectKey) lok_tieEnd.  get(note.getClass().getDeclaredField("previousTied")), lok_tieStart);
-        Assertions.assertSame((LogicalObjectKey) lok_tieEnd.  get(note.getClass().getDeclaredField("nextTied")), null);
+        Assertions.assertSame(lok_tieEnd, (LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("nextTied")));
+        Assertions.assertSame(null, (LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("previousTied")));
+        Assertions.assertSame(lok_tieStart, (LogicalObjectKey) lok_tieEnd.get(note.getClass().getDeclaredField("previousTied")));
+        Assertions.assertSame(null, (LogicalObjectKey) lok_tieEnd.get(note.getClass().getDeclaredField("nextTied")));
     }
 
     private Workcopy createTransactionWorkcopy() {
@@ -92,17 +92,6 @@ public class TransactionTests {
         tm.pull(read);
         Assertions.assertSame(note.getPitch(), 30);
         Assertions.assertSame(note.getAccidental(), true);
-    }
-
-    @Test
-    public void testCommitWithCrossReferences() throws NoSuchFieldException {
-        Workcopy workcopy = createTransactionWorkcopy();
-        tieStart.setPitch(30);
-        //tieEnd.setPitch(30);
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieStart));
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieEnd));
-        tm.commit(workcopy.rootEntity);
-        verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
     }
 
     @Test

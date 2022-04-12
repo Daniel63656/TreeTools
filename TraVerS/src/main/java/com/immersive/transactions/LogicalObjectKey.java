@@ -23,6 +23,14 @@ class LogicalObjectKey extends HashMap<Field, Object> {
     globalID++;
   }
 
+  void unsubscribeFromCrossReferences() {
+    for (Object obj : this.values()) {
+      if (obj instanceof LogicalObjectKey) {
+        ((LogicalObjectKey) obj).subscribedLOKs.remove(this);
+      }
+    }
+  }
+
   boolean logicallySameWith(LogicalObjectKey lok) {
     for(Field f:keySet()) {
       if(!lok.containsKey(f)) {

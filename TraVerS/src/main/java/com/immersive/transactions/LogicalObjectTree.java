@@ -8,9 +8,6 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 
 public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataModelEntity> {
-    //cache the cross-reference dependencies for commits (changing an object and replacing its LOK must update the
-    //LOK everywhere it is cross-referenced     <CrossReferenceLOK, cr-depending LOK+field>
-    HashMap<LogicalObjectKey, TransactionManager.LokField> crossReferences = new HashMap<>();
 
     LogicalObjectKey createLogicalObjectKey(DataModelEntity dme) {
         //avoid creating duplicate LOKs for same object inside a LOT!
@@ -35,10 +32,8 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataMod
                     logicalObjectKey.put(field, null);
                 else {
                     LogicalObjectKey crossReference = createLogicalObjectKey((DataModelEntity) fieldValue);
-                    if (crossReferences != null) {
-                        crossReferences.put(crossReference, new TransactionManager.LokField(logicalObjectKey, field));
-                    }
                     logicalObjectKey.put(field, crossReference);
+                    crossReference.subscribedLOKs.put(logicalObjectKey, field);
                 }
             }
             //field is of primitive data type
@@ -47,6 +42,13 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataMod
             }
         }
         return logicalObjectKey;
+    }
+
+    @Override
+    public LogicalObjectKey removeValue(Object value) {
+         LogicalObjectKey LOK = super.removeValue(value);
+         LOK.unsubscribeFromCrossReferences();
+         return LOK;
     }
 
     public LogicalObjectKey getLogicalObjectKeyOfOwner(ChildEntity<?> te) {

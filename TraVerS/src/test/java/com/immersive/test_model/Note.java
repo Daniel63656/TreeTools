@@ -55,6 +55,14 @@ public class Note extends ChildEntity<NoteGroup> {
     public boolean clear() {
         if (!super.clear()) {
             getOwner().notes.remove(this);
+            if (nextTied != null) {
+                nextTied.previousTied = null;
+                nextTied = null;
+            }
+            if (previousTied != null) {
+                previousTied.nextTied = null;
+                previousTied = null;
+            }
         }
         return true;
     }
