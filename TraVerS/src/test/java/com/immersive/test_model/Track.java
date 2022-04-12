@@ -38,7 +38,7 @@ public class Track extends ChildEntity<FullScore> {
     }
 
     @Override
-    public void clear() {
-
+    public boolean clear() {
+        return super.clear();
     }
 }

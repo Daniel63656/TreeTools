@@ -13,6 +13,8 @@ class LogicalObjectKey extends HashMap<Field, Object> {
   private static int globalID;
   private final int uniqueID;
   Class<? extends DataModelEntity> clazz;
+  //LOKs that have this LOK as cross-reference (together with the field)
+  HashMap<LogicalObjectKey, Field> subscribedLOKs = new HashMap<>();
 
   //this is necessary to differentiate keys. We can't use the fields since they can be the same for different objects!
   LogicalObjectKey(Class<? extends DataModelEntity> clazz) {
@@ -52,9 +54,17 @@ class LogicalObjectKey extends HashMap<Field, Object> {
   @Override
   public String toString() {
     StringBuilder strb = new StringBuilder();
-    strb.append("{ ");
+    strb.append("{");
+    boolean first = true;
     for (Entry<Field, Object> entry : entrySet()) {
-      strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
+      if (first)
+        first = false;
+      else
+        strb.append(" ");
+      if (entry.getValue() instanceof LogicalObjectKey)
+        strb.append(entry.getKey().getName());
+      else
+        strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
     }
     strb.append("}");
     return strb.toString();

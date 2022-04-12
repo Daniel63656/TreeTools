@@ -1,6 +1,7 @@
 package com.immersive.collection;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 
 public class HashStack<K, V> extends HashMap<K, ArrayList<V>> {
@@ -18,6 +19,14 @@ public class HashStack<K, V> extends HashMap<K, ArrayList<V>> {
         if (stack.isEmpty())
             return null;
         return stack.get(stack.size()-1);
+    }
+
+    public ArrayList<V> getAllValues() {
+        ArrayList<V> values = new ArrayList<>();
+        for (ArrayList<V> stack : values()) {
+            values.addAll(stack);
+        }
+        return values;
     }
 
     public int pushValue(K key, V value) {

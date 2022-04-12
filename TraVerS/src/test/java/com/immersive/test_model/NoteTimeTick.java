@@ -25,7 +25,7 @@ public class NoteTimeTick extends KeyedChildEntity<Track, Long> {
     }
 
     @Override
-    public void clear() {
-        super.clear();
+    public boolean clear() {
+        return super.clear();
     }
 }

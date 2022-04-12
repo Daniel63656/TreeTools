@@ -27,7 +27,7 @@ public class Tuplet extends NoteGroupOrTuplet {
     }
 
     @Override
-    public void clear() {
-
+    public boolean clear() {
+        return super.clear();
     }
 }

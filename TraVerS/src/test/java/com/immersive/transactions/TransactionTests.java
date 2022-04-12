@@ -25,6 +25,15 @@ public class TransactionTests {
         tm.shutdown();
     }
 
+    private void verifyTying(LogicalObjectTree LOT) throws NoSuchFieldException {
+        LogicalObjectKey lok_tieStart = LOT.getKey(tieStart);
+        LogicalObjectKey lok_tieEnd   = LOT.getKey(tieEnd);
+        Assertions.assertSame((LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("nextTied")), lok_tieEnd);
+        Assertions.assertSame((LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("previousTied")), null);
+        Assertions.assertSame((LogicalObjectKey) lok_tieEnd.  get(note.getClass().getDeclaredField("previousTied")), lok_tieStart);
+        Assertions.assertSame((LogicalObjectKey) lok_tieEnd.  get(note.getClass().getDeclaredField("nextTied")), null);
+    }
+
     private Workcopy createTransactionWorkcopy() {
         FullScore fullScore = new FullScore();
         track = new Track(fullScore);
@@ -49,26 +58,20 @@ public class TransactionTests {
     }
 
     @Test
-    public void testLOTCreation() {
-        FullScore fullScore = new FullScore();
-        Track track = new Track(fullScore);
-        Staff staff = new Staff(track, true);
-        Voice voice = new Voice(track, 0);
-        NoteTimeTick ntt = new NoteTimeTick(track, 0L);
-        NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
-        Note note = new Note(noteGroup, 69, false, NoteName.A);
-
-        tm.enableTransactionsForRootEntity(fullScore);
-        LogicalObjectTree LOT = tm.workcopies.get(fullScore).LOT;
+    public void testLOTCreation() throws NoSuchFieldException {
+        Workcopy workcopy = createTransactionWorkcopy();
+        tm.enableTransactionsForRootEntity(workcopy.rootEntity);
+        LogicalObjectTree LOT = tm.workcopies.get(workcopy.rootEntity).LOT;
         //test if LOT contains all classes of JOT and nothing more
-        Assertions.assertTrue(LOT.containsValue(fullScore));
+        Assertions.assertEquals(LOT.size(), 13);
+        Assertions.assertTrue(LOT.containsValue(workcopy.rootEntity));
         Assertions.assertTrue(LOT.containsValue(track));
         Assertions.assertTrue(LOT.containsValue(staff));
         Assertions.assertTrue(LOT.containsValue(voice));
-        Assertions.assertTrue(LOT.containsValue(ntt));
-        Assertions.assertTrue(LOT.containsValue(noteGroup));
         Assertions.assertTrue(LOT.containsValue(note));
-        Assertions.assertEquals(LOT.size(), 7);
+        Assertions.assertTrue(LOT.containsValue(tieStart));
+        Assertions.assertTrue(LOT.containsValue(tieEnd));
+        verifyTying(LOT);
     }
 
     @Test
@@ -89,6 +92,17 @@ public class TransactionTests {
         tm.pull(read);
         Assertions.assertSame(note.getPitch(), 30);
         Assertions.assertSame(note.getAccidental(), true);
+    }
+
+    @Test
+    public void testCommitWithCrossReferences() throws NoSuchFieldException {
+        Workcopy workcopy = createTransactionWorkcopy();
+        tieStart.setPitch(30);
+        //tieEnd.setPitch(30);
+        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieStart));
+        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieEnd));
+        tm.commit(workcopy.rootEntity);
+        verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
     }
 
     @Test
@@ -144,14 +158,14 @@ public class TransactionTests {
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNoteGroup));
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNote));
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNote2));
-        Assertions.assertSame(workcopy.locallyChangedOrCreated.size(), 4);
+        Assertions.assertSame(5, workcopy.locallyChangedOrCreated.size());
         //delete one of the created notes -> this notes creation should not be appear in commit
         newNote2.clear();
 
         tm.commit(workcopy.rootEntity);
         Commit commit = tm.commits.get(tm.commits.firstKey());
-        Assertions.assertEquals(commit.changeRecords.size(), 0);    //no change
-        Assertions.assertEquals(commit.creationRecords.size(), 2);  //only two creations
+        Assertions.assertEquals(0, commit.changeRecords.size());    //no change
+        Assertions.assertEquals(2, commit.creationRecords.size());  //only two creations
 
         System.out.println("pulling...");
         tm.pull(read);

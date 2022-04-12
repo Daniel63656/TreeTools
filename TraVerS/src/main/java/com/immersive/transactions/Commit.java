@@ -20,14 +20,15 @@ class Commit {
     StringBuilder strb = new StringBuilder();
     strb.append("----------Commit number ").append(commitId.id).append(":----------\n");
     for (Map.Entry<LogicalObjectKey, Object[]> entry : deletionRecords.entrySet()) {
-      strb.append(">Deleted object\n").append(entry.getKey()).append("\n\n");
+      strb.append(">Deleted ").append(entry.getKey().clazz.getSimpleName()).append(" with key ").append(entry.getKey().hashCode()).append("\n");
     }
     for (Map.Entry<LogicalObjectKey, Object[]> entry : creationRecords.entrySet()) {
-      strb.append(">Created object\n").append(entry.getKey()).append("\n\n");
+      strb.append(">Created ").append(entry.getKey().clazz.getSimpleName()).append(" with key ").append(entry.getKey().hashCode()).append("\n    ").append(entry.getKey()).append("\n");
     }
     for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : changeRecords.entrySet()) {
-      strb.append(">Changed object from\n").append(entry.getKey()).append("\nto\n").append(entry.getValue()).append("\n\n");
+      strb.append(">Changed ").append(entry.getKey().clazz.getSimpleName()).append(" from\n    ").append(entry.getKey()).append(", key ").append(entry.getKey().hashCode())
+              .append("\n    to\n    ").append(entry.getValue()).append(", key ").append(entry.getValue().hashCode()).append("\n");
     }
-    return strb.toString();
+    return strb.append("\n").toString();
   }
 }

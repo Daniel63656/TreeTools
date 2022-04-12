@@ -30,8 +30,8 @@ public abstract class RootEntity implements DataModelEntity {
         return this;
     }
 
-    public synchronized void commit() {
-        TransactionManager.getInstance().commit(this);
+    public synchronized Commit commit() {
+        return TransactionManager.getInstance().commit(this);
     }
     public synchronized boolean pull() {
         return TransactionManager.getInstance().pull(this);

@@ -16,6 +16,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import javax.xml.crypto.Data;
+
 public class TransactionManager {
   private static final TransactionManager transactionManager = new TransactionManager();
   private TransactionManager() {}
@@ -100,17 +102,23 @@ public class TransactionManager {
     }
   }
 
-  //----------get corresponding objects----------//
-
+  static class LokField {
+    LogicalObjectKey LOK;
+    Field field;
+    public LokField(LogicalObjectKey LOK, Field field) {
+      this.LOK = LOK;
+      this.field = field;
+    }
+  }
 
   //=========these methods are synchronized per RootEntity and therefore package-private============
 
-  void commit(RootEntity rootEntity) {
+  Commit commit(RootEntity rootEntity) {
     Workcopy workcopy = workcopies.get(rootEntity);
     if (workcopy == null)
       throw new NoTransactionsEnabledException();
     if (workcopy.locallyChangedOrCreated.isEmpty() && workcopy.locallyDeleted.isEmpty())
-      return;
+      return null;
 
     CommitId commitId = new CommitId(commits.size()+1);
     Commit commit = new Commit(commitId);
@@ -121,11 +129,13 @@ public class TransactionManager {
     //create ModificationRecords for CREATED or CHANGED objects
     while (!chores.isEmpty()) {
       DataModelEntity dme = chores.iterator().next();
-      //mdeletion OVERRIDES creation or change!
+      //deletion OVERRIDES creation or change!
       if (dme instanceof ChildEntity<?>) {
         if (workcopy.locallyDeleted.contains(dme)) {
-          workcopy.locallyDeleted.remove(dme);
           chores.remove(dme);
+          //remove deletion instruction if chore was a creation
+          if (!LOT.containsValue(dme))
+            workcopy.locallyDeleted.remove(dme);
           continue;
         }
       }
@@ -152,14 +162,20 @@ public class TransactionManager {
     synchronized (commits) {
       commits.put(commitId, commit);
     }
+    return commit;
   }
 
   private void commitCreationOrChange(Set<DataModelEntity> chores, Commit commit, LogicalObjectTree LOT, DataModelEntity dme) {
-    //object contained in LOT, so it must be a CHANGE
+    //object contained in LOT, so it can be a change or exist because cross-referenced earlier
     if (LOT.containsValue(dme)) {
       LogicalObjectKey before = LOT.getKey(dme);
       LOT.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in LOT!
       LogicalObjectKey after = LOT.createLogicalObjectKey(dme);
+      //we are about to change an object that is cross-referenced! Change LOK accordingly
+      if (LOT.crossReferences.containsKey(before)) {
+        LokField dependent = LOT.crossReferences.get(before);
+        dependent.LOK.put(dependent.field, after);
+      }
       commit.changeRecords.put(before, after);
     }
     //object not contained in LOT, so it must have been CREATED
@@ -191,7 +207,7 @@ public class TransactionManager {
     LogicalObjectTree LOT;
     Map<LogicalObjectKey, Object[]> creationChores;
     Map<LogicalObjectKey, LogicalObjectKey> changeChores;
-    Set<CrossReferenceToDo> pendingCrossReferences = new HashSet<>();
+    HashMap<DataModelEntity, LokField> crossReferences = new HashMap<>();
 
     //this constructor is used to do an initializationPull
     private Pull(Workcopy workcopy, Commit initializationCommit) {
@@ -224,11 +240,12 @@ public class TransactionManager {
     }
 
     private void pullOneCommit(Commit commit) {
+      if (commit.commitId != null)
+        System.out.println("----------Pulling commit number " + commit.commitId.id + ":----------");
       //copy modificationRecords to safely cross things off without changing commit itself!
       creationChores = new HashMap<>(commit.creationRecords);
       changeChores   = new HashMap<>(commit.changeRecords);
       LOT = workcopy.LOT;
-      //Map.Entry<LogicalObjectKey, LogicalObjectKey> modificationRecord; //create Map.Entry that picks a random entry from Map until Map is empty
 
       //DELETION - Assumes Deletion Records are created for all subsequent children!!!
       for (Map.Entry<LogicalObjectKey, Object[]> entry : commit.deletionRecords.entrySet()) {
@@ -237,6 +254,7 @@ public class TransactionManager {
           wrapper.onWrappedCleared();
         }
         destruct(objectToDelete);
+        System.out.println("removed " + LOT.getKey(objectToDelete).clazz.getSimpleName() + ", key " + LOT.getKey(objectToDelete).hashCode());
         LOT.removeValue(objectToDelete);
       }
       //CREATION - Recursion possible because of dependency on owner and cross-references
@@ -260,9 +278,18 @@ public class TransactionManager {
         }
       }
       //at last link the open cross-reference dependencies
-      for (CrossReferenceToDo crtd : pendingCrossReferences) {
-        crtd.setCrossReference(LOT);
+      for (Map.Entry<DataModelEntity, LokField> entry : crossReferences.entrySet()) {
+        Field field = entry.getValue().field;
+        field.setAccessible(true);
+        try {
+          if (LOT.get(entry.getValue().LOK) == null)
+            throw new RuntimeException("error linking cross references!!!!");
+          field.set(entry.getKey(), LOT.get(entry.getValue().LOK));
+        } catch (IllegalAccessException e) {
+          e.printStackTrace();
+        }
       }
+      crossReferences.clear();
       workcopy.currentCommitId = commit.commitId;
     }
 
@@ -289,15 +316,19 @@ public class TransactionManager {
       }
       DataModelEntity objectToCreate = construct(objKey.clazz, params);
       imprintLogicalContentOntoObject(objKey, objectToCreate);
+      System.out.println("created " + objKey.clazz.getSimpleName() + ", key " + objKey.hashCode());
       LOT.put(objKey, objectToCreate);
       creationChores.remove(objKey);
     }
 
     private void pullChangeRecord(LogicalObjectKey before, LogicalObjectKey after) throws IllegalAccessException {
       DataModelEntity objectToChange = LOT.get(before);
+      if (objectToChange == null)
+        throw new RuntimeException("object to change is null!!!!,key "+before.hashCode());
       imprintLogicalContentOntoObject(after, objectToChange);
       for (Wrapper<?> wrapper : objectToChange.getRegisteredWrappers().values())
         wrapper.onDataChange();
+      System.out.println("changed " + LOT.getKey(objectToChange).clazz.getSimpleName() + ", key " + LOT.getKey(objectToChange).hashCode() + " to key " + after.hashCode());
       LOT.put(after, objectToChange);
       changeChores.remove(before);
     }
@@ -307,35 +338,18 @@ public class TransactionManager {
         if (LOK.containsKey(field)) {
           //save cross references to do at the very end to avoid infinite recursion when cross-references point at each other!
           if (field.getAnnotation(CrossReference.class) != null) {
-            pendingCrossReferences.add(new CrossReferenceToDo(dme, field, (LogicalObjectKey) LOK.get(field)));
+            if (LOK.get(field) != null)
+              crossReferences.put(dme, new LokField((LogicalObjectKey) LOK.get(field), field));
+            else {
+              field.setAccessible(true);
+              field.set(dme, null);
+            }
             continue;
           }
           //set the field
           field.setAccessible(true);
           field.set(dme, LOK.get(field));
         }
-      }
-    }
-  }
-
-  //simple class to cache the action of setting a cross-reference
-  private static class CrossReferenceToDo {
-    DataModelEntity dme;
-    Field crossReference;
-    LogicalObjectKey crossReferenceLOK;
-
-    CrossReferenceToDo(DataModelEntity dme, Field crossReference, LogicalObjectKey crossReferenceLOK) {
-      this.dme = dme;
-      this.crossReference = crossReference;
-      this.crossReferenceLOK = crossReferenceLOK;
-    }
-
-    void setCrossReference(LogicalObjectTree LOT) {
-      crossReference.setAccessible(true);
-      try {
-        crossReference.set(dme, LOT.get(crossReferenceLOK));
-      } catch (IllegalAccessException e) {
-        e.printStackTrace();
       }
     }
   }

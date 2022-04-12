@@ -29,13 +29,15 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         return owner;
     }
 
-    public void clear() {
+    public boolean clear() {
         if (clearingInProgress)
-            return;
+            return true;
         clearingInProgress = true;
+        TransactionManager.destruct(this);
         for (Wrapper<?> wrapper : getRegisteredWrappers().values()) {
             wrapper.onWrappedCleared();
         }
+        return false;
     }
 
     @Override

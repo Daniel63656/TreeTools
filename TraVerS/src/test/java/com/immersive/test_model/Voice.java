@@ -22,7 +22,7 @@ public class Voice extends ChildEntity<Track> {
     }
 
     @Override
-    public void clear() {
-
+    public boolean clear() {
+        return super.clear();
     }
 }

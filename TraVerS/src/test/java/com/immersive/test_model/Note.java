@@ -52,8 +52,10 @@ public class Note extends ChildEntity<NoteGroup> {
     }
 
     @Override
-    public void clear() {
-        super.clear();
-        getOwner().notes.remove(this);
+    public boolean clear() {
+        if (!super.clear()) {
+            getOwner().notes.remove(this);
+        }
+        return true;
     }
 }
