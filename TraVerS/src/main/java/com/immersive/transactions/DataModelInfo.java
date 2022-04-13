@@ -86,6 +86,7 @@ class DataModelInfo {
 
     //---------Getting fields for specific OBJECTS----------//
 
+    @SuppressWarnings("unchecked")
     ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
         ArrayList<ChildEntity<?>> children = new ArrayList<>();
         for (Field field : childFields) {
@@ -93,11 +94,11 @@ class DataModelInfo {
             try {
                 //field is a collection
                 if (Collection.class.isAssignableFrom(field.getType())) {
-                    children.addAll(new ArrayList<>((Collection<ChildEntity<?>>)field.get(dme)));  //TODO what to do here to stop xlint from complaining "unsafe"
+                    children.addAll(new ArrayList<>((Collection<ChildEntity<?>>)field.get(dme)));
                 }
                 //field is a map
                 else if (Map.class.isAssignableFrom(field.getType())) {
-                    children.addAll(new ArrayList<>(((Map<?,ChildEntity<?>>)field.get(dme)).values()));  //TODO what to do here to stop xlint from complaining "unsafe"
+                    children.addAll(new ArrayList<>(((Map<?,ChildEntity<?>>)field.get(dme)).values()));
                 }
                 else {
                     children.add((ChildEntity<?>) field.get(dme));

@@ -1,5 +1,6 @@
 package com.immersive.transactions;
 
+import com.immersive.transactions.exceptions.TransactionException;
 import com.immersive.wrap.Wrapper;
 import com.immersive.wrap.WrapperScope;
 
@@ -30,6 +31,11 @@ public abstract class RootEntity implements DataModelEntity {
         return this;
     }
 
+    @Override
+    public DataModelEntity getCorrespondingObjectIn(RootEntity dstRootEntity) {
+        return getObjectSynchronizedIn(this, dstRootEntity);
+    }
+
     public synchronized Commit commit() {
         return TransactionManager.getInstance().commit(this);
     }
@@ -37,14 +43,11 @@ public abstract class RootEntity implements DataModelEntity {
         return TransactionManager.getInstance().pull(this);
     }
 
-    public synchronized DataModelEntity getCorrespondingObjectIn(DataModelEntity dme, RootEntity dstRootEntity) {
-        if (dme.getRootEntity() != this)
-            throw new RuntimeException("tried to call this method from a RootEntity not possessing the specified DataModelEntity!");
+    synchronized DataModelEntity getObjectSynchronizedIn(DataModelEntity dme, RootEntity dstRootEntity) {
         TransactionManager tm = TransactionManager.getInstance();
-        RootEntity srcRootEntity = dme.getRootEntity();
-        CommitId srcCommitId = tm.getCurrentCommitId(srcRootEntity);
+        CommitId srcCommitId = tm.getCurrentCommitId(this);
         CommitId dstCommitId = tm.getCurrentCommitId(dstRootEntity);
-        LogicalObjectKey LOK = tm.workcopies.get(srcRootEntity).LOT.getKey(dme);
+        LogicalObjectKey LOK = tm.workcopies.get(this).LOT.getKey(dme);
         for (Commit commit : tm.commits.subMap(srcCommitId, false, dstCommitId, true).values()) {
             if (commit.deletionRecords.containsKey(LOK)) {
                 return null;
@@ -55,7 +58,7 @@ public abstract class RootEntity implements DataModelEntity {
         }
         DataModelEntity result = tm.workcopies.get(dstRootEntity).LOT.get(LOK);
         if (result == null)
-            throw new RuntimeException("object mapping FAILED: couldn't find object by LOK in source RootEntity");
+            throw new TransactionException("object mapping FAILED: couldn't find object in source RootEntity", LOK.hashCode());
         return result;
     }
 }

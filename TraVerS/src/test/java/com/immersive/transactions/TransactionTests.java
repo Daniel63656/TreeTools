@@ -75,6 +75,15 @@ public class TransactionTests {
     }
 
     @Test
+    public void testDataModelDeepCopy() {
+        Workcopy workcopy = createTransactionWorkcopy();
+        ((FullScore) workcopy.rootEntity).name = "unique field";
+        tm.enableTransactionsForRootEntity(workcopy.rootEntity);
+        FullScore copy = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
+        Assertions.assertSame("unique field", copy.name);
+    }
+
+    @Test
     public void testPullingAChange(){
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);

@@ -2,6 +2,7 @@ package com.immersive.transactions;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.Objects;
 
 /**
  * Logical unit containing the information of an object as field-object pair. Entity owner and children are
@@ -36,8 +37,7 @@ class LogicalObjectKey extends HashMap<Field, Object> {
       if(!lok.containsKey(f)) {
         return false;
       }
-      //TODO test this regarding null/nonNull
-      if(!(this.get(f) == lok.get(f))) {
+      if(!Objects.equals(this.get(f), lok.get(f))) {
         return false;
       }
     }

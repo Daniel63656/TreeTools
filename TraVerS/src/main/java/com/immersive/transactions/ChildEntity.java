@@ -56,4 +56,9 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
     public RootEntity getRootEntity() {
         return root;
     }
+
+    @Override
+    public DataModelEntity getCorrespondingObjectIn(RootEntity dstRootEntity) {
+        return root.getObjectSynchronizedIn(this, dstRootEntity);
+    }
 }

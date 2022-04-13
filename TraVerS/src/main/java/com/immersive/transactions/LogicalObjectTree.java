@@ -1,6 +1,7 @@
 package com.immersive.transactions;
 
 import com.immersive.annotations.CrossReference;
+import com.immersive.transactions.exceptions.TransactionException;
 
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
@@ -53,7 +54,7 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataMod
 
     public LogicalObjectKey getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
         if (!this.containsValue(te.getOwner())) {
-            throw new RuntimeException("Owner not found in LOT!");
+            throw new TransactionException("Owner not found in LOT!", getKey(te).hashCode());
         }
         return this.getKey(te.getOwner());
     }

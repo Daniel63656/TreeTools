@@ -2,6 +2,7 @@ package com.immersive.transactions;
 
 import com.immersive.annotations.CrossReference;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
+import com.immersive.transactions.exceptions.TransactionException;
 import com.immersive.wrap.Wrapper;
 
 import java.lang.reflect.Field;
@@ -11,12 +12,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
-
-import javax.xml.crypto.Data;
 
 public class TransactionManager {
   private static final TransactionManager transactionManager = new TransactionManager();
@@ -33,7 +30,6 @@ public class TransactionManager {
   public void logAspects(boolean log) {
     logAspects = log;
   }
-
   public boolean transactionsEnabled(RootEntity rootEntity) {
     return workcopies.containsKey(rootEntity);
   }
@@ -62,7 +58,17 @@ public class TransactionManager {
     LogicalObjectTree LOT = workcopies.get(rootEntity).LOT;
     LogicalObjectTree newLOT = new LogicalObjectTree();
     buildInitializationCommit(LOT, initializationCommit, rootEntity);
-    //TODO copy state of rootEntity itself
+    //copy content of root entity
+    for (Field field : getContentFields(newRootEntity)) {
+      if (field.getAnnotation(CrossReference.class) != null)
+        throw new RuntimeException("Cross references not allowed in Root Entity!");
+      field.setAccessible(true);
+      try {
+        field.set(newRootEntity, field.get(rootEntity));
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      }
+    }
     newLOT.put(LOT.getKey(rootEntity), newRootEntity);
     Workcopy workcopy = new Workcopy(newRootEntity, newLOT, new CommitId(0));
     new Pull(workcopy, initializationCommit);
@@ -102,10 +108,12 @@ public class TransactionManager {
     }
   }
 
-  static class LokField {
+  static class CrossReferenceToDo {
+    DataModelEntity dme;
     LogicalObjectKey LOK;
     Field field;
-    public LokField(LogicalObjectKey LOK, Field field) {
+    public CrossReferenceToDo(DataModelEntity dme, LogicalObjectKey LOK, Field field) {
+      this.dme = dme;
       this.LOK = LOK;
       this.field = field;
     }
@@ -217,7 +225,7 @@ public class TransactionManager {
     LogicalObjectTree LOT;
     Map<LogicalObjectKey, Object[]> creationChores;
     Map<LogicalObjectKey, LogicalObjectKey> changeChores;
-    HashMap<DataModelEntity, LokField> crossReferences = new HashMap<>();
+    List<CrossReferenceToDo> crossReferences = new ArrayList<>();
 
     //this constructor is used to do an initializationPull
     private Pull(Workcopy workcopy, Commit initializationCommit) {
@@ -285,13 +293,12 @@ public class TransactionManager {
         }
       }
       //at last link the open cross-reference dependencies
-      for (Map.Entry<DataModelEntity, LokField> entry : crossReferences.entrySet()) {
-        Field field = entry.getValue().field;
-        field.setAccessible(true);
+      for (CrossReferenceToDo cr : crossReferences) {
+        cr.field.setAccessible(true);
         try {
-          if (LOT.get(entry.getValue().LOK) == null)
-            throw new RuntimeException("error linking cross references!!!!");
-          field.set(entry.getKey(), LOT.get(entry.getValue().LOK));
+          if (LOT.get(cr.LOK) == null)
+            throw new TransactionException("error linking cross references!", cr.LOK.hashCode());
+          cr.field.set(cr.dme, LOT.get(cr.LOK));
         } catch (IllegalAccessException e) {
           e.printStackTrace();
         }
@@ -330,7 +337,7 @@ public class TransactionManager {
     private void pullChangeRecord(LogicalObjectKey before, LogicalObjectKey after) throws IllegalAccessException {
       DataModelEntity objectToChange = LOT.get(before);
       if (objectToChange == null)
-        throw new RuntimeException("object to change is null!!!!,key "+before.hashCode());
+        throw new TransactionException("object to change is null!", before.hashCode());
       imprintLogicalContentOntoObject(after, objectToChange);
       for (Wrapper<?> wrapper : objectToChange.getRegisteredWrappers().values())
         wrapper.onDataChange();
@@ -344,7 +351,7 @@ public class TransactionManager {
           //save cross references to do at the very end to avoid infinite recursion when cross-references point at each other!
           if (field.getAnnotation(CrossReference.class) != null) {
             if (LOK.get(field) != null)
-              crossReferences.put(dme, new LokField((LogicalObjectKey) LOK.get(field), field));
+              crossReferences.add(new CrossReferenceToDo(dme, (LogicalObjectKey) LOK.get(field), field));
             else {
               field.setAccessible(true);
               field.set(dme, null);

@@ -11,4 +11,5 @@ public interface DataModelEntity {
     Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT);
     DataModelEntity[] getConstructorParamsAsObjects();
     RootEntity getRootEntity();
+    DataModelEntity getCorrespondingObjectIn(RootEntity dstRootEntity);
 }

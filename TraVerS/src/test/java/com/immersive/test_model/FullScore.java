@@ -10,6 +10,8 @@ public class FullScore extends RootEntity {
     @ChildField
     List<Track> tracks = new ArrayList<>();
 
+    public String name;
+
     public Track getTrack(int idx) {
         return tracks.get(idx);
     }

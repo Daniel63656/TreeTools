@@ -69,6 +69,5 @@ public class LogicalKeyTests {
         Assertions.assertSame((LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("previousTied")), null);
         Assertions.assertSame((LogicalObjectKey) lok_tieEnd.  get(note.getClass().getDeclaredField("previousTied")), lok_tieStart);
         Assertions.assertSame((LogicalObjectKey) lok_tieEnd.  get(note.getClass().getDeclaredField("nextTied")), null);
-
     }
 }

@@ -103,7 +103,7 @@ public class CrossReferenceSubscriptionTest {
     @Test
     public void testTiedNoteCreated() throws NoSuchFieldException {
         Workcopy workcopy = createTransactionWorkcopy();
-        tieStart.setPitch(30);
+        tieEnd.setPitch(30);
         NoteTimeTick ntt = new NoteTimeTick(track, 24L);
         NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         Note newTied = new Note(noteGroup, 69, false, NoteName.A);
