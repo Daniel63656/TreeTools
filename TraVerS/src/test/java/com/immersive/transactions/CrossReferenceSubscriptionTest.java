@@ -68,12 +68,14 @@ public class CrossReferenceSubscriptionTest {
         tieStart.setPitch(30);
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieStart));
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
-        System.out.println(tm.commit(workcopy.rootEntity));
+        Commit c = tm.commit(workcopy.rootEntity);
+        // tie end also got a change record, because it must point to a different LOK now!
+        Assertions.assertEquals(2, c.changeRecords.size());
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
     }
 
     @Test
-    public void testOnlyBothTiedNoteChanged() throws NoSuchFieldException {
+    public void testBothTiedNoteChanged() throws NoSuchFieldException {
         Workcopy workcopy = createTransactionWorkcopy();
         tieStart.setPitch(30);
         tieEnd.setPitch(30);

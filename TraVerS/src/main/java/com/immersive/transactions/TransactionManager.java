@@ -130,40 +130,39 @@ public class TransactionManager {
 
     CommitId commitId = new CommitId(commits.size()+1);
     Commit commit = new Commit(commitId);
-    LogicalObjectTree LOT = workcopy.LOT; //This corresponds to the rollback version or "remote"
+    LogicalObjectTree remote = workcopy.LOT; //This corresponds to the rollback version or "remote"
     List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
-    Set<LogicalObjectKey> createdThroughCrossReferences = new HashSet<>();
-    Set<DataModelEntity> chores = new HashSet<>(workcopy.locallyChangedOrCreated);
+    Set<LogicalObjectKey> keysCreatedSoFar = new HashSet<>();
 
     //create ModificationRecords for CREATED or CHANGED objects
-    while (!chores.isEmpty()) {
-      DataModelEntity dme = chores.iterator().next();
+    while (!workcopy.locallyChangedOrCreated.isEmpty()) {
+      DataModelEntity dme = workcopy.locallyChangedOrCreated.iterator().next();
       //deletion OVERRIDES creation or change!
       if (dme instanceof ChildEntity<?>) {
         if (workcopy.locallyDeleted.contains(dme)) {
-          chores.remove(dme);
+          workcopy.locallyChangedOrCreated.remove(dme);
           //remove deletion instruction if chore was a creation
-          if (!LOT.containsValue(dme))
+          if (!remote.containsValue(dme) || (remote.containsValue(dme) && keysCreatedSoFar.contains(remote.getKey(dme))))
             workcopy.locallyDeleted.remove(dme);
           continue;
         }
       }
-      commitCreationOrChange(chores, commit, LOT, dme, createdThroughCrossReferences);
+      commitCreationOrChange(workcopy.locallyChangedOrCreated, commit, remote, dme, keysCreatedSoFar);
     }
 
     //create ModificationRecords for DELETED objects
     Iterator<ChildEntity<?>> iterator = workcopy.locallyDeleted.iterator();
     while (iterator.hasNext()) {
       ChildEntity<?> te = iterator.next();
-      commit.deletionRecords.put(LOT.getKey(te), te.getConstructorParamsAsKeys(LOT));
-      //don't remove from LOT yet, because this destroys owner information for possible deletion entries below!
+      commit.deletionRecords.put(remote.getKey(te), te.getConstructorParamsAsKeys(remote));
+      //don't remove from remote yet, because this destroys owner information for possible deletion entries below!
       //save this action in a list to do it at the end of the deletion part of the commit instead
       removeFromLOT.add(te);
       iterator.remove();
     }
-    //remove all entries from LOT
+    //remove all entries from remote
     for (ChildEntity<?> te : removeFromLOT) {
-      LOT.removeValue(te);
+      remote.removeValue(te);
     }
     workcopy.locallyDeleted.clear();
     workcopy.locallyChangedOrCreated.clear();
@@ -174,36 +173,36 @@ public class TransactionManager {
     return commit;
   }
 
-  private void commitCreationOrChange(Set<DataModelEntity> chores, Commit commit, LogicalObjectTree LOT, DataModelEntity dme, Set<LogicalObjectKey> ctcr) {
-    //object contained in LOT, so it can be a change or exist because cross-referenced earlier
-    boolean LOKcreatedThroughCR = false;
-    if (LOT.containsValue(dme)) {
-      LogicalObjectKey before = LOT.getKey(dme);
-      if (!ctcr.contains(before)) {
-        LOT.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in LOT!
-        LogicalObjectKey after = LOT.createLogicalObjectKey(dme, ctcr, false);
-        //make all LOKs previously subscribed to before subscribe to after and change their field!
-        for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
-          subscribed.getKey().put(subscribed.getValue(), after);
-          after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
-        }
-        commit.changeRecords.put(before, after);
-      }
-      else
-        LOKcreatedThroughCR = true;
-    }
-    //CREATION
-    if (!LOT.containsValue(dme) || LOKcreatedThroughCR) {
+  private void commitCreationOrChange(Set<DataModelEntity> chores, Commit commit, LogicalObjectTree remote, DataModelEntity dme, Set<LogicalObjectKey> keysCreatedSoFar) {
+    //CREATION - not in remote before or only because a cross-reference created it!
+    if (!remote.containsValue(dme) || (remote.containsValue(dme) && keysCreatedSoFar.contains(remote.getKey(dme)))) {
       if (dme instanceof RootEntity)
         throw new RuntimeException("Root Entity can only be CHANGED by commits!");
       for (DataModelEntity obj : dme.getConstructorParamsAsObjects()) {
         if (chores.contains(obj)) {
-          commitCreationOrChange(chores, commit, LOT, obj, ctcr);
+          commitCreationOrChange(chores, commit, remote, obj, keysCreatedSoFar);
         }
       }
-      //now its save to get the LOK from owner via LOT!
-      LogicalObjectKey newKey = LOT.createLogicalObjectKey(dme, ctcr, false);  //because this is creation and dme is not currently present in LOT, this generates a NEW key and puts it in LOT!
-      commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(LOT));
+      //now its save to get the LOK from owner via remote!
+      LogicalObjectKey newKey = remote.createLogicalObjectKey(dme, keysCreatedSoFar, false);  //because this is creation and dme is not currently present in remote, this generates a NEW key and puts it in remote!
+      keysCreatedSoFar.add(newKey);
+      commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(remote));
+    }
+    else {
+      LogicalObjectKey before = remote.getKey(dme);
+      remote.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in remote!
+      LogicalObjectKey after = remote.createLogicalObjectKey(dme, keysCreatedSoFar, false);
+      keysCreatedSoFar.add(after);
+      //linking cross references together
+      for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
+        if (!keysCreatedSoFar.contains(subscribed.getKey()))  //object subscribed is not itself part of a change so add a chore!
+          chores.add(remote.get(subscribed.getKey()));
+        else {                                                //make all LOKs previously subscribed to before subscribe to after and change their field!
+          after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
+          subscribed.getKey().put(subscribed.getValue(), after);
+        }
+      }
+      commit.changeRecords.put(before, after);
     }
     chores.remove(dme);
   }
@@ -326,7 +325,7 @@ public class TransactionManager {
       }
       DataModelEntity objectToCreate = construct(objKey.clazz, params);
       imprintLogicalContentOntoObject(objKey, objectToCreate);
-      System.out.println("PULL: created key "+objKey.hashCode());
+      //System.out.println("PULL: created key "+objKey.hashCode());
       LOT.put(objKey, objectToCreate);
       creationChores.remove(objKey);
     }
@@ -338,7 +337,7 @@ public class TransactionManager {
       imprintLogicalContentOntoObject(after, objectToChange);
       for (Wrapper<?> wrapper : objectToChange.getRegisteredWrappers().values())
         wrapper.onDataChange();
-      System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
+      //System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
       LOT.put(after, objectToChange);
       changeChores.remove(before);
     }
