@@ -7,10 +7,11 @@ import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.Set;
 
 public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataModelEntity> {
 
-    LogicalObjectKey createLogicalObjectKey(DataModelEntity dme) {
+    LogicalObjectKey createLogicalObjectKey(DataModelEntity dme, Set<LogicalObjectKey> ctcr, boolean crossReferenceCall) {
         //avoid creating duplicate LOKs for same object inside a LOT!
         if (containsValue(dme)) {
             return getKey(dme);
@@ -18,6 +19,8 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataMod
         LogicalObjectKey logicalObjectKey = new LogicalObjectKey(dme.getClass());
         //this avoids infinite recursion when two cross-references point on each other!
         put(logicalObjectKey, dme);
+        if (crossReferenceCall && ctcr != null)
+            ctcr.add(logicalObjectKey);
         //start iterating over fields using reflections
         for (Field field : TransactionManager.getContentFields(dme)) {
             Object fieldValue = null;
@@ -32,7 +35,7 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataMod
                 if (fieldValue == null)
                     logicalObjectKey.put(field, null);
                 else {
-                    LogicalObjectKey crossReference = createLogicalObjectKey((DataModelEntity) fieldValue);
+                    LogicalObjectKey crossReference = createLogicalObjectKey((DataModelEntity) fieldValue, ctcr, true);
                     logicalObjectKey.put(field, crossReference);
                     crossReference.subscribedLOKs.put(logicalObjectKey, field);
                 }

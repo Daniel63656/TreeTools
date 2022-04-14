@@ -63,17 +63,14 @@ class LogicalObjectKey extends HashMap<Field, Object> {
   public String toString() {
     StringBuilder strb = new StringBuilder();
     strb.append("{");
-    boolean first = true;
     for (Entry<Field, Object> entry : entrySet()) {
-      if (first)
-        first = false;
-      else
-        strb.append(" ");
       if (entry.getValue() instanceof LogicalObjectKey)
-        strb.append(entry.getKey().getName());
+        strb.append(entry.getKey().getName()).append("=[").append(((LogicalObjectKey) entry.getValue()).hashCode()).append("]");
       else
-        strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
+        strb.append(entry.getKey().getName()).append("=").append(entry.getValue());
+      strb.append(" ");
     }
+    strb.setLength(strb.length() - 1);  //remove last space
     strb.append("}");
     return strb.toString();
   }

@@ -27,7 +27,7 @@ private static TransactionManager tm = TransactionManager.getInstance();
         Workcopy workcopy = getWorkcopy(dme);
         if (workcopy != null) {
             if (!workcopy.ongoingCreation) {
-                System.out.println(dme.getClass().getSimpleName()+ " change detected");
+                System.out.println(dme.getClass().getSimpleName()+ " change detected [TraVerS]");
                 workcopy.locallyChangedOrCreated.add(dme);
             }
         }
@@ -38,7 +38,7 @@ private static TransactionManager tm = TransactionManager.getInstance();
         Workcopy workcopy = getWorkcopy(owner);
         if (workcopy != null) {
             if (!workcopy.ongoingPull) {
-                 System.out.println(te.getClass().getSimpleName()+" got created");
+                 System.out.println(te.getClass().getSimpleName()+" got created [TraVerS]");
                  workcopy.ongoingCreation = true;
                  Object object = proceed(te, owner);
                  workcopy.ongoingCreation = false;
@@ -59,7 +59,7 @@ private static TransactionManager tm = TransactionManager.getInstance();
         Workcopy workcopy = getWorkcopy(te);
         if (workcopy != null) {
             workcopy.locallyDeleted.add(te);
-            System.out.println(te.getClass().getSimpleName() + " got deleted");
+            System.out.println(te.getClass().getSimpleName() + " got deleted [TraVerS]");
         }
     }
 

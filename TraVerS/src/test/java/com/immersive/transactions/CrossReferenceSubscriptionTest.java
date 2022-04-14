@@ -68,7 +68,7 @@ public class CrossReferenceSubscriptionTest {
         tieStart.setPitch(30);
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieStart));
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
-        tm.commit(workcopy.rootEntity);
+        System.out.println(tm.commit(workcopy.rootEntity));
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
     }
 
@@ -80,7 +80,7 @@ public class CrossReferenceSubscriptionTest {
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieStart));
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieEnd));
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
-        tm.commit(workcopy.rootEntity);
+        System.out.println(tm.commit(workcopy.rootEntity));
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
     }
 

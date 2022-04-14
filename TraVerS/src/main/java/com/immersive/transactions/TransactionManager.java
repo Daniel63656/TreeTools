@@ -39,7 +39,7 @@ public class TransactionManager {
     if (workcopies.containsKey(rootEntity))
       return;
     if (!workcopies.isEmpty()) {
-      throw new RuntimeException("Transactions already enabled for different RootEntity! Use getWorkcopyOf() to receive another copy to work on.");
+      throw new RuntimeException("Transactions already enabled! Use getWorkcopyOf() to receive another copy to work on.");
     }
     else {
       LogicalObjectTree LOT = new LogicalObjectTree();
@@ -88,7 +88,7 @@ public class TransactionManager {
   }
 
   private void buildLogicalObjectTree(LogicalObjectTree LOT, DataModelEntity dme) {
-    LOT.createLogicalObjectKey(dme);
+    LOT.createLogicalObjectKey(dme, null, false);
     ArrayList<ChildEntity<?>> children = getChildren(dme);
     if (children != null) {
       for (ChildEntity<?> child : children) {
@@ -132,31 +132,23 @@ public class TransactionManager {
     Commit commit = new Commit(commitId);
     LogicalObjectTree LOT = workcopy.LOT; //This corresponds to the rollback version or "remote"
     List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
-    Set<DataModelEntity> changeChores = new HashSet<>();
-    Set<DataModelEntity> creationChores = new HashSet<>();
+    Set<LogicalObjectKey> createdThroughCrossReferences = new HashSet<>();
+    Set<DataModelEntity> chores = new HashSet<>(workcopy.locallyChangedOrCreated);
 
-    for (DataModelEntity dme : workcopy.locallyChangedOrCreated) {
+    //create ModificationRecords for CREATED or CHANGED objects
+    while (!chores.isEmpty()) {
+      DataModelEntity dme = chores.iterator().next();
+      //deletion OVERRIDES creation or change!
       if (dme instanceof ChildEntity<?>) {
         if (workcopy.locallyDeleted.contains(dme)) {
-          //remove deletion instruction if chore was a CREATION
+          chores.remove(dme);
+          //remove deletion instruction if chore was a creation
           if (!LOT.containsValue(dme))
             workcopy.locallyDeleted.remove(dme);
           continue;
         }
       }
-      if (!LOT.containsValue(dme))    //Attention, this is no valid criteria once one starts calling commitCreationOrChange!
-        creationChores.add(dme);
-      else
-        changeChores.add(dme);
-    }
-
-    while(!creationChores.isEmpty()) {
-      DataModelEntity dme = creationChores.iterator().next();
-      commitCreationOrChange(false, changeChores, creationChores, commit, LOT, dme);
-    }
-    while(!changeChores.isEmpty()) {
-      DataModelEntity dme = changeChores.iterator().next();
-      commitCreationOrChange(true,  changeChores, creationChores, commit, LOT, dme);
+      commitCreationOrChange(chores, commit, LOT, dme, createdThroughCrossReferences);
     }
 
     //create ModificationRecords for DELETED objects
@@ -182,34 +174,38 @@ public class TransactionManager {
     return commit;
   }
 
-  private void commitCreationOrChange(boolean change, Set<DataModelEntity> ch, Set<DataModelEntity> cr, Commit commit, LogicalObjectTree LOT, DataModelEntity dme) {
-    if (change) {
+  private void commitCreationOrChange(Set<DataModelEntity> chores, Commit commit, LogicalObjectTree LOT, DataModelEntity dme, Set<LogicalObjectKey> ctcr) {
+    //object contained in LOT, so it can be a change or exist because cross-referenced earlier
+    boolean LOKcreatedThroughCR = false;
+    if (LOT.containsValue(dme)) {
       LogicalObjectKey before = LOT.getKey(dme);
-      LOT.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in LOT!
-      LogicalObjectKey after = LOT.createLogicalObjectKey(dme);
-      //make all LOKs previously subscribed to before subscribe to after and change their field!
-      for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
-        subscribed.getKey().put(subscribed.getValue(), after);
-        after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
+      if (!ctcr.contains(before)) {
+        LOT.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in LOT!
+        LogicalObjectKey after = LOT.createLogicalObjectKey(dme, ctcr, false);
+        //make all LOKs previously subscribed to before subscribe to after and change their field!
+        for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
+          subscribed.getKey().put(subscribed.getValue(), after);
+          after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
+        }
+        commit.changeRecords.put(before, after);
       }
-      commit.changeRecords.put(before, after);
-      ch.remove(dme);
+      else
+        LOKcreatedThroughCR = true;
     }
-    //object not contained in LOT, so it must have been CREATED
-    else {
+    //CREATION
+    if (!LOT.containsValue(dme) || LOKcreatedThroughCR) {
       if (dme instanceof RootEntity)
         throw new RuntimeException("Root Entity can only be CHANGED by commits!");
       for (DataModelEntity obj : dme.getConstructorParamsAsObjects()) {
-        if (cr.contains(obj))
-          commitCreationOrChange(false, ch, cr, commit, LOT, obj);
-        if (ch.contains(obj))
-          commitCreationOrChange(true,  ch, cr,  commit, LOT, obj);
+        if (chores.contains(obj)) {
+          commitCreationOrChange(chores, commit, LOT, obj, ctcr);
+        }
       }
       //now its save to get the LOK from owner via LOT!
-      LogicalObjectKey newKey = LOT.createLogicalObjectKey(dme);  //because this is creation and dme is not currently present in LOT, this generates a NEW key and puts it in LOT!
+      LogicalObjectKey newKey = LOT.createLogicalObjectKey(dme, ctcr, false);  //because this is creation and dme is not currently present in LOT, this generates a NEW key and puts it in LOT!
       commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(LOT));
-      cr.remove(dme);
     }
+    chores.remove(dme);
   }
 
   //---------------PULL---------------//
@@ -297,7 +293,7 @@ public class TransactionManager {
         cr.field.setAccessible(true);
         try {
           if (LOT.get(cr.LOK) == null)
-            throw new TransactionException("error linking cross references!", cr.LOK.hashCode());
+            throw new TransactionException("error linking cross references for "+LOT.getKey(cr.dme).hashCode(), cr.LOK.hashCode());
           cr.field.set(cr.dme, LOT.get(cr.LOK));
         } catch (IllegalAccessException e) {
           e.printStackTrace();
@@ -330,6 +326,7 @@ public class TransactionManager {
       }
       DataModelEntity objectToCreate = construct(objKey.clazz, params);
       imprintLogicalContentOntoObject(objKey, objectToCreate);
+      System.out.println("PULL: created key "+objKey.hashCode());
       LOT.put(objKey, objectToCreate);
       creationChores.remove(objKey);
     }
@@ -341,6 +338,7 @@ public class TransactionManager {
       imprintLogicalContentOntoObject(after, objectToChange);
       for (Wrapper<?> wrapper : objectToChange.getRegisteredWrappers().values())
         wrapper.onDataChange();
+      System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
       LOT.put(after, objectToChange);
       changeChores.remove(before);
     }
