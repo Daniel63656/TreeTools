@@ -104,6 +104,20 @@ public class TransactionTests {
     }
 
     @Test
+    public void testPullingAChangeAndSubsequentCreation() {
+        Workcopy workcopy = createTransactionWorkcopy();
+        FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
+        NoteGroup ng = note.getOwner();
+        ng.stemUp = false;
+        Note newNote = new Note(ng, 80, false, NoteName.A);
+        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(ng));
+        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNote));
+        tm.commit(workcopy.rootEntity);
+        System.out.println("pulling...");
+        tm.pull(read);
+    }
+
+    @Test
     public void testPullingCreations() {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);

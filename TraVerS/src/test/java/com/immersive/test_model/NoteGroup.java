@@ -8,7 +8,7 @@ import java.util.List;
 public class NoteGroup extends NoteGroupOrTuplet {
     @ChildField
     List<Note> notes = new ArrayList<>();
-    boolean stemUp;
+    public boolean stemUp;
 
     public NoteGroup(NoteTimeTick noteTimeTick, Staff staff, Voice voice, int duration, boolean stemUp) {
         super(noteTimeTick, staff, voice, duration);

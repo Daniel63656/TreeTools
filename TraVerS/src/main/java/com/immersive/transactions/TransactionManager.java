@@ -255,7 +255,11 @@ public class TransactionManager {
     private void pullOneCommit(Commit commit) {
       //copy modificationRecords to safely cross things off without changing commit itself!
       creationChores = new HashMap<>(commit.creationRecords);
-      changeChores   = new HashMap<>(commit.changeRecords);
+      //map changeChores with AFTER as key!
+      changeChores = new HashMap<>();
+      for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : commit.changeRecords.entrySet())
+        changeChores.put(entry.getValue(), entry.getKey());
+      //changeChores = new HashMap<>(commit.changeRecords);   //use this when REVERTING commits!
       LOT = workcopy.LOT;
 
       //DELETION - Assumes Deletion Records are created for all subsequent children!!!
@@ -282,7 +286,7 @@ public class TransactionManager {
       while (!changeChores.isEmpty()) {
         changeRecord = changeChores.entrySet().iterator().next();
         try {
-          pullChangeRecord(changeRecord.getKey(), changeRecord.getValue());
+          pullChangeRecord(changeRecord.getValue(), changeRecord.getKey());
         } catch (IllegalAccessException e) {
           e.printStackTrace();
         }
@@ -314,8 +318,8 @@ public class TransactionManager {
             pullCreationRecord(LOK, creationChores.get(LOK));
           }
           //check if AFTER exists in changeRecords!
-          if (changeChores.containsValue(LOK)) {
-            pullChangeRecord(LOK, changeChores.get(LOK));
+          if (changeChores.containsKey(LOK)) {
+            pullChangeRecord(changeChores.get(LOK), LOK);
           }
           //now object can be safely assigned using LOT
           params[i] = LOT.get(key);
@@ -340,7 +344,7 @@ public class TransactionManager {
         wrapper.onDataChange();
       //System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
       LOT.put(after, objectToChange);
-      changeChores.remove(before);
+      changeChores.remove(after);
     }
 
     private void imprintLogicalContentOntoObject(LogicalObjectKey LOK, DataModelEntity dme) throws IllegalAccessException {

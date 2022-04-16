@@ -10,7 +10,7 @@ class Commit {
   //<ObjectToCreate, ConstructionParams>
   Map<LogicalObjectKey, Object[]> deletionRecords = new HashMap<>();
   Map<LogicalObjectKey, Object[]> creationRecords = new HashMap<>();
-  //<before, after>     mapping needs efficient access to before, pull to after!
+  //<before, after>
   Map<LogicalObjectKey, LogicalObjectKey> changeRecords = new DualHashBidiMap<>();
 
   Commit(CommitId commitId) {
