@@ -1,5 +1,7 @@
 package com.immersive.transactions;
 
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -8,8 +10,8 @@ class Commit {
   //<ObjectToCreate, ConstructionParams>
   Map<LogicalObjectKey, Object[]> deletionRecords = new HashMap<>();
   Map<LogicalObjectKey, Object[]> creationRecords = new HashMap<>();
-  //<before, after>
-  Map<LogicalObjectKey, LogicalObjectKey> changeRecords = new HashMap<>();
+  //<before, after>     mapping needs efficient access to before, pull to after!
+  Map<LogicalObjectKey, LogicalObjectKey> changeRecords = new DualHashBidiMap<>();
 
   Commit(CommitId commitId) {
     this.commitId = commitId;

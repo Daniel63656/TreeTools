@@ -84,7 +84,7 @@ public class TransactionTests {
     }
 
     @Test
-    public void testPullingAChange(){
+    public void testPullingAChange() {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
         note.setPitch(30);

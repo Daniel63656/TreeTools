@@ -313,7 +313,8 @@ public class TransactionManager {
           if (creationChores.containsKey(LOK)) {
             pullCreationRecord(LOK, creationChores.get(LOK));
           }
-          if (changeChores.containsKey(LOK)) {
+          //check if AFTER exists in changeRecords!
+          if (changeChores.containsValue(LOK)) {
             pullChangeRecord(LOK, changeChores.get(LOK));
           }
           //now object can be safely assigned using LOT

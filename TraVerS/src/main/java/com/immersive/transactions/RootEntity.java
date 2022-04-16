@@ -52,6 +52,7 @@ public abstract class RootEntity implements DataModelEntity {
             if (commit.deletionRecords.containsKey(LOK)) {
                 return null;
             }
+            //check if BEFORE exists in changeRecords
             if (commit.changeRecords.containsKey(LOK)) {
                 LOK = commit.changeRecords.get(LOK);
             }
