@@ -11,10 +11,36 @@ class Commit {
   Map<LogicalObjectKey, Object[]> deletionRecords = new HashMap<>();
   Map<LogicalObjectKey, Object[]> creationRecords = new HashMap<>();
   //<before, after>
-  Map<LogicalObjectKey, LogicalObjectKey> changeRecords = new DualHashBidiMap<>();
+  DualHashBidiMap<LogicalObjectKey, LogicalObjectKey> changeRecords = new DualHashBidiMap<>();
 
   Commit(CommitId commitId) {
     this.commitId = commitId;
+  }
+
+  boolean isEmpty() {
+    return (deletionRecords.isEmpty() && creationRecords.isEmpty() && changeRecords.isEmpty());
+  }
+
+  void addTo(Commit dstCommit) {
+    for (Map.Entry<LogicalObjectKey, Object[]> entry : deletionRecords.entrySet()) {
+      if (dstCommit.changeRecords.containsValue(entry.getKey())) {
+        dstCommit.deletionRecords.put(dstCommit.changeRecords.getKey(entry.getKey()), entry.getValue());
+        dstCommit.changeRecords.removeValue(entry.getKey());
+      }
+      else {
+        if (dstCommit.creationRecords.containsKey(entry.getKey()))
+          dstCommit.creationRecords.remove(entry.getKey());
+        else
+          dstCommit.deletionRecords.put(entry.getKey(), entry.getValue());
+      }
+    }
+    dstCommit.creationRecords.putAll(creationRecords);
+    for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : changeRecords.entrySet()) {
+      if (dstCommit.changeRecords.containsValue(entry.getKey()))
+        dstCommit.changeRecords.put(dstCommit.changeRecords.getKey(entry.getKey()), entry.getValue());
+      else
+        dstCommit.changeRecords.put(entry.getKey(), entry.getValue());
+    }
   }
 
   @Override

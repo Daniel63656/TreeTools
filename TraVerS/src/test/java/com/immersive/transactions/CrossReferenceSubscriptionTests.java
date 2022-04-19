@@ -13,7 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class CrossReferenceSubscriptionTest {
+public class CrossReferenceSubscriptionTests {
     TransactionManager tm = TransactionManager.getInstance();
     Track track;
     Voice voice;

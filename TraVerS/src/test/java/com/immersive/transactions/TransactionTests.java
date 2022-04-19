@@ -184,7 +184,7 @@ public class TransactionTests {
     }
 
     @Test
-    public void testPullingSeveralCommitsAtOnce() {
+    public void testPullingSeveralCommitsAtOnceAndCleanup() {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
         NoteTimeTick ntt = track.getNTT(0);
@@ -197,17 +197,21 @@ public class TransactionTests {
         //now delete same note and its owner
         noteGroup.clear();
         tm.commit(workcopy.rootEntity);
+        Assertions.assertSame(2, tm.commits.size());
+        System.out.println("pulling...");
+        tm.pull(read);
+        Assertions.assertSame(0, tm.commits.size());
         //create new NoteGroup and 2 notes at its place
         NoteGroup newNoteGroup = new NoteGroup(ntt, staff, voice, 16, false);
-        Note newNote = new Note(newNoteGroup, 51, false, NoteName.D);
+                       new Note(newNoteGroup, 51, false, NoteName.D);
         Note newNote2= new Note(newNoteGroup, 34, true, NoteName.B);
         tm.commit(workcopy.rootEntity);
         //delete one of the created notes -> this notes creation should not be appear in commit
         newNote2.clear();
         tm.commit(workcopy.rootEntity);
 
-        Assertions.assertSame(tm.commits.size(), 4);
         System.out.println("pulling...");
         tm.pull(read);
+        Assertions.assertSame(0, tm.commits.size());
     }
 }

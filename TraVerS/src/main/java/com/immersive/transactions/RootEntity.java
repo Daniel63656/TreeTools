@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public abstract class RootEntity implements DataModelEntity {
+    TransactionManager tm = TransactionManager.getInstance();
     final Map<WrapperScope, Wrapper<?>> registeredWrappers = new HashMap<>();
     @Override
     public Map<WrapperScope, Wrapper<?>> getRegisteredWrappers() {
@@ -42,9 +43,14 @@ public abstract class RootEntity implements DataModelEntity {
     public synchronized boolean pull() {
         return TransactionManager.getInstance().pull(this);
     }
+    public synchronized void undo() {
+        tm.undo(this);
+    }
+    public synchronized void redo() {
+        tm.redo(this);
+    }
 
     synchronized DataModelEntity getObjectSynchronizedIn(DataModelEntity dme, RootEntity dstRootEntity) {
-        TransactionManager tm = TransactionManager.getInstance();
         CommitId srcCommitId = tm.getCurrentCommitId(this);
         CommitId dstCommitId = tm.getCurrentCommitId(dstRootEntity);
         LogicalObjectKey LOK = tm.workcopies.get(this).LOT.getKey(dme);
