@@ -5,6 +5,7 @@ import com.immersive.wrap.Wrapper;
 import com.immersive.wrap.WrapperScope;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 public abstract class RootEntity implements DataModelEntity {
@@ -13,6 +14,16 @@ public abstract class RootEntity implements DataModelEntity {
     @Override
     public Map<WrapperScope, Wrapper<?>> getRegisteredWrappers() {
         return registeredWrappers;
+    }
+    @Override
+    public void onWrappedCleared() {
+        for (Wrapper<?> w : registeredWrappers.values()) {
+            w.onWrappedCleared();
+        }
+    }
+    @Override
+    public void onWrappedChanged() {
+        registeredWrappers.values().removeIf(Wrapper::onWrappedChanged);
     }
 
     @Override
@@ -40,14 +51,14 @@ public abstract class RootEntity implements DataModelEntity {
     public synchronized Commit commit() {
         return TransactionManager.getInstance().commit(this);
     }
+    public synchronized Commit undo() {
+        return tm.undo(this);
+    }
+    public synchronized Commit redo() {
+        return tm.redo(this);
+    }
     public synchronized boolean pull() {
         return TransactionManager.getInstance().pull(this);
-    }
-    public synchronized void undo() {
-        tm.undo(this);
-    }
-    public synchronized void redo() {
-        tm.redo(this);
     }
 
     synchronized DataModelEntity getObjectSynchronizedIn(DataModelEntity dme, RootEntity dstRootEntity) {

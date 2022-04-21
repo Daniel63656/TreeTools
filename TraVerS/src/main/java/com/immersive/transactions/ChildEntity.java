@@ -12,6 +12,17 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
     public Map<WrapperScope, Wrapper<?>> getRegisteredWrappers() {
         return registeredWrappers;
     }
+    @Override
+    public void onWrappedCleared() {
+        for (Wrapper<?> w : registeredWrappers.values()) {
+            w.onWrappedCleared();
+        }
+    }
+    @Override
+    public void onWrappedChanged() {
+        registeredWrappers.values().removeIf(Wrapper::onWrappedChanged);
+    }
+
     private boolean clearingInProgress;
     final RootEntity root;
     final O owner;

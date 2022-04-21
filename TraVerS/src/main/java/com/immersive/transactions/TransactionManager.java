@@ -3,7 +3,6 @@ package com.immersive.transactions;
 import com.immersive.annotations.CrossReference;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
-import com.immersive.wrap.Wrapper;
 
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
@@ -118,12 +117,10 @@ public class TransactionManager {
 
   static class CrossReferenceToDo {
     DataModelEntity dme;
-    LogicalObjectKey before;  //logged to fix cross-references for non changing objects. null for creations
     LogicalObjectKey objectKey, crossReferenceKey;
     Field ObjectField;
-    public CrossReferenceToDo(DataModelEntity dme, LogicalObjectKey before, LogicalObjectKey objectKey, LogicalObjectKey crossReferenceKey, Field ObjectField) {
+    public CrossReferenceToDo(DataModelEntity dme, LogicalObjectKey objectKey, LogicalObjectKey crossReferenceKey, Field ObjectField) {
       this.dme = dme;
-      this.before = before;
       this.objectKey = objectKey;
       this.crossReferenceKey = crossReferenceKey;
       this.ObjectField = ObjectField;
@@ -207,9 +204,10 @@ public class TransactionManager {
       remote.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in remote!
       LogicalObjectKey after = remote.createLogicalObjectKey(dme, keysCreatedSoFar, false);
       keysCreatedSoFar.add(after);
-      //linking cross references together
+      //linking cross references together. This changes subscribedLOKs which becomes MUTABLE across commits!
+      //if two objects cross-reference each other, one of them is handled first and therefore receives the new LOK in its subscribedLOKs!
       for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
-        if (!keysCreatedSoFar.contains(subscribed.getKey()))  //object subscribed is not itself part of a change so add a chore!
+        if (!keysCreatedSoFar.contains(subscribed.getKey()))  //object subscribed is not itself part of a change or not done yet so add a chore!
           chores.add(remote.get(subscribed.getKey()));
         else {                                                //make all LOKs previously subscribed to before subscribe to after and change their field!
           after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
@@ -221,46 +219,53 @@ public class TransactionManager {
     chores.remove(dme);
   }
 
-  void undo(RootEntity rootEntity) {
+  Commit undo(RootEntity rootEntity) {
     if (history == null)
       throw new RuntimeException("Undos/Redos were not enabled!");
     if (history.undosAvailable()) {
       Commit commit = history.head.self;
-      commit.commitId = new CommitId(commitID);
-      commitID++;
+      CommitId commitId = new CommitId(commitID);
+      commit.commitId = commitId;
+      history.head = history.head.previous;
       new Pull(rootEntity, commit, true);
       //revert the commit for commit-list!
-      Map<LogicalObjectKey, Object[]> temp = commit.creationRecords;
-      commit.creationRecords = commit.deletionRecords;
-      commit.deletionRecords = temp;
+      Commit revertedCommit = new Commit(commitId);
+      commitID++;
+      revertedCommit.creationRecords = commit.deletionRecords;
+      revertedCommit.deletionRecords = commit.creationRecords;
       DualHashBidiMap<LogicalObjectKey, LogicalObjectKey> changes = new DualHashBidiMap<>();
       for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : commit.changeRecords.entrySet())
         changes.put(entry.getValue(), entry.getKey());
-      commit.changeRecords = changes;
+      revertedCommit.changeRecords = changes;
       synchronized (commits) {
-        commits.put(commit.commitId, commit);
+        commits.put(revertedCommit.commitId, revertedCommit);
       }
+      return revertedCommit;
     }
+    return null;
   }
 
-  void redo(RootEntity rootEntity) {
+  Commit redo(RootEntity rootEntity) {
     if (history == null)
       throw new RuntimeException("Undos/Redos were not enabled!");
     if (history.redosAvailable()) {
-      Commit commit = history.head.next.self;
+      history.head = history.head.next;
+      Commit commit = history.head.self;
       commit.commitId = new CommitId(commitID);
       commitID++;
       new Pull(rootEntity, commit, false);
       synchronized (commits) {
         commits.put(commit.commitId, commit);
       }
+      return commit;
     }
+    return null;
   }
 
   public void createUndoState() {
     if (history == null)
       throw new RuntimeException("Undos/Redos were not enabled!");
-    history.archive();
+    history.createUndoState();
   }
 
   //---------------PULL---------------//
@@ -282,7 +287,7 @@ public class TransactionManager {
     private Pull(Workcopy workcopy, Commit initializationCommit) {
       this.workcopy = workcopy;
       workcopy.ongoingPull = true;
-      pullOneCommit(initializationCommit, false);
+      pullOneCommit(initializationCommit, false, false);
       workcopy.ongoingPull = false;
       workcopy.currentCommitId = new CommitId(0);
     }
@@ -292,7 +297,7 @@ public class TransactionManager {
       if (workcopy == null)
         throw new NoTransactionsEnabledException();
       workcopy.ongoingPull = true;
-      pullOneCommit(commit, revert);
+      pullOneCommit(commit, revert, true);
       workcopy.ongoingPull = false;
       workcopy.currentCommitId = commit.commitId;
       cleanUpUnnecessaryCommits();
@@ -313,7 +318,7 @@ public class TransactionManager {
         commitsToPull = new ArrayList<>(commits.tailMap(workcopy.currentCommitId, false).values());
       }
       for (Commit commit : commitsToPull) {
-        pullOneCommit(commit, false);
+        pullOneCommit(commit, false, false);
       }
       if (!commitsToPull.isEmpty())
         pulledSomething = true;
@@ -321,7 +326,7 @@ public class TransactionManager {
       cleanUpUnnecessaryCommits();
     }
 
-    private void pullOneCommit(Commit commit, boolean revert) {
+    private void pullOneCommit(Commit commit, boolean revert, boolean redoUndo) {
       if (!revert) {
         //copy modificationRecords to safely cross things off without changing commit itself!
         creationChores = new HashMap<>(commit.creationRecords);
@@ -333,19 +338,15 @@ public class TransactionManager {
       else {
         creationChores = new HashMap<>(commit.deletionRecords);
         deletionChores = commit.creationRecords;            //no removing
-        changeChores = new HashMap<>(commit.changeRecords); //map changeChores with AFTER as key!
+        changeChores = new HashMap<>(commit.changeRecords); //map changeChores with BEFORE as key!
       }
       LOT = workcopy.LOT;
 
       //DELETION - Assumes Deletion Records are created for all subsequent children!!!
       for (Map.Entry<LogicalObjectKey, Object[]> entry : deletionChores.entrySet()) {
         ChildEntity<?> objectToDelete = (ChildEntity<?>) LOT.get(entry.getKey());
-        for (Wrapper<?> wrapper : objectToDelete.getRegisteredWrappers().values()) {
-          wrapper.onWrappedCleared();
-        }
-        for (Wrapper<?> wrapper : objectToDelete.getOwner().getRegisteredWrappers().values()) {
-          wrapper.onDataChange();
-        }
+        objectToDelete.onWrappedCleared();
+        objectToDelete.getOwner().onWrappedChanged();
         destruct(objectToDelete);
         LOT.removeValue(objectToDelete);
       }
@@ -376,11 +377,22 @@ public class TransactionManager {
           if (LOT.get(cr.crossReferenceKey) == null)
             throw new TransactionException("error linking cross references for "+LOT.getKey(cr.dme).hashCode(), cr.crossReferenceKey.hashCode());
           cr.ObjectField.set(cr.dme, LOT.get(cr.crossReferenceKey));
-          //remove old value from subscribers if existing
-          //cr.crossReferenceKey.subscribedLOKs.remove(cr.before);
-          //cr.crossReferenceKey.subscribedLOKs.put(cr.objectKey, cr.ObjectField);  //put new value in
+          //since subscribedLOKs are MUTABLE over commits, they have to be RESTORED when doing undos/redos!
+          if (redoUndo)
+            cr.crossReferenceKey.subscribedLOKs.put(cr.objectKey, cr.ObjectField);  //put new value in
         } catch (IllegalAccessException e) {
           e.printStackTrace();
+        }
+      }
+      //remove invalid subscribers by checking if they are present in current LOT for each changed object
+      if (redoUndo) {
+        if (!revert) {
+          for (LogicalObjectKey after : commit.changeRecords.values())
+            after.subscribedLOKs.keySet().removeIf(LOK -> !LOT.containsKey(LOK));
+        }
+        else {
+          for (LogicalObjectKey after : commit.changeRecords.keySet())
+            after.subscribedLOKs.keySet().removeIf(LOK -> !LOT.containsKey(LOK));
         }
       }
       crossReferences.clear();
@@ -421,10 +433,9 @@ public class TransactionManager {
         }
       }
       DataModelEntity objectToCreate = construct(objKey.clazz, params);
-      imprintLogicalContentOntoObject(null, objKey, objectToCreate);
+      imprintLogicalContentOntoObject(objKey, objectToCreate);
       if (objectToCreate instanceof ChildEntity) {
-        for (Wrapper<?> wrapper : ((ChildEntity<?>) objectToCreate).getOwner().getRegisteredWrappers().values())
-          wrapper.onDataChange();
+        ((ChildEntity<?>) objectToCreate).getOwner().onWrappedChanged();
       }
       //System.out.println("PULL: created key "+objKey.hashCode());
       LOT.put(objKey, objectToCreate);
@@ -435,21 +446,20 @@ public class TransactionManager {
       DataModelEntity objectToChange = LOT.get(before);
       if (objectToChange == null)
         throw new TransactionException("object to change is null!", before.hashCode());
-      imprintLogicalContentOntoObject(before, after, objectToChange);
-      for (Wrapper<?> wrapper : objectToChange.getRegisteredWrappers().values())
-        wrapper.onDataChange();
+      imprintLogicalContentOntoObject(after, objectToChange);
+      objectToChange.onWrappedChanged();
       //System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
       LOT.put(after, objectToChange);
       changeChores.remove(after);
     }
 
-    private void imprintLogicalContentOntoObject(LogicalObjectKey before, LogicalObjectKey after, DataModelEntity dme) throws IllegalAccessException {
+    private void imprintLogicalContentOntoObject(LogicalObjectKey after, DataModelEntity dme) throws IllegalAccessException {
       for (Field field : getContentFields(dme)) {
         if (after.containsKey(field)) {
           //save cross references to do at the very end to avoid infinite recursion when cross-references point at each other!
           if (field.getAnnotation(CrossReference.class) != null) {
             if (after.get(field) != null)
-              crossReferences.add(new CrossReferenceToDo(dme, before, after, (LogicalObjectKey) after.get(field), field));
+              crossReferences.add(new CrossReferenceToDo(dme, after, (LogicalObjectKey) after.get(field), field));
             else {
               field.setAccessible(true);
               field.set(dme, null);

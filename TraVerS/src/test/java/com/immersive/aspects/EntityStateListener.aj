@@ -1,33 +1,32 @@
-package com.immersive.aspects;
-
 import com.immersive.transactions.*;
 import com.immersive.annotations.*;
-import com.immersive.test_model.*;
 
 privileged aspect EntityStateListener {
 private static TransactionManager tm = TransactionManager.getInstance();
 
-    pointcut contentFieldSetter(DataModelEntity dme) : set(!static !final * DataModelEntity+.*)
+    pointcut contentFieldSetter(DataModelEntity dme, Object newValue) : set(!static !final * DataModelEntity+.*)
         && target(dme)
+        && args(newValue)
         && !@annotation(ChildField);
 
-
     pointcut creation(ChildEntity te, DataModelEntity owner) : execution(ChildEntity+.new(..))
-    && !execution(ChildEntity.new(..))
-    && !execution(KeyedChildEntity.new(..))
-                && target(te)
-                && args(owner,..);
-
+        && !execution(ChildEntity.new(..))
+        && !execution(KeyedChildEntity.new(..))
+        && !execution(DoubleKeyedChildEntity.new(..))
+        && target(te)
+        && args(owner,..);
 
     pointcut deletion(ChildEntity te) : execution(* ChildEntity+.clear())
         && target(te);
 
-    //this will not be called when pulling changes cause reflections do not trigger set!
-    before(DataModelEntity dme) : contentFieldSetter(dme) {
+
+    //this will not be called when pulling changes cause reflections do not trigger set but redos!
+    before(DataModelEntity dme, Object newValue) : contentFieldSetter(dme, newValue) {
         Workcopy workcopy = getWorkcopy(dme);
         if (workcopy != null) {
-            if (!workcopy.ongoingCreation) {
-                System.out.println(dme.getClass().getSimpleName()+ " change detected [TraVerS]");
+            if (!workcopy.ongoingCreation && !workcopy.ongoingPull) {
+                if (tm.logAspects)
+                    System.out.println(dme.getClass().getSimpleName()+ " changed " + thisJoinPoint.getSignature().getName());
                 workcopy.locallyChangedOrCreated.add(dme);
             }
         }
@@ -38,7 +37,8 @@ private static TransactionManager tm = TransactionManager.getInstance();
         Workcopy workcopy = getWorkcopy(owner);
         if (workcopy != null) {
             if (!workcopy.ongoingPull) {
-                 System.out.println(te.getClass().getSimpleName()+" got created [TraVerS]");
+                 if (tm.logAspects)
+                    System.out.println(te.getClass().getSimpleName()+" got created");
                  workcopy.ongoingCreation = true;
                  Object object = proceed(te, owner);
                  workcopy.ongoingCreation = false;
@@ -59,7 +59,8 @@ private static TransactionManager tm = TransactionManager.getInstance();
         Workcopy workcopy = getWorkcopy(te);
         if (workcopy != null) {
             workcopy.locallyDeleted.add(te);
-            System.out.println(te.getClass().getSimpleName() + " got deleted [TraVerS]");
+            if (tm.logAspects)
+                System.out.println(te.getClass().getSimpleName() + " got deleted");
         }
     }
 

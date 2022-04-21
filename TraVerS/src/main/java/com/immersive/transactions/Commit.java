@@ -21,41 +21,18 @@ class Commit {
     return (deletionRecords.isEmpty() && creationRecords.isEmpty() && changeRecords.isEmpty());
   }
 
-  void addTo(Commit dstCommit) {
-    for (Map.Entry<LogicalObjectKey, Object[]> entry : deletionRecords.entrySet()) {
-      if (dstCommit.changeRecords.containsValue(entry.getKey())) {
-        dstCommit.deletionRecords.put(dstCommit.changeRecords.getKey(entry.getKey()), entry.getValue());
-        dstCommit.changeRecords.removeValue(entry.getKey());
-      }
-      else {
-        if (dstCommit.creationRecords.containsKey(entry.getKey()))
-          dstCommit.creationRecords.remove(entry.getKey());
-        else
-          dstCommit.deletionRecords.put(entry.getKey(), entry.getValue());
-      }
-    }
-    dstCommit.creationRecords.putAll(creationRecords);
-    for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : changeRecords.entrySet()) {
-      if (dstCommit.changeRecords.containsValue(entry.getKey()))
-        dstCommit.changeRecords.put(dstCommit.changeRecords.getKey(entry.getKey()), entry.getValue());
-      else
-        dstCommit.changeRecords.put(entry.getKey(), entry.getValue());
-    }
-  }
-
   @Override
   public String toString() {
     StringBuilder strb = new StringBuilder();
     strb.append("----------Commit number ").append(commitId.id).append(":----------\n");
     for (Map.Entry<LogicalObjectKey, Object[]> entry : deletionRecords.entrySet()) {
-      strb.append(">Deleted ").append(entry.getKey().clazz.getSimpleName()).append(" with key ").append(entry.getKey().hashCode()).append("\n");
+      strb.append(">Deleted ").append(entry.getKey()).append("\n");
     }
     for (Map.Entry<LogicalObjectKey, Object[]> entry : creationRecords.entrySet()) {
-      strb.append(">Created ").append(entry.getKey().clazz.getSimpleName()).append(" with key ").append(entry.getKey().hashCode()).append("\n    ").append(entry.getKey()).append("\n");
+      strb.append(">Created ").append(entry.getKey()).append(entry.getKey().printSubscribers()).append("\n");
     }
     for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : changeRecords.entrySet()) {
-      strb.append(">Changed ").append(entry.getKey().clazz.getSimpleName()).append(" from\n    ").append(entry.getKey()).append(", key ").append(entry.getKey().hashCode())
-              .append("\n    to\n    ").append(entry.getValue()).append(", key ").append(entry.getValue().hashCode()).append("\n");
+      strb.append(">Changed ").append(entry.getKey()).append("\n      to ").append(entry.getValue()).append(entry.getValue().printSubscribers()).append("\n");
     }
     return strb.append("\n").toString();
   }

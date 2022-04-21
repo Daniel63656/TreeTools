@@ -71,56 +71,30 @@ public class HistoryTests {
     }
 
     @Test
-    public void testAddingCommitChanges() {
+    public void testParamsDependencyChanging() {
         Workcopy workcopy = createTransactionWorkcopy();
-        LogicalObjectKey before = workcopy.LOT.getKey(note2);
-        note.setPitch(30);
-        note2.setPitch(31);
-        Commit first = tm.commit(workcopy.rootEntity);
-        Assertions.assertSame(2, first.changeRecords.size());
-        note2.setPitch(32);
-        note3.setPitch(33);
-        Commit second = tm.commit(workcopy.rootEntity);
-        LogicalObjectKey after = workcopy.LOT.getKey(note2);
-        Assertions.assertSame(2, second.changeRecords.size());
-
-        second.addTo(first);
-        Assertions.assertSame(3, first.changeRecords.size());
-        Assertions.assertTrue(first.changeRecords.containsKey(before));
-        Assertions.assertSame(after, first.changeRecords.get(before));
-    }
-
-    @Test
-    public void testCreationAndDeletion() {
-        Workcopy workcopy = createTransactionWorkcopy();
-        NoteGroup noteGroup = ((NoteGroup)track.getNTT(0).getNGOT(voice));
-        
-        Note newNote = new Note(noteGroup, 40, false, NoteName.A);
+        tm.enableUndoRedos(64);
+        NoteGroup noteGroup = note.getOwner();
+        Note newNote = new Note(noteGroup, 60, false, NoteName.E);
         note.clear();
-        Commit first = tm.commit(workcopy.rootEntity);
+        tm.commit(workcopy.rootEntity);
+        noteGroup.stemUp = false;
+        tm.commit(workcopy.rootEntity);
+        noteGroup.stemUp = true;
+        tm.commit(workcopy.rootEntity);
 
-        newNote.setPitch(70);
-        Commit second = tm.commit(workcopy.rootEntity);
-
-        newNote.clear();
-        new Note(noteGroup, 40, false, NoteName.A);
-        Commit third = tm.commit(workcopy.rootEntity);
-
-        third.addTo(second);
-        second.addTo(first);
-        Assertions.assertSame(1, second.creationRecords.size());
-        Assertions.assertSame(1, second.deletionRecords.size());
-        Assertions.assertSame(0, second.changeRecords.size());
-        Assertions.assertSame(1, first.creationRecords.size());
-        Assertions.assertSame(1, first.deletionRecords.size());
-        Assertions.assertSame(0, first.changeRecords.size());
+        LogicalObjectKey NG_key = workcopy.LOT.getKey(noteGroup);
+        for (Object[] objects : tm.history.ongoingCommit.creationRecords.values())
+            objects[0] = NG_key;
+        for (Object[] objects : tm.history.ongoingCommit.deletionRecords.values())
+            objects[0] = NG_key;
     }
 
     @Test
     public void testSimpleUndo() {
         Workcopy workcopy = createTransactionWorkcopy();
         tm.enableUndoRedos(64);
-        NoteGroup noteGroup = ((NoteGroup)track.getNTT(0).getNGOT(voice));
+        NoteGroup noteGroup = note.getOwner();
         note.setPitch(30);
         new Note(noteGroup, 40, false, NoteName.A);
         tm.commit(workcopy.rootEntity);
@@ -132,16 +106,33 @@ public class HistoryTests {
     }
 
     @Test
-    public void test() {
+    public void testUndoAndRedo() {
         Workcopy workcopy = createTransactionWorkcopyWithTie();
         tm.enableUndoRedos(64);
         tieStart.setPitch(30);
+
+        NoteGroup ng = note.getOwner();
+        new Note(ng, 60, false, NoteName.A);
+        note.clear();
+
         tm.commit(workcopy.rootEntity);
         tm.createUndoState();
         workcopy.rootEntity.undo();
+        workcopy.rootEntity.redo();
 
-        tieEnd.setPitch(30);
+        note.setPitch(70);
         tm.commit(workcopy.rootEntity);
+    }
 
+    @Test
+    public void testOldSubscribersGettingRemoved() {
+        Workcopy workcopy = createTransactionWorkcopy();
+        tm.enableUndoRedos(64);
+        note2.tieWith(note3);
+        tm.commit(workcopy.rootEntity);
+        tm.createUndoState();
+        Commit undo = workcopy.rootEntity.undo();
+        for (LogicalObjectKey after : undo.changeRecords.values())
+            Assertions.assertSame(0, after.subscribedLOKs.size());
     }
 }

@@ -1,12 +1,8 @@
 package com.immersive.transactions;
 
-import com.immersive.wrap.Wrapper;
-import com.immersive.wrap.WrapperScope;
+import com.immersive.wrap.Wrappable;
 
-import java.util.Map;
-
-public interface DataModelEntity {
-    Map<WrapperScope, Wrapper<?>> getRegisteredWrappers();
+public interface DataModelEntity extends Wrappable {
     Class<?>[] getClassesOfConstructorParams();
     Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT);
     DataModelEntity[] getConstructorParamsAsObjects();

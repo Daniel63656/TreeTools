@@ -59,19 +59,33 @@ class LogicalObjectKey extends HashMap<Field, Object> {
     return uniqueID;
   }
 
+  String printSubscribers() {
+    StringBuilder strb = new StringBuilder();
+    if (!subscribedLOKs.isEmpty()) {
+      strb.append(" subscribed: ");
+      for (LogicalObjectKey LOK : subscribedLOKs.keySet()) {
+        strb.append("["). append(LOK.uniqueID).append("]");
+      }
+    }
+    return strb.toString();
+  }
+
   @Override
   public String toString() {
     StringBuilder strb = new StringBuilder();
-    strb.append("{");
-    for (Entry<Field, Object> entry : entrySet()) {
-      if (entry.getValue() instanceof LogicalObjectKey)
-        strb.append(entry.getKey().getName()).append("=[").append(((LogicalObjectKey) entry.getValue()).hashCode()).append("]");
-      else
-        strb.append(entry.getKey().getName()).append("=").append(entry.getValue());
-      strb.append(" ");
+    strb.append(clazz.getSimpleName()).append("(").append(uniqueID).append(")");
+    if (!isEmpty()) {
+      strb.append("={");
+      for (Entry<Field, Object> entry : entrySet()) {
+        if (entry.getValue() instanceof LogicalObjectKey)
+          strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("]");
+        else
+          strb.append(entry.getKey().getName()).append("=").append(entry.getValue());
+        strb.append(" ");
+      }
+      strb.setLength(strb.length() - 1);  //remove last space
+      strb.append("}");
     }
-    strb.setLength(strb.length() - 1);  //remove last space
-    strb.append("}");
     return strb.toString();
   }
 }

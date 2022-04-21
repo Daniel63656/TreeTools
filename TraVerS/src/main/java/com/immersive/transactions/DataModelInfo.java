@@ -117,7 +117,7 @@ class DataModelInfo {
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
-        throw new RuntimeException("Error invoking class constructor!");
+        throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
     }
 
     void destruct(ChildEntity<?> te) {
@@ -128,7 +128,7 @@ class DataModelInfo {
         } catch (IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
-        throw new RuntimeException("Error invoking class destructor!");
+        throw new RuntimeException("Error invoking class destructor "+clazz.getSimpleName()+"!");
     }
 
     @Override
