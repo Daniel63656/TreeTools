@@ -35,7 +35,7 @@ dependencies {
 
     //for unit tests
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
-    //For reasons only God knows, this prevents UnitTests imports to stay valid when using aspectj!!
+    //this prevents UnitTests imports to stay valid when using aspectj!!
     implementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
 
     if(aspectsEnabled.toBoolean()) {

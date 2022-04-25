@@ -3,9 +3,7 @@ package com.immersive.transactions;
 import com.immersive.transactions.exceptions.TransactionException;
 import com.immersive.wrap.Wrapper;
 import com.immersive.wrap.WrapperScope;
-
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 public abstract class RootEntity implements DataModelEntity {
@@ -79,4 +77,10 @@ public abstract class RootEntity implements DataModelEntity {
             throw new TransactionException("object mapping FAILED: couldn't find object in source RootEntity", LOK.hashCode());
         return result;
     }
+
+    @Override
+    public String toString() {
+        return JsonParser.toJson(this, true);
+    }
+
 }

@@ -4,6 +4,7 @@ import com.immersive.annotations.ChildField;
 import com.immersive.annotations.CrossReference;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.ClassUtils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -55,7 +56,7 @@ class DataModelInfo {
         for (Field field : relevantFields) {
             if (Modifier.isStatic(field.getModifiers()))
                 continue;
-            //field is a collection or
+            //field is a collection or map
             if (Collection.class.isAssignableFrom(field.getType()) || Map.class.isAssignableFrom(field.getType())) {
                 if (field.getAnnotation(ChildField.class) == null) {
                     throw new RuntimeException("Collections on non child objects are not allowed in data model class "+clazz.getName() + ", field: "+field.getName());
@@ -71,12 +72,18 @@ class DataModelInfo {
                     childFieldList.add(field);
                 }
                 else {
-                    throw new RuntimeException("Found reference to class of the data model in " + clazz.getSimpleName() + " neither annotated as cross-reference nor nor child, field: "+field.getName());
+                    throw new RuntimeException("Found reference to class of the data model in " + clazz.getSimpleName() + " neither annotated as cross-reference nor child, field: "+field.getName());
                 }
+                //TODO don't allow non DME object fields!
+                //ClassUtils.isPrimitiveOrWrapper(field.getType());
             }
-            //field is of primitive data type
+            //field is of primitive data type or child without collection
             else {
-                contentFieldList.add(field);
+                if (field.getAnnotation(ChildField.class) != null) {
+                    childFieldList.add(field);
+                }
+                else
+                    contentFieldList.add(field);
             }
         }
         contentFields = contentFieldList.toArray(new Field[0]);

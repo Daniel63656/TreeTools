@@ -97,10 +97,8 @@ public class TransactionManager {
   private void buildLogicalObjectTree(LogicalObjectTree LOT, DataModelEntity dme) {
     LOT.createLogicalObjectKey(dme, null, false);
     ArrayList<ChildEntity<?>> children = getChildren(dme);
-    if (children != null) {
-      for (ChildEntity<?> child : children) {
-        buildLogicalObjectTree(LOT, child);
-      }
+    for (ChildEntity<?> child : children) {
+      buildLogicalObjectTree(LOT, child);
     }
   }
 
@@ -115,11 +113,11 @@ public class TransactionManager {
     }
   }
 
-  static class CrossReferenceToDo {
+  private static class CrossReferenceToDo {
     DataModelEntity dme;
     LogicalObjectKey objectKey, crossReferenceKey;
     Field ObjectField;
-    public CrossReferenceToDo(DataModelEntity dme, LogicalObjectKey objectKey, LogicalObjectKey crossReferenceKey, Field ObjectField) {
+    CrossReferenceToDo(DataModelEntity dme, LogicalObjectKey objectKey, LogicalObjectKey crossReferenceKey, Field ObjectField) {
       this.dme = dme;
       this.objectKey = objectKey;
       this.crossReferenceKey = crossReferenceKey;
@@ -487,6 +485,12 @@ public class TransactionManager {
     if (!dataModelInfo.containsKey(dme.getClass()))
       dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
     return dataModelInfo.get(dme.getClass()).contentFields;
+  }
+
+  static Field[] getChildFields(DataModelEntity dme) {
+    if (!dataModelInfo.containsKey(dme.getClass()))
+      dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
+    return dataModelInfo.get(dme.getClass()).childFields;
   }
 
   static DataModelEntity construct(Class<? extends DataModelEntity> clazz, Object...objects) {
