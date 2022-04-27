@@ -1,7 +1,9 @@
 package com.immersive.transactions;
 
-import com.immersive.annotations.ChildField;
 import com.immersive.annotations.CrossReference;
+import com.immersive.annotations.MultipleOwner;
+import com.immersive.annotations.Polymorphic;
+import com.immersive.transactions.exceptions.IllegalDataModelException;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
@@ -11,6 +13,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -30,11 +34,18 @@ class DataModelInfo {
         this.clazz = clazz;
         traceClassFields();
         try {
+            MultipleOwner mo = clazz.getAnnotation(MultipleOwner.class);
+            if (mo != null)
+                classes[0] = mo.commonInterface();
             constructor = clazz.getDeclaredConstructor(classes);
+        } catch (NoSuchMethodException e) {
+            throw new IllegalDataModelException(clazz, "has no suitable constructor!");
+        }
+        try {
             if (!RootEntity.class.isAssignableFrom(clazz))
                 destructor = clazz.getDeclaredMethod("destruct");
         } catch (NoSuchMethodException e) {
-            throw new RuntimeException("Unable to find constructor/destructor for class" + clazz.getName());
+            throw new IllegalDataModelException(clazz, "has no suitable destructor!");
         }
     }
 
@@ -56,34 +67,51 @@ class DataModelInfo {
         for (Field field : relevantFields) {
             if (Modifier.isStatic(field.getModifiers()))
                 continue;
-            //field is a collection or map
-            if (Collection.class.isAssignableFrom(field.getType()) || Map.class.isAssignableFrom(field.getType())) {
-                if (field.getAnnotation(ChildField.class) == null) {
-                    throw new RuntimeException("Collections on non child objects are not allowed in data model class "+clazz.getName() + ", field: "+field.getName());
-                }
+            Class<?> type = field.getType();
+            //field is an array
+            if (type.isArray()) {
+                Class<?> storedType = type.getComponentType();
+                if (!DataModelEntity.class.isAssignableFrom(storedType))
+                    throw new IllegalDataModelException(clazz, "contains non DataModelEntities in Array \""+field.getName()+"\" which is illegal!");
                 childFieldList.add(field);
             }
-            //field contains other TransactionalEntity
-            else if (DataModelEntity.class.isAssignableFrom(field.getType())) {
-                if (field.getAnnotation(CrossReference.class) != null) {
-                    contentFieldList.add(field);
-                }
-                else if (field.getAnnotation(ChildField.class) != null) {
-                    childFieldList.add(field);
-                }
-                else {
-                    throw new RuntimeException("Found reference to class of the data model in " + clazz.getSimpleName() + " neither annotated as cross-reference nor child, field: "+field.getName());
-                }
-                //TODO don't allow non DME object fields!
-                //ClassUtils.isPrimitiveOrWrapper(field.getType());
+            //field is collection
+            else if (Collection.class.isAssignableFrom(type)) {
+                Class<?> storedType = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+                if (!DataModelEntity.class.isAssignableFrom(storedType))
+                    throw new IllegalDataModelException(clazz, "contains non DataModelEntities in Collection \""+field.getName()+"\" which is illegal!");
+                childFieldList.add(field);
             }
-            //field is of primitive data type or child without collection
-            else {
-                if (field.getAnnotation(ChildField.class) != null) {
-                    childFieldList.add(field);
-                }
-                else
+            //field is a map
+            else if (Map.class.isAssignableFrom(type)) {
+                Type[] types = ((ParameterizedType) field.getGenericType()).getActualTypeArguments();
+                //map or (dis-)continuousRangeMap. Assumes storedType is last type!
+                Class<?> storedType = (Class<?>) types[types.length-1];
+                if (!DataModelEntity.class.isAssignableFrom(storedType))
+                    throw new IllegalDataModelException(clazz, "contains non DataModelEntities in Map \""+field.getName()+"\" which is illegal!");
+                childFieldList.add(field);
+            }
+            //field is other TransactionalEntity
+            else if (DataModelEntity.class.isAssignableFrom(type)) {
+                if (field.getAnnotation(CrossReference.class) != null)
                     contentFieldList.add(field);
+                else
+                    childFieldList.add(field);
+            }
+            //field is primitive / primitive wrapper / String / Enum / Void / non DME-object
+            else {
+                contentFieldList.add(field);
+                if (isComplexObject(type)) {
+                    //object must be immutable!
+                    if (!Modifier.isFinal(type.getModifiers()))
+                        throw new IllegalDataModelException(type, "is not a DataModelClass, so it must be final!");
+                    for (Field f : type.getDeclaredFields()) {
+                        if (Modifier.isStatic(f.getModifiers()))
+                            continue;
+                        if (!Modifier.isFinal(f.getModifiers()))
+                            throw new IllegalDataModelException(type, "must be immutable but contains non final field \""+f.getName()+"\"!");
+                    }
+                }
             }
         }
         contentFields = contentFieldList.toArray(new Field[0]);
@@ -99,17 +127,17 @@ class DataModelInfo {
         for (Field field : childFields) {
             field.setAccessible(true);
             try {
+                //field is an array and also initialized
+                if (field.getType().isArray() && field.get(dme) != null)
+                    children.addAll((Collection<? extends ChildEntity<?>>) field.get(dme));
                 //field is a collection
-                if (Collection.class.isAssignableFrom(field.getType())) {
+                else if (Collection.class.isAssignableFrom(field.getType()))
                     children.addAll(new ArrayList<>((Collection<ChildEntity<?>>)field.get(dme)));
-                }
                 //field is a map
-                else if (Map.class.isAssignableFrom(field.getType())) {
+                else if (Map.class.isAssignableFrom(field.getType()))
                     children.addAll(new ArrayList<>(((Map<?,ChildEntity<?>>)field.get(dme)).values()));
-                }
-                else {
+                else
                     children.add((ChildEntity<?>) field.get(dme));
-                }
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
@@ -157,4 +185,12 @@ class DataModelInfo {
         return strb.append("\n").toString();
     }
 
+    //field is NOT: primitive / primitive wrapper / String / Enum / Void
+    //so field IS:  Array / Collection / Map / Complex object
+    static boolean isComplexObject(Class<?> type) {
+        return (!ClassUtils.isPrimitiveOrWrapper(type)
+                && !String.class.isAssignableFrom(type)
+                && !Void. class.isAssignableFrom(type)
+                && !type.isEnum());
+    }
 }

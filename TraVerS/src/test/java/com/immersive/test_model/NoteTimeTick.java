@@ -1,13 +1,12 @@
 package com.immersive.test_model;
 
-import com.immersive.annotations.ChildField;
+
 import com.immersive.transactions.KeyedChildEntity;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class NoteTimeTick extends KeyedChildEntity<Track, Long> {
-    @ChildField
     Map<Voice, NoteGroupOrTuplet> noteGroupOrTuplets = new HashMap<>();
 
     //this method the transactional logic is looking for in order to atomically delete objects

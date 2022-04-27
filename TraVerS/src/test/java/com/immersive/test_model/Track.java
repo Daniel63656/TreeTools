@@ -1,6 +1,6 @@
 package com.immersive.test_model;
 
-import com.immersive.annotations.ChildField;
+
 import com.immersive.transactions.ChildEntity;
 
 import java.util.ArrayList;
@@ -8,11 +8,8 @@ import java.util.List;
 import java.util.TreeMap;
 
 public class Track extends ChildEntity<FullScore> {
-    @ChildField
     List<Staff> staffs = new ArrayList<>();
-    @ChildField
     List<Voice> voices = new ArrayList<>();
-    @ChildField
     TreeMap<Long, NoteTimeTick> noteTimeTicks = new TreeMap<>();
 
     //this constructor the transactional logic is looking for

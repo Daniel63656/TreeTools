@@ -3,14 +3,20 @@ package com.immersive.transactions;
 import static com.immersive.transactions.TransactionManager.getChildFields;
 
 import com.immersive.annotations.CrossReference;
+import com.immersive.annotations.Polymorphic;
+import com.immersive.transactions.exceptions.IllegalDataModelException;
 
+import org.apache.commons.lang3.ArrayUtils;
+
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -45,47 +51,60 @@ public final class JsonParser {
         }
 
         @SuppressWarnings("unchecked")
-        private void printOneObject(int indentation, DataModelEntity dme) {
+        private void printOneObject(int indentation, Object object) {
             if (indentation > 0) {
                 if(prettyPrinting) newIndentedLine(strb, indentation);
             }
-            if (!createdIDs.containsKey(dme))
-                createdIDs.put(dme, createdIDs.size());
             strb.append("{");
             indentation++;
+            DataModelEntity dme = null;
             if(prettyPrinting) newIndentedLine(strb, indentation);
-            strb.append("'class':").append(dme.getClass().getSimpleName()).append(",");
-            //print DataModelEntityFields
-            if(prettyPrinting) newIndentedLine(strb, indentation);
-            strb.append("'uid':|").append(createdIDs.get(dme)).append("|,");
-            if (dme instanceof KeyedChildEntity<?,?>) {
+            strb.append("'class':").append(object.getClass().getSimpleName()).append(",");
+            if (object instanceof DataModelEntity) {
+                dme = (DataModelEntity) object;
+                if (!createdIDs.containsKey(dme))
+                    createdIDs.put(dme, createdIDs.size());
+                //print DataModelEntityFields
                 if(prettyPrinting) newIndentedLine(strb, indentation);
-                Object key = ((KeyedChildEntity<?,?>) dme).getKey();
-                if (key instanceof DataModelEntity) {
-                    if (!createdIDs.containsKey(key))
-                        createdIDs.put((DataModelEntity) key, createdIDs.size());
-                    strb.append("'key1':|").append(createdIDs.get(key)).append("|,");
+                strb.append("'uid':|").append(createdIDs.get(dme)).append("|,");
+                if (dme instanceof KeyedChildEntity<?,?>) {
+                    if(prettyPrinting) newIndentedLine(strb, indentation);
+                    Object key = ((KeyedChildEntity<?,?>) dme).getKey();
+                    if (key instanceof DataModelEntity) {
+                        if (!createdIDs.containsKey(key))
+                            createdIDs.put((DataModelEntity) key, createdIDs.size());
+                        strb.append("'key1':|").append(createdIDs.get(key)).append("|,");
+                    }
+                    else
+                        strb.append("'key1':").append(key).append(",");
                 }
-                else
-                    strb.append("'key1':").append(key).append(",");
-            }
-            if (dme instanceof DoubleKeyedChildEntity<?,?>) {
-                if(prettyPrinting) newIndentedLine(strb, indentation);
-                Object key = ((DoubleKeyedChildEntity<?,?>) dme).getEndKey();
-                if (key instanceof DataModelEntity) {
-                    if (!createdIDs.containsKey(key))
-                        createdIDs.put((DataModelEntity) key, createdIDs.size());
-                    strb.append("'key2':|").append(createdIDs.get(key)).append("|,");
+                if (dme instanceof DoubleKeyedChildEntity<?,?>) {
+                    if(prettyPrinting) newIndentedLine(strb, indentation);
+                    Object key = ((DoubleKeyedChildEntity<?,?>) dme).getEndKey();
+                    if (key instanceof DataModelEntity) {
+                        if (!createdIDs.containsKey(key))
+                            createdIDs.put((DataModelEntity) key, createdIDs.size());
+                        strb.append("'key2':|").append(createdIDs.get(key)).append("|,");
+                    }
+                    else
+                        strb.append("'key2':").append(key).append(",");
                 }
-                else
-                    strb.append("'key2':").append(key).append(",");
             }
-            //loop over content fields
-            for (Field field : TransactionManager.getContentFields(dme)) {
+            
+            //get content fields
+            Field[] contentFields;
+            if (dme != null)
+                contentFields =  TransactionManager.getContentFields((DataModelEntity) object);
+            else
+                contentFields = object.getClass().getDeclaredFields();
+            //and loop over them
+            for (Field field : contentFields) {
+                if (Modifier.isStatic(field.getModifiers()))
+                    continue;
                 Object fieldValue = null;
                 try {
                     field.setAccessible(true);
-                    fieldValue = field.get(dme);
+                    fieldValue = field.get(object);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
@@ -99,60 +118,83 @@ public final class JsonParser {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
                     strb.append("\"").append(field.getName()).append("\":").append("|").append(createdIDs.get(cr)).append("|,");
                 }
-                //field is of primitive data type
+                //field is primitive / primitive wrapper / String / Enum / Void / non DME-object
                 else {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
-                    if (fieldValue instanceof String)
+                    if (DataModelInfo.isComplexObject(field.getType())) {
+                        strb.append("\"").append(field.getName()).append("\":");
+                        printOneObject(indentation+1, fieldValue);
+                    }
+                    else if (fieldValue instanceof String)
                         strb.append("\"").append(field.getName()).append("\":\"").append(fieldValue).append("\",");
                     else
                         strb.append("\"").append(field.getName()).append("\":").append(fieldValue).append(",");
                 }
             }
-
-            for (Field field : getChildFields(dme)) {
-                field.setAccessible(true);
-                try {
-                    //field is a collection
-                    if (Collection.class.isAssignableFrom(field.getType())) {
-                        Object[] objects = ((Collection<DataModelEntity>)field.get(dme)).toArray();
-                        if (objects.length > 0) {
-                            if(prettyPrinting) newIndentedLine(strb, indentation);
-                            strb.append("\"").append(field.getName()).append("\":[");
-                            for (Object obj : objects) {
-                                printOneObject(indentation+1, (DataModelEntity) obj);
-                                strb.append(",");
+            //loop over child fields if object is a DataModelEntity
+            if (dme != null) {
+                for (Field field : getChildFields(dme)) {
+                    field.setAccessible(true);
+                    try {
+                        //field is an array
+                        if (field.getType().isArray() && field.get(dme) != null) {
+                            DataModelEntity[] DMEs = (DataModelEntity[]) field.get(dme);
+                            if (DMEs.length > 0) {
+                                if(prettyPrinting) newIndentedLine(strb, indentation);
+                                strb.append("\"").append(field.getName()).append("\":[");
+                                for (Object obj : DMEs) {
+                                    printOneObject(indentation+1, obj);
+                                    strb.append(",");
+                                }
+                                strb.setLength(strb.length() - 1);
+                                if(prettyPrinting) newIndentedLine(strb, indentation);
+                                strb.append("],");
                             }
-                            strb.setLength(strb.length() - 1);
-                            if(prettyPrinting) newIndentedLine(strb, indentation);
-                            strb.append("],");
                         }
-                    }
-                    //field is a map
-                    else if (Map.class.isAssignableFrom(field.getType())) {
-                        Collection<ChildEntity<?>> collection = ((Map<?,ChildEntity<?>>)field.get(dme)).values();
-                        if (collection.size() > 0) {
-                            if(prettyPrinting) newIndentedLine(strb, indentation);
-                            strb.append("\"").append(field.getName()).append("\":[");
-                            for (DataModelEntity dm : collection) {
-                                printOneObject(indentation+1, dm);
-                                strb.append(",");
+                        //field is a collection
+                        else if (Collection.class.isAssignableFrom(field.getType())) {
+                            Object[] DMEs = ((Collection<DataModelEntity>)field.get(dme)).toArray();
+                            if (DMEs.length > 0) {
+                                if(prettyPrinting) newIndentedLine(strb, indentation);
+                                strb.append("\"").append(field.getName()).append("\":[");
+                                for (Object obj : DMEs) {
+                                    printOneObject(indentation+1, obj);
+                                    strb.append(",");
+                                }
+                                strb.setLength(strb.length() - 1);
+                                if(prettyPrinting) newIndentedLine(strb, indentation);
+                                strb.append("],");
                             }
-                            strb.setLength(strb.length() - 1);
-                            if(prettyPrinting) newIndentedLine(strb, indentation);
-                            strb.append("],");
                         }
+                        //field is a map
+                        else if (Map.class.isAssignableFrom(field.getType())) {
+                            Collection<ChildEntity<?>> collection = ((Map<?,ChildEntity<?>>)field.get(dme)).values();
+                            if (collection.size() > 0) {
+                                if(prettyPrinting) newIndentedLine(strb, indentation);
+                                strb.append("\"").append(field.getName()).append("\":[");
+                                for (DataModelEntity dm : collection) {
+                                    printOneObject(indentation+1, dm);
+                                    strb.append(",");
+                                }
+                                strb.setLength(strb.length() - 1);
+                                if(prettyPrinting) newIndentedLine(strb, indentation);
+                                strb.append("],");
+                            }
+                        }
+                        else if (field.get(dme) != null) {
+                            if(prettyPrinting) newIndentedLine(strb, indentation);
+                            strb.append("\"").append(field.getName()).append("\":");
+                            printOneObject(indentation, field.get(dme));
+                            strb.append(",");
+                        }
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
                     }
-                    else if (field.get(dme) != null) {
-                        if(prettyPrinting) newIndentedLine(strb, indentation);
-                        strb.append("\"").append(field.getName()).append("\":");
-                        printOneObject(indentation, (DataModelEntity) field.get(dme));
-                        strb.append(",");
-                    }
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
                 }
             }
-            strb.setLength(strb.length() - 1);
+            //only erase last comma, no brackets!
+            if (strb.charAt(strb.length() - 1) == ',')
+                strb.setLength(strb.length() - 1);
             indentation--;
             if(prettyPrinting) newIndentedLine(strb, indentation);
             strb.append("}");
@@ -162,101 +204,32 @@ public final class JsonParser {
 
     @SuppressWarnings("unchecked")
     public static <R extends RootEntity> R fromJson(String json, Class<R> rootClass) {
-        return (R) new Deserialization(json, rootClass.getPackage().getName()).rootEntity.dme;
+        return (R) new Deserialization(json, rootClass).rootEntity.dme;
     }
 
     private static class Deserialization {
-        Map<Integer, ObjectInfo> objects = new HashMap<>();
-        LinkedList<ObjectInfo> stack = new LinkedList<>();
-        Map<Integer, ObjectInfo> creationChores;    //copy of objects after first parsing for crossing things off
+        Map<Integer, ObjectInfo> DMEs = new HashMap<>();
         List<CrossReferenceToDo> crossReferences = new ArrayList<>();
-        ObjectInfo currentObj = null;
         ObjectInfo rootEntity;
 
-        @SuppressWarnings("unchecked")
-        Deserialization(String json, String packageName) {
+        Deserialization(String json, Class<?> rootClass) {
             //remove artifacts of pretty printing
             json = json.replace("\n", "");
             json = json.replace(INDENT, "");
             //split into object-tokens
-            StringTokenizer objectSeparator = new StringTokenizer(json, "{}", true);
+            StringTokenizer objectSeparator = new StringTokenizer(json, "{}]", true);
+            ObjectInfo owner = null;
             while (objectSeparator.hasMoreElements()) {
-                String token = objectSeparator.nextToken();
-                if (token.equals("}")) {
-                    stack.removeLast();
-                    if (!stack.isEmpty())
-                        currentObj = stack.getLast();
-                }
-                StringTokenizer fieldSeparator = new StringTokenizer(token, ",");
-                while (fieldSeparator.hasMoreElements()) {
-                    String[] pair = fieldSeparator.nextToken().split(":");
-                    if (pair.length < 2)
-                        continue;
-                    String key = pair[0];
-                    String value = pair[1];
-                    switch (key) {
-                        case "'class'":
-                            try {
-                                currentObj = new ObjectInfo((Class<? extends DataModelEntity>) Class.forName(packageName+"."+pair[1]));
-                                if (stack.isEmpty())
-                                    rootEntity = currentObj;
-                                else {
-                                    currentObj.ownerID = stack.getLast().uniqueID;
-                                    currentObj.constructionParams.add(new KeyValuePair<>(stack.getLast().clazz, currentObj.ownerID));
-                                }
-                                stack.add(currentObj);
-                            } catch (ClassNotFoundException e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        case "'uid'":
-                            int uniqueID = parseToID(value);
-                            currentObj.uniqueID = uniqueID;
-                            objects.put(uniqueID, currentObj);
-                            break;
-                        case "'key1'":
-                        case "'key2'":
-                            Class<?> currentKeyClass = stack.get(stack.size()-2).currentKeyClass;
-                            if (currentKeyClass == null)
-                                throw new RuntimeException("error getting key class for object "+currentObj.clazz.getSimpleName());
-                            if (stringEnclosedBy(value, '|'))
-                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToID(value)));
-                            else
-                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToPrimitiveWrapper(currentKeyClass, value)));
-                            break;
-                    }
-                    //content fields
-                    if (stringEnclosedBy(key, '"')) {
-                        //child field, log classes
-                        if ((value.length() == 0 || value.charAt(0) == '[')) {
-                            Field field = null;
-                            try {
-                                field = currentObj.clazz.getDeclaredField(key.substring(1, key.length() - 1));
-                            } catch (NoSuchFieldException e) {
-                                e.printStackTrace();
-                            }
-                            assert field != null;
-                            field.setAccessible(true);
-                            Type[] types = ((ParameterizedType) field.getGenericType()).getActualTypeArguments();
-                            if (types.length >= 2) {    //map or (dis-)continuousRangeMap. Assumes key is second last type!
-                                currentObj.currentKeyClass = (Class<?>) types[types.length-2];
-                            }
-                        }
-                        //primitive or cross reference - don't parse things because we get fieldTypes later anyway
-                        else {
-                            currentObj.fields.put(key.substring(1, key.length() - 1), value);
-                        }
-                    }
-                }
+                owner = readObject(objectSeparator, owner, rootClass, null);
             }
 
             //create creationChores from parsed information
-            creationChores = new HashMap<>(objects);  //cross off
+            Map<Integer, ObjectInfo> creationChores = new HashMap<>(DMEs);  //cross off
             Map.Entry<Integer, ObjectInfo> creationChore;
             while (!creationChores.isEmpty()) {
                 creationChore = creationChores.entrySet().iterator().next();
                 try {
-                    createObject(creationChore.getValue());
+                    createDataModelEntity(creationChores, creationChore.getValue());
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
@@ -265,32 +238,130 @@ public final class JsonParser {
             for (CrossReferenceToDo cr : crossReferences) {
                 cr.ObjectField.setAccessible(true);
                 try {
-                    cr.ObjectField.set(cr.dme, objects.get(cr.crossReferenceID).dme);
+                    cr.ObjectField.set(cr.dme, DMEs.get(cr.crossReferenceID).dme);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
             }
         }
 
-        private void createObject(ObjectInfo info) throws IllegalAccessException {
+        private ObjectInfo readObject(StringTokenizer objectSeparator, ObjectInfo owner, Class<?> currentClass, Class<?> currentKeyClass) {
+            String token = objectSeparator.nextToken();
+            ObjectInfo currentObj = null;
+            while (!token.equals("}")) {
+                StringTokenizer fieldSeparator = new StringTokenizer(token, ",");
+                while (fieldSeparator.hasMoreElements()) {
+                    String keyValue = fieldSeparator.nextToken();
+                    if (!keyValue.contains(":"))
+                        continue;
+                    String[] pair = keyValue.split(":");
+                    String key = pair[0];
+                    switch (key) {
+                        case "'class'":
+                            currentObj = new ObjectInfo(currentClass);
+                            //do polymorphic deserialization
+                            if (!currentClass.getSimpleName().equals(pair[1])) {
+                                Polymorphic poly = currentClass.getAnnotation(Polymorphic.class);
+                                if (poly == null)
+                                    throw new IllegalDataModelException(currentClass, "is polymorph but does not specify its subclasses with the @Polymorph interface!");
+                                for (Class<?> subClass : poly.subclasses()) {
+                                    if (subClass.getSimpleName().equals(pair[1])) {
+                                        currentObj.clazz = subClass;
+                                        break;
+                                    }
+                                }
+                            }
+                            break;
+                        case "'uid'":
+                            if (owner == null)
+                                rootEntity = currentObj;
+                            else {
+                                currentObj.ownerID = owner.uniqueID;
+                                currentObj.constructionParams.add(new KeyValuePair<>(owner.clazz, currentObj.ownerID));
+                            }
+                            int uniqueID = parseToID(pair[1]);
+                            currentObj.uniqueID = uniqueID;
+                            DMEs.put(uniqueID, currentObj);
+                            break;
+                        case "'key1'":
+                        case "'key2'":
+                            assert owner != null;
+                            if (currentKeyClass == null)
+                                throw new RuntimeException("error getting key class for object " + currentObj.clazz.getSimpleName());
+                            if (stringEnclosedBy(pair[1], '|'))
+                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToID(pair[1])));
+                            else
+                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToPrimitiveWrapper(currentKeyClass, pair[1])));
+                            break;
+                    }
+                    //content fields
+                    if (stringEnclosedBy(key, '"')) {
+                        Field field = null;
+                        for (Class<?> iterator=currentObj.clazz; iterator!=null; iterator=iterator.getSuperclass()) {
+                            try {
+                                field = iterator.getDeclaredField(key.substring(1, key.length() - 1));
+                                break;  //end loop if field is found!
+                            } catch (NoSuchFieldException ignored) {}
+                        }
+                        assert field != null;
+                        //single child or non DME-object
+                        if (pair.length == 1) {
+                            ObjectInfo info = readObject(objectSeparator, currentObj, field.getType(), null);
+                            if (info.uniqueID == null)  //not a DME
+                                currentObj.complexObjFields.put(key.substring(1, key.length() - 1), info);
+                        }
+                        //child collection
+                        else if (pair[1].charAt(0) == '[') {
+                            Class<?> keyClass = null;
+                            Type[] types = ((ParameterizedType) field.getGenericType()).getActualTypeArguments();
+                            Class<?> elementClass = (Class<?>) types[types.length - 1];
+                            if (types.length >= 2) {    //map or (dis-)continuousRangeMap. Assumes key is second last type!
+                                keyClass = (Class<?>) types[types.length - 2];
+                            }
+                            token = objectSeparator.nextToken();
+                            while (!(token.charAt(0) == ']')) {
+                                readObject(objectSeparator, currentObj, elementClass, keyClass);
+                                token = objectSeparator.nextToken();
+                            }
+                        }
+                        //primitive or cross reference - don't parse Strings because we get necessary fieldTypes later anyway
+                        else {
+                            currentObj.fields.put(key.substring(1, key.length() - 1), pair[1]);
+                        }
+                    }
+                }
+                token = objectSeparator.nextToken();
+            }
+            return currentObj;
+        }
+
+        @SuppressWarnings("unchecked")
+        private void createDataModelEntity(Map<Integer, ObjectInfo> creationChores, ObjectInfo info) throws IllegalAccessException {
             Object[] params = new Object[info.constructionParams.size()];
             for (int i=0; i<info.constructionParams.size(); i++) {
                 KeyValuePair<Class<?>, Object> kvp = info.constructionParams.get(i);
                 if (DataModelEntity.class.isAssignableFrom(kvp.key)) {
                     int uniqueID = (int) kvp.value;
                     if (creationChores.containsKey(uniqueID)) {
-                        createObject(creationChores.get(uniqueID));
+                        createDataModelEntity(creationChores, creationChores.get(uniqueID));
                     }
                     //now object can be safely assigned from objects list
-                    params[i] = objects.get(uniqueID).dme;
+                    params[i] = DMEs.get(uniqueID).dme;
                 }
                 else {
                     params[i] = kvp.value;
                 }
             }
-            info.dme = TransactionManager.construct(info.clazz, params);
+            info.dme = TransactionManager.construct((Class<? extends DataModelEntity>) info.clazz, params);
             //unwrap content fields
             for (Field field : TransactionManager.getContentFields(info.dme)) {
+                //field is non DME-object
+                ObjectInfo pojo = info.complexObjFields.get(field.getName());
+                if (pojo != null) {
+                    field.setAccessible(true);
+                    field.set(info.dme, createObject(pojo));
+                    continue;
+                }
                 String value = info.fields.get(field.getName());
                 if (value == null)  //value not stored because was null
                     continue;
@@ -306,15 +377,39 @@ public final class JsonParser {
         }
     }
 
+    private static Object createObject(ObjectInfo info) {
+        Object object = null;
+        try {
+            object = info.clazz.getDeclaredConstructor().newInstance();
+            for (Field field : info.clazz.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()))
+                    continue;
+                field.setAccessible(true);
+                ObjectInfo pojo = info.complexObjFields.get(field.getName());
+                String value = info.fields.get(field.getName());
+                if (pojo != null)
+                    field.set(object, createObject(pojo));
+                else if (value != null)
+                    field.set(object, parseToPrimitiveWrapper(field.getType(), value));
+            }
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+        return object;
+    }
+
     private static class ObjectInfo {
-        Class<? extends DataModelEntity> clazz;
-        Class<?> currentKeyClass;   //can change over different child maps
-        int uniqueID, ownerID;
+        Class<?> clazz;
+        Integer uniqueID;   //null if no DME
+        int ownerID;
         List<KeyValuePair<Class<?>, Object>> constructionParams = new ArrayList<>();
         Map<String, String> fields = new HashMap<>();
         DataModelEntity dme;
+        //for complex non-DME objects
+        Map<String, ObjectInfo> complexObjFields = new HashMap<>();
 
-        public ObjectInfo(Class<? extends DataModelEntity> clazz) {
+
+        public ObjectInfo(Class<?> clazz) {
             this.clazz = clazz;
         }
     }

@@ -1,5 +1,7 @@
 package com.immersive.transactions;
 
+import com.immersive.test_model.Fo;
+import com.immersive.test_model.Foo;
 import com.immersive.test_model.FullScore;
 import com.immersive.test_model.Note;
 import com.immersive.test_model.NoteGroup;
@@ -17,7 +19,7 @@ public class JsonTests {
     Track track;
     Voice voice;
     Staff staff;
-    Note note, note2, note3, tieStart, tieEnd;
+    Note note, tieStart, tieEnd;
 
     @AfterEach
     public void cleanUp(){
@@ -50,9 +52,11 @@ public class JsonTests {
     @Test
     public void testSerializationAndDeserialization() {
         FullScore fullScore = createFullScore();
-        System.out.println(fullScore);
+        fullScore.foo = new Foo();
         String json = JsonParser.toJson(fullScore, true);
-        JsonParser.fromJson(json, FullScore.class);
+        System.out.println(json);
+        FullScore fs = JsonParser.fromJson(json, FullScore.class);
+        System.out.println(fs.name);
     }
 
 }

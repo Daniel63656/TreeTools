@@ -1,12 +1,10 @@
 package com.immersive.test_model;
 
-import com.immersive.annotations.ChildField;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class NoteGroup extends NoteGroupOrTuplet {
-    @ChildField
     List<Note> notes = new ArrayList<>();
     public boolean stemUp;
 

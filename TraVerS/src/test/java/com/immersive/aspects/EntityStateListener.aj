@@ -4,10 +4,9 @@ import com.immersive.annotations.*;
 privileged aspect EntityStateListener {
 private static TransactionManager tm = TransactionManager.getInstance();
 
-    pointcut contentFieldSetter(DataModelEntity dme, Object newValue) : set(!static !final * DataModelEntity+.*)
+    pointcut contentFieldSetter(DataModelEntity dme, Object newValue) : set(!static !final (* && !DataModelEntity) DataModelEntity+.*)
         && target(dme)
-        && args(newValue)
-        && !@annotation(ChildField);
+        && args(newValue);
 
     pointcut creation(ChildEntity te, DataModelEntity owner) : execution(ChildEntity+.new(..))
         && !execution(ChildEntity.new(..))
