@@ -1,10 +1,10 @@
 package com.immersive.test_model;
 
 import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.Polymorphic;
+import com.immersive.annotations.AbstractClass;
 import com.immersive.transactions.KeyedChildEntity;
 
-@Polymorphic(subclasses = {NoteGroup.class, Tuplet.class})
+@AbstractClass(subclasses = {NoteGroup.class, Tuplet.class})
 public abstract class NoteGroupOrTuplet extends KeyedChildEntity<NoteTimeTick, Voice> {
     @CrossReference
     Staff staff;

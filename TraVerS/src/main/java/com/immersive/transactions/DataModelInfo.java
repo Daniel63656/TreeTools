@@ -1,8 +1,7 @@
 package com.immersive.transactions;
 
 import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.MultipleOwner;
-import com.immersive.annotations.Polymorphic;
+import com.immersive.annotations.PolymorphOwner;
 import com.immersive.transactions.exceptions.IllegalDataModelException;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -34,7 +33,7 @@ class DataModelInfo {
         this.clazz = clazz;
         traceClassFields();
         try {
-            MultipleOwner mo = clazz.getAnnotation(MultipleOwner.class);
+            PolymorphOwner mo = clazz.getAnnotation(PolymorphOwner.class);
             if (mo != null)
                 classes[0] = mo.commonInterface();
             constructor = clazz.getDeclaredConstructor(classes);

@@ -3,12 +3,9 @@ package com.immersive.transactions;
 import static com.immersive.transactions.TransactionManager.getChildFields;
 
 import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.Polymorphic;
+import com.immersive.annotations.AbstractClass;
 import com.immersive.transactions.exceptions.IllegalDataModelException;
 
-import org.apache.commons.lang3.ArrayUtils;
-
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
@@ -261,10 +258,10 @@ public final class JsonParser {
                             currentObj = new ObjectInfo(currentClass);
                             //do polymorphic deserialization
                             if (!currentClass.getSimpleName().equals(pair[1])) {
-                                Polymorphic poly = currentClass.getAnnotation(Polymorphic.class);
-                                if (poly == null)
-                                    throw new IllegalDataModelException(currentClass, "is polymorph but does not specify its subclasses with the @Polymorph interface!");
-                                for (Class<?> subClass : poly.subclasses()) {
+                                AbstractClass abst = currentClass.getAnnotation(AbstractClass.class);
+                                if (abst == null)
+                                    throw new IllegalDataModelException(currentClass, "is an abstract class but does not specify its subclasses in the @AbstractClass interface!");
+                                for (Class<?> subClass : abst.subclasses()) {
                                     if (subClass.getSimpleName().equals(pair[1])) {
                                         currentObj.clazz = subClass;
                                         break;
