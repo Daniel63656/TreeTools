@@ -1,6 +1,6 @@
 package com.immersive.transactions;
 
-import com.immersive.annotations.CrossReference;
+import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
 

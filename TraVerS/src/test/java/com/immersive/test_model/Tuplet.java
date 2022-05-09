@@ -1,6 +1,6 @@
 package com.immersive.test_model;
 
-import com.immersive.annotations.CrossReference;
+import com.immersive.transactions.annotations.CrossReference;
 
 import java.util.ArrayList;
 import java.util.List;

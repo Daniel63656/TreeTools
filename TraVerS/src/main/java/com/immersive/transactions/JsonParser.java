@@ -2,8 +2,8 @@ package com.immersive.transactions;
 
 import static com.immersive.transactions.TransactionManager.getChildFields;
 
-import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.AbstractClass;
+import com.immersive.transactions.annotations.CrossReference;
+import com.immersive.transactions.annotations.AbstractClass;
 import com.immersive.transactions.exceptions.IllegalDataModelException;
 
 import java.lang.reflect.Field;

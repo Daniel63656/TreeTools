@@ -1,5 +1,4 @@
 import com.immersive.transactions.*;
-import com.immersive.annotations.*;
 
 privileged aspect EntityStateListener {
 private static TransactionManager tm = TransactionManager.getInstance();

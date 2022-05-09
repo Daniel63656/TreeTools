@@ -1,7 +1,7 @@
 package com.immersive.transactions;
 
-import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.PolymorphOwner;
+import com.immersive.transactions.annotations.CrossReference;
+import com.immersive.transactions.annotations.PolymorphOwner;
 import com.immersive.transactions.exceptions.IllegalDataModelException;
 
 import org.apache.commons.lang3.ArrayUtils;

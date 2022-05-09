@@ -1,12 +1,11 @@
 package com.immersive.transactions;
 
-import com.immersive.annotations.CrossReference;
+import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.exceptions.TransactionException;
 
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.Set;
 
 public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectKey, DataModelEntity> {

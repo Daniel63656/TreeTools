@@ -58,5 +58,4 @@ public class JsonTests {
         FullScore fs = JsonParser.fromJson(json, FullScore.class);
         System.out.println(fs.name);
     }
-
 }

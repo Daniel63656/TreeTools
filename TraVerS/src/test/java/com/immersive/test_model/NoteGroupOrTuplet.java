@@ -1,7 +1,7 @@
 package com.immersive.test_model;
 
-import com.immersive.annotations.CrossReference;
-import com.immersive.annotations.AbstractClass;
+import com.immersive.transactions.annotations.CrossReference;
+import com.immersive.transactions.annotations.AbstractClass;
 import com.immersive.transactions.KeyedChildEntity;
 
 @AbstractClass(subclasses = {NoteGroup.class, Tuplet.class})
