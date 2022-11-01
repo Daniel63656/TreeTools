@@ -1,0 +1,161 @@
+%----------Commit number 3:----------
+Y>Changed Note(41)={previousTied=null accidental=false pitch=69 noteName=A nextTied=[42]}
+j      to Note(45)={previousTied=null accidental=false pitch=30 noteName=A nextTied=[46]} subscribed: [46]
+Y>Changed Note(42)={previousTied=[41] accidental=false pitch=69 noteName=A nextTied=null}
+j      to Note(46)={previousTied=[45] accidental=false pitch=30 noteName=A nextTied=null} subscribed: [45]
+
+
+{
+    'class':FullScore,
+    'uid':|0|,
+    "name":"MyFullScore",
+    "foo":
+
+        {
+            'class':Foo
+
+        }
+    "tracks":[
+
+        {
+            'class':Track,
+            'uid':|1|,
+            "staffs":[
+                {
+#                    'class':Staff,
+                    'uid':|2|,
+"                    "treble":true
+                }
+            ],
+            "voices":[
+                {
+#                    'class':Voice,
+                    'uid':|3|,
+                     "voiceId":0
+                }
+            ],
+            "noteTimeTicks":[
+                {
+*                    'class':NoteTimeTick,
+                    'uid':|4|,
+                    'key1':0,
++                    "noteGroupOrTuplets":[
+                        {
+/                            'class':NoteGroup,
+'                            'uid':|5|,
+(                            'key1':|3|,
++                            "stemUp":true,
+)                            "staff":|2|,
+*                            "duration":8,
+&                            "notes":[
+"                                {
+2                                    'class':Note,
+/                                    'uid':|6|,
+0                                    "pitch":69,
+8                                    "accidental":false,
+1                                    "noteName":A
+"                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+*                    'class':NoteTimeTick,
+                    'uid':|7|,
+                    'key1':8,
++                    "noteGroupOrTuplets":[
+                        {
+/                            'class':NoteGroup,
+'                            'uid':|8|,
+(                            'key1':|3|,
++                            "stemUp":true,
+)                            "staff":|2|,
+*                            "duration":8,
+&                            "notes":[
+"                                {
+2                                    'class':Note,
+/                                    'uid':|9|,
+0                                    "pitch":69,
+8                                    "accidental":false,
+2                                    "noteName":A,
+4                                    "nextTied":|10|
+"                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+*                    'class':NoteTimeTick,
+                     'uid':|11|,
+                    'key1':16,
++                    "noteGroupOrTuplets":[
+                        {
+/                            'class':NoteGroup,
+(                            'uid':|12|,
+(                            'key1':|3|,
++                            "stemUp":true,
+)                            "staff":|2|,
+*                            "duration":8,
+&                            "notes":[
+"                                {
+2                                    'class':Note,
+0                                    'uid':|10|,
+0                                    "pitch":69,
+8                                    "accidental":false,
+2                                    "noteName":A,
+7                                    "previousTied":|9|
+"                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+
+        }
+    ]
+}
+MyFullScore
+,Note marked as 'changed' by altering pitch
+NoteGroup got deleted
+NoteGroup got deleted
+>NoteGroup marked as 'changed' by altering clearingInProgress
+Note got deleted
+Note got deleted
+NoteGroup got created
+Note got created
+Note got created
+Note got deleted
+Note got deleted
+pulling...
+2NoteGroup marked as 'changed' by altering stemUp
+Note got created
+pulling...
+,Note marked as 'changed' by altering pitch
+NoteGroup got deleted
+NoteGroup got deleted
+>NoteGroup marked as 'changed' by altering clearingInProgress
+Note got deleted
+Note got deleted
+9Note marked as 'changed' by altering clearingInProgress
+pulling...
+NoteGroup got created
+Note got created
+Note got created
+Note got deleted
+Note got deleted
+9Note marked as 'changed' by altering clearingInProgress
+pulling...
+0FullScore marked as 'changed' by altering name
+,Note marked as 'changed' by altering pitch
+pulling...
+NoteGroup got deleted
+NoteGroup got deleted
+>NoteGroup marked as 'changed' by altering clearingInProgress
+Note got deleted
+Note got deleted
+9Note marked as 'changed' by altering clearingInProgress
+pulling...
+NoteGroup got created
+Note got created
+Note got created
+pulling...
