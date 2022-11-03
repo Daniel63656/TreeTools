@@ -1,10 +1,16 @@
 plugins {
-    id 'java'
+    id 'java-library'  //distinguishes between api and implementation
+    id 'maven-publish'
     id 'io.freefair.aspectj' version '6.4.1'
 }
 
 group 'com.immersive'
-version '1.0'
+version '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 repositories {
     mavenCentral()
@@ -29,4 +35,12 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
 }
