@@ -5,10 +5,8 @@ import com.immersive.transactions.DoubleKeyedChildEntity;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
 
-
-public class Beam extends DoubleKeyedChildEntity<Voice, Long> implements Comparable<Beam>, HasDuration {
+public class Beam extends DoubleKeyedChildEntity<Voice, Long> implements Comparable<Beam>, HasDuration<Long> {
 
 	//=====TRANSACTIONAL============================================================================
 	public Beam(Voice voice, Long startTick, Long endTick) {
@@ -23,8 +21,8 @@ public class Beam extends DoubleKeyedChildEntity<Voice, Long> implements Compara
 	//=====FUNCTIONAL===============================================================================
 
 	@Override
-	public int getDuration() {
-		return (int) (getEndKey()-getKey());
+	public Long getDuration() {
+		return getEndKey()-getKey();
 	}
 
 	@Override
