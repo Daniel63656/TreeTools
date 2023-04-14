@@ -105,10 +105,9 @@ class DataModelInfo {
                     if (!Modifier.isFinal(type.getModifiers()))
                         throw new IllegalDataModelException(type, "is not a DataModelClass, so it must be final!");
                     for (Field f : type.getDeclaredFields()) {
-                        if (Modifier.isStatic(f.getModifiers()))
+                        if (Modifier.isStatic(f.getModifiers()) || Modifier.isFinal(f.getModifiers()) || Modifier.isTransient(f.getModifiers()))
                             continue;
-                        if (!Modifier.isFinal(f.getModifiers()))
-                            throw new IllegalDataModelException(type, "must be immutable but contains non final field \""+f.getName()+"\"!");
+                        throw new IllegalDataModelException(type, "must be immutable but contains non static, final or transient field \""+f.getName()+"\"!");
                     }
                 }
             }

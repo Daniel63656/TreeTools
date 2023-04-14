@@ -77,10 +77,4 @@ public abstract class RootEntity implements DataModelEntity {
             throw new TransactionException("object mapping FAILED: couldn't find object in source RootEntity", LOK.hashCode());
         return result;
     }
-
-    @Override
-    public String toString() {
-        return JsonParser.toJson(this, true);
-    }
-
 }

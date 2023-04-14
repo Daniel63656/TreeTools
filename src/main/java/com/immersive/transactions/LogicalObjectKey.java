@@ -11,81 +11,81 @@ import java.util.Objects;
  * These Keys are used in the LogicalObjectTrees, as well as in modificationRecords respectively.
  */
 class LogicalObjectKey extends HashMap<Field, Object> {
-  private static int globalID;
-  private final int uniqueID;
-  Class<? extends DataModelEntity> clazz;
-  //LOKs that have this LOK as cross-reference (together with the field)
-  HashMap<LogicalObjectKey, Field> subscribedLOKs = new HashMap<>();
+    private static int globalID;
+    private final int uniqueID;
+    Class<? extends DataModelEntity> clazz;
+    //LOKs that have this LOK as cross-reference (together with the field)
+    HashMap<LogicalObjectKey, Field> subscribedLOKs = new HashMap<>();
 
-  //this is necessary to differentiate keys. We can't use the fields since they can be the same for different objects!
-  LogicalObjectKey(Class<? extends DataModelEntity> clazz) {
-    this.clazz = clazz;
-    this.uniqueID = globalID;
-    globalID++;
-  }
-
-  void unsubscribeFromCrossReferences() {
-    for (Object obj : this.values()) {
-      if (obj instanceof LogicalObjectKey) {
-        ((LogicalObjectKey) obj).subscribedLOKs.remove(this);
-      }
+    //this is necessary to differentiate keys. We can't use the fields since they can be the same for different objects!
+    LogicalObjectKey(Class<? extends DataModelEntity> clazz) {
+        this.clazz = clazz;
+        this.uniqueID = globalID;
+        globalID++;
     }
-  }
 
-  boolean logicallySameWith(LogicalObjectKey lok) {
-    for(Field f:keySet()) {
-      if(!lok.containsKey(f)) {
-        return false;
-      }
-      if(!Objects.equals(this.get(f), lok.get(f))) {
-        return false;
-      }
+    void unsubscribeFromCrossReferences() {
+        for (Object obj : this.values()) {
+            if (obj instanceof LogicalObjectKey) {
+                ((LogicalObjectKey) obj).subscribedLOKs.remove(this);
+            }
+        }
     }
-    return true;
-  }
 
-  @Override
-  public boolean equals(Object o) {
-    if (!(o instanceof LogicalObjectKey)) {
-      return false;
+    boolean logicallySameWith(LogicalObjectKey lok) {
+        for(Field f:keySet()) {
+            if(!lok.containsKey(f)) {
+                return false;
+            }
+            if(!Objects.equals(this.get(f), lok.get(f))) {
+                return false;
+            }
+        }
+        return true;
     }
-    LogicalObjectKey right = (LogicalObjectKey) o;
-    return this.uniqueID == right.uniqueID;
-  }
 
-  //necessary otherwise Hashmap will fail "using" the specified equals
-  @Override
-  public int hashCode() {
-    return uniqueID;
-  }
-
-  String printSubscribers() {
-    StringBuilder strb = new StringBuilder();
-    if (!subscribedLOKs.isEmpty()) {
-      strb.append(" subscribed: ");
-      for (LogicalObjectKey LOK : subscribedLOKs.keySet()) {
-        strb.append("["). append(LOK.uniqueID).append("]");
-      }
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof LogicalObjectKey)) {
+            return false;
+        }
+        LogicalObjectKey right = (LogicalObjectKey) o;
+        return this.uniqueID == right.uniqueID;
     }
-    return strb.toString();
-  }
 
-  @Override
-  public String toString() {
-    StringBuilder strb = new StringBuilder();
-    strb.append(clazz.getSimpleName()).append("(").append(uniqueID).append(")");
-    if (!isEmpty()) {
-      strb.append("={");
-      for (Entry<Field, Object> entry : entrySet()) {
-        if (entry.getValue() instanceof LogicalObjectKey)
-          strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("]");
-        else
-          strb.append(entry.getKey().getName()).append("=").append(entry.getValue());
-        strb.append(" ");
-      }
-      strb.setLength(strb.length() - 1);  //remove last space
-      strb.append("}");
+    //necessary otherwise Hashmap will fail "using" the specified equals
+    @Override
+    public int hashCode() {
+        return uniqueID;
     }
-    return strb.toString();
-  }
+
+    String printSubscribers() {
+        StringBuilder strb = new StringBuilder();
+        if (!subscribedLOKs.isEmpty()) {
+            strb.append(" subscribed: ");
+            for (LogicalObjectKey LOK : subscribedLOKs.keySet()) {
+                strb.append("["). append(LOK.uniqueID).append("]");
+            }
+        }
+        return strb.toString();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder strb = new StringBuilder();
+        strb.append(clazz.getSimpleName()).append("(").append(uniqueID).append(")");
+        if (!isEmpty()) {
+            strb.append("={");
+            for (Entry<Field, Object> entry : entrySet()) {
+                if (entry.getValue() instanceof LogicalObjectKey)
+                    strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("]");
+                else
+                    strb.append(entry.getKey().getName()).append("=").append(entry.getValue());
+                strb.append(" ");
+            }
+            strb.setLength(strb.length() - 1);  //remove last space
+            strb.append("}");
+        }
+        return strb.toString();
+    }
 }

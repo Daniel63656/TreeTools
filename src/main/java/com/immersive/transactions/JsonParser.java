@@ -29,7 +29,7 @@ import java.util.StringTokenizer;
  */
 
 public final class JsonParser {
-    private static final String INDENT = "    ";
+    private static final String INDENT = "  ";
 
     public static String toJson(RootEntity rootEntity, boolean prettyPrinting) {
         return new Serialization(rootEntity, prettyPrinting).strb.toString();
@@ -285,8 +285,10 @@ public final class JsonParser {
                                 throw new RuntimeException("error getting key class for object " + currentObj.clazz.getSimpleName());
                             if (stringEnclosedBy(pair[1], '|'))
                                 currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToID(pair[1])));
-                            else
+                            else {
+                                //TODO complex object may also be a key
                                 currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToPrimitiveWrapper(currentKeyClass, pair[1])));
+                            }
                             break;
                     }
                     //content fields
