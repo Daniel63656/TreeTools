@@ -18,14 +18,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+
 /**
- * class to read and write (formatted) Json-Strings for RootEntities.
- * To make json work for circular references and collections other than Arrays, a few extra literals were introduced:
- *  |   used to enclose a uniqueID which is an unambiguous number assigned to each object.
- *      objects CROSS-REFERENCING each other or having objects AS KEYS in a map use the uniqueID instead
- *  '   each collection can be handled, because the deserialization calls the transaction-constructors of the objects.
- *      In order to do so, the class, as well as the keys of (Double-)KeyedChildEntity must be known.
- *      These, together with the uniqueID, were added as key-value-pairs, when closed with ' to differentiate from class fields
+ * class to read and write (formatted) Json-Strings for data models.
+ * To make json work for circular references as well as collections and maps of any sort, a few extra fields were introduced.
+ * These include:
+ *
+ * <ul>
+ *  <li>'class':    save classname to reconstruct class even in polymorphic cases</li>
+ *  <li>'uid':      a unique ID for each DataModelEntity. Can be inserted instead of the object to avoid cross-referencing
+ *  problems. When used in fields, IDs are wrapped with "|" to tell the parser that this is indeed a
+ *  placeholder for an object</li>
+ *  <li>'key':      signify to the parser, that this field is used to save the object with by the owner and is therefore
+ *  needed as a construction parameter for the object</li>
+ *  </ul>
  */
 
 public final class JsonParser {
@@ -61,7 +67,7 @@ public final class JsonParser {
                     createdIDs.put(dme, createdIDs.size());
                 //print DataModelEntityFields
                 if(prettyPrinting) newIndentedLine(strb, indentation);
-                strb.append("'uid':|").append(createdIDs.get(dme)).append("|,");
+                strb.append("'uid':").append(createdIDs.get(dme)).append(",");
                 if (dme instanceof KeyedChildEntity<?,?>) {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
                     Object key = ((KeyedChildEntity<?,?>) dme).getKey();
@@ -274,7 +280,7 @@ public final class JsonParser {
                                 currentObj.ownerID = owner.uniqueID;
                                 currentObj.constructionParams.add(new KeyValuePair<>(owner.clazz, currentObj.ownerID));
                             }
-                            int uniqueID = parseToID(pair[1]);
+                            int uniqueID = Integer.parseInt(pair[1]);
                             currentObj.uniqueID = uniqueID;
                             DMEs.put(uniqueID, currentObj);
                             break;
