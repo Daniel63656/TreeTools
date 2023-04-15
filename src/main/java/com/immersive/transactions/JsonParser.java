@@ -1,16 +1,13 @@
 package com.immersive.transactions;
 
+import static com.immersive.transactions.DataModelInfo.getAllFieldsIncludingInheritedOnes;
 import static com.immersive.transactions.TransactionManager.getChildFields;
 
 import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.annotations.AbstractClass;
 import com.immersive.transactions.exceptions.IllegalDataModelException;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -20,15 +17,16 @@ import java.util.StringTokenizer;
 
 
 /**
- * class to read and write (formatted) Json-Strings for data models.
- * To make json work for circular references as well as collections and maps of any sort, a few extra fields were introduced.
- * These include:
+ * Class to read and write (formatted) Json-Strings for data models. Uses {@link DataModelInfo} to get specific class information.
+ * Static and transient fields are ignored by the parser.
+ * To make json work for the diverse requirements posed by a complex data model (collections, maps, cross-references, polymorphisms),
+ * a few extra fields were introduced. These include:
  *
  * <ul>
  *  <li>'class':    save classname to reconstruct class even in polymorphic cases</li>
  *  <li>'uid':      a unique ID for each DataModelEntity. Can be inserted instead of the object to avoid cross-referencing
  *  problems. When used in fields, IDs are wrapped with "|" to tell the parser that this is indeed a
- *  placeholder for an object</li>
+ *  placeholder for an object and not a field value</li>
  *  <li>'key':      signify to the parser, that this field is used to save the object with by the owner and is therefore
  *  needed as a construction parameter for the object</li>
  *  </ul>
@@ -42,17 +40,27 @@ public final class JsonParser {
     }
 
     private static class Serialization {
-        Map<DataModelEntity, Integer> createdIDs = new HashMap<>();
-        StringBuilder strb = new StringBuilder();
-        boolean prettyPrinting;
+
+        /**
+         * cache created {@link DataModelEntity} with their ID to be able to use ID placeholders for objects
+         */
+        private final Map<DataModelEntity, Integer> createdIDs = new HashMap<>();
+
+        /**
+         * adds line breaks and indentations if set to true
+         */
+        private final boolean prettyPrinting;
+
+        private final StringBuilder strb = new StringBuilder();
+
 
         Serialization(RootEntity rootEntity, boolean prettyPrinting) {
             this.prettyPrinting = prettyPrinting;
-            printOneObject(0, rootEntity);
+            printObject(rootEntity, 0);
         }
 
         @SuppressWarnings("unchecked")
-        private void printOneObject(int indentation, Object object) {
+        private void printObject(Object object, int indentation) {
             if (indentation > 0) {
                 if(prettyPrinting) newIndentedLine(strb, indentation);
             }
@@ -61,6 +69,8 @@ public final class JsonParser {
             DataModelEntity dme = null;
             if(prettyPrinting) newIndentedLine(strb, indentation);
             strb.append("'class':").append(object.getClass().getSimpleName()).append(",");
+
+            //check if object is a DataModelEntity and equip with uid and other functional fields if so
             if (object instanceof DataModelEntity) {
                 dme = (DataModelEntity) object;
                 if (!createdIDs.containsKey(dme))
@@ -68,6 +78,8 @@ public final class JsonParser {
                 //print DataModelEntityFields
                 if(prettyPrinting) newIndentedLine(strb, indentation);
                 strb.append("'uid':").append(createdIDs.get(dme)).append(",");
+
+                //TODO handle like normal fields
                 if (dme instanceof KeyedChildEntity<?,?>) {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
                     Object key = ((KeyedChildEntity<?,?>) dme).getKey();
@@ -95,12 +107,14 @@ public final class JsonParser {
             //get content fields
             Field[] contentFields;
             if (dme != null)
-                contentFields =  TransactionManager.getContentFields((DataModelEntity) object);
+                contentFields = TransactionManager.getContentFields((DataModelEntity) object);
             else
-                contentFields = object.getClass().getDeclaredFields();
+                contentFields = getAllFieldsIncludingInheritedOnes(object.getClass());
+
             //and loop over them
             for (Field field : contentFields) {
-                if (Modifier.isStatic(field.getModifiers()))
+                //static or transient field are not considered
+                if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers()))
                     continue;
                 Object fieldValue = null;
                 try {
@@ -109,9 +123,15 @@ public final class JsonParser {
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
-                if (fieldValue == null)
+
+                //field is null
+                if (fieldValue == null) {
+                    if(prettyPrinting) newIndentedLine(strb, indentation);
+                    strb.append("\"").append(field.getName()).append("\":null,");
                     continue;
-                //field is a cross-reference
+                }
+
+                //field is a non-null cross-reference
                 if (field.getAnnotation(CrossReference.class) != null) {
                     DataModelEntity cr = (DataModelEntity) fieldValue;
                     if (!createdIDs.containsKey(cr))
@@ -119,54 +139,42 @@ public final class JsonParser {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
                     strb.append("\"").append(field.getName()).append("\":").append("|").append(createdIDs.get(cr)).append("|,");
                 }
-                //field is primitive / primitive wrapper / String / Enum / Void / non DME-object
+
+                //field is primitive / primitive wrapper / String / Enum / Void / non DME-object (because DME are children)
                 else {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
                     if (DataModelInfo.isComplexObject(field.getType())) {
                         strb.append("\"").append(field.getName()).append("\":");
-                        printOneObject(indentation+1, fieldValue);
+                        printObject(fieldValue, indentation+1);
                     }
                     else if (fieldValue instanceof String)
                         strb.append("\"").append(field.getName()).append("\":\"").append(fieldValue).append("\",");
-                    else
+                    else    //primitive / primitive wrapper / Enum / Void
                         strb.append("\"").append(field.getName()).append("\":").append(fieldValue).append(",");
                 }
             }
-            //loop over child fields if object is a DataModelEntity
+
+            //loop over child fields if object is a DataModelEntity (static and transient fields are not in that list)
             if (dme != null) {
                 for (Field field : getChildFields(dme)) {
                     field.setAccessible(true);
                     try {
-                        //field is an array
-                        if (field.getType().isArray() && field.get(dme) != null) {
-                            DataModelEntity[] DMEs = (DataModelEntity[]) field.get(dme);
-                            if (DMEs.length > 0) {
-                                if(prettyPrinting) newIndentedLine(strb, indentation);
-                                strb.append("\"").append(field.getName()).append("\":[");
-                                for (Object obj : DMEs) {
-                                    printOneObject(indentation+1, obj);
-                                    strb.append(",");
-                                }
-                                strb.setLength(strb.length() - 1);
-                                if(prettyPrinting) newIndentedLine(strb, indentation);
-                                strb.append("],");
-                            }
+                        //field is null - This is not the same as an empty collection!
+                        if (field.get(dme) == null) {
+                            if(prettyPrinting) newIndentedLine(strb, indentation);
+                            strb.append("\"").append(field.getName()).append("\":null,");
                         }
+
+                        //field is an array or collection
+                        else if (field.getType().isArray()) {
+                            printArray(field, (DataModelEntity[]) field.get(dme), indentation);
+                        }
+
                         //field is a collection
                         else if (Collection.class.isAssignableFrom(field.getType())) {
-                            Object[] DMEs = ((Collection<DataModelEntity>)field.get(dme)).toArray();
-                            if (DMEs.length > 0) {
-                                if(prettyPrinting) newIndentedLine(strb, indentation);
-                                strb.append("\"").append(field.getName()).append("\":[");
-                                for (Object obj : DMEs) {
-                                    printOneObject(indentation+1, obj);
-                                    strb.append(",");
-                                }
-                                strb.setLength(strb.length() - 1);
-                                if(prettyPrinting) newIndentedLine(strb, indentation);
-                                strb.append("],");
-                            }
+                            printArray(field, ((Collection<DataModelEntity>)field.get(dme)).toArray(), indentation);
                         }
+
                         //field is a map
                         else if (Map.class.isAssignableFrom(field.getType())) {
                             Collection<ChildEntity<?>> collection = ((Map<?,ChildEntity<?>>)field.get(dme)).values();
@@ -174,7 +182,7 @@ public final class JsonParser {
                                 if(prettyPrinting) newIndentedLine(strb, indentation);
                                 strb.append("\"").append(field.getName()).append("\":[");
                                 for (DataModelEntity dm : collection) {
-                                    printOneObject(indentation+1, dm);
+                                    printObject(dm, indentation+1);
                                     strb.append(",");
                                 }
                                 strb.setLength(strb.length() - 1);
@@ -182,10 +190,12 @@ public final class JsonParser {
                                 strb.append("],");
                             }
                         }
-                        else if (field.get(dme) != null) {
+
+                        //field is plain reference to child
+                        else {
                             if(prettyPrinting) newIndentedLine(strb, indentation);
                             strb.append("\"").append(field.getName()).append("\":");
-                            printOneObject(indentation, field.get(dme));
+                            printObject(field.get(dme), indentation);
                             strb.append(",");
                         }
                     } catch (IllegalAccessException e) {
@@ -193,12 +203,27 @@ public final class JsonParser {
                     }
                 }
             }
-            //only erase last comma, no brackets!
+
+            //erase last comma, if last character is a comma (leave brackets alone)
             if (strb.charAt(strb.length() - 1) == ',')
                 strb.setLength(strb.length() - 1);
             indentation--;
             if(prettyPrinting) newIndentedLine(strb, indentation);
             strb.append("}");
+        }
+
+        private void printArray(Field field, Object[] DMEs, int indentation) {
+            if (DMEs.length > 0) {
+                if(prettyPrinting) newIndentedLine(strb, indentation);
+                strb.append("\"").append(field.getName()).append("\":[");
+                for (Object obj : DMEs) {
+                    printObject(obj, indentation+1);
+                    strb.append(",");
+                }
+                strb.setLength(strb.length() - 1);
+                if(prettyPrinting) newIndentedLine(strb, indentation);
+                strb.append("],");
+            }
         }
     }
 
@@ -327,7 +352,7 @@ public final class JsonParser {
                                 token = objectSeparator.nextToken();
                             }
                         }
-                        //primitive or cross reference - don't parse Strings because we get necessary fieldTypes later anyway
+                        //primitive or cross-reference - don't parse Strings because we get necessary fieldTypes later anyway
                         else {
                             currentObj.fields.put(key.substring(1, key.length() - 1), pair[1]);
                         }
@@ -366,8 +391,11 @@ public final class JsonParser {
                     continue;
                 }
                 String value = info.fields.get(field.getName());
-                if (value == null)  //value not stored because was null
+                if (value.equals("null")) {
+                    field.setAccessible(true);
+                    field.set(info.dme, null);
                     continue;
+                }
                 if (field.getAnnotation(CrossReference.class) != null) {
                     crossReferences.add(new CrossReferenceToDo(info.dme, parseToID(value), field));
                     continue;
@@ -383,9 +411,11 @@ public final class JsonParser {
     private static Object createObject(ObjectInfo info) {
         Object object = null;
         try {
-            object = info.clazz.getDeclaredConstructor().newInstance();
-            for (Field field : info.clazz.getDeclaredFields()) {
-                if (Modifier.isStatic(field.getModifiers()))
+            Constructor<?> constructor = info.clazz.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            object = constructor.newInstance();
+            for (Field field : getAllFieldsIncludingInheritedOnes(info.clazz)) {
+                if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers()))
                     continue;
                 field.setAccessible(true);
                 ObjectInfo pojo = info.complexObjFields.get(field.getName());
@@ -447,6 +477,8 @@ public final class JsonParser {
 
     @SuppressWarnings("unchecked")
     private static <T> T parseToPrimitiveWrapper(Class<T> clazz, String string) {
+        if (string.equals("null"))
+            return null;
         // add some null-handling logic here? and empty values.
         if (Integer.class.isAssignableFrom(clazz) || Integer.TYPE.isAssignableFrom(clazz))
             return (T) Integer.valueOf(string);
