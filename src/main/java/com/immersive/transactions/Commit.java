@@ -1,17 +1,36 @@
 package com.immersive.transactions;
 
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
+import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * A class that resembles a specific commit. Holds corresponding deltas since the last commit
+ */
 class Commit {
+
+    /**
+     * key used to identify the commit
+     */
     CommitId commitId;
-    //<ObjectToCreate, ConstructionParams>
+
+    /**
+     * keep track of deleted objects since the last commit. Stored as a pair of object and corresponding constructionParams
+     */
     Map<LogicalObjectKey, Object[]> deletionRecords = new HashMap<>();
+
+    /**
+     * keep track of created objects since the last commit. Stored as a pair of object and corresponding constructionParams
+     */
     Map<LogicalObjectKey, Object[]> creationRecords = new HashMap<>();
-    //<before, after>
+
+    /**
+     * keep track of changed objects since the last commit. Stored as a pair of their old and new {@link com.immersive.transactions.LogicalObjectTree.LogicalObjectKey}
+     */
     DualHashBidiMap<LogicalObjectKey, LogicalObjectKey> changeRecords = new DualHashBidiMap<>();
+
 
     Commit(CommitId commitId) {
         this.commitId = commitId;

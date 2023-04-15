@@ -1,15 +1,8 @@
 package com.immersive.transactions;
 
-import com.immersive.test_model.FullScore;
-import com.immersive.test_model.Note;
-import com.immersive.test_model.NoteGroup;
-import com.immersive.test_model.NoteName;
-import com.immersive.test_model.NoteTimeTick;
-import com.immersive.test_model.Staff;
-import com.immersive.test_model.Track;
-import com.immersive.test_model.Voice;
+import com.immersive.test_model.*;
+import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
 
-import org.apache.commons.lang3.math.Fraction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -32,15 +25,15 @@ public class HistoryTests {
         staff = new Staff(track, true);
         voice = new Voice(track, 0);
 
-        NoteTimeTick ntt = new NoteTimeTick(track, 0L);
+        NoteTimeTick ntt = new NoteTimeTick(track, Fraction.ZERO);
         NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         note = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 8L);
+        ntt = new NoteTimeTick(track, Fraction.getFraction(8, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         note2 = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 16L);
+        ntt = new NoteTimeTick(track, Fraction.getFraction(16, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         note3 = new Note(noteGroup, 69, false, NoteName.A);
 
@@ -54,15 +47,15 @@ public class HistoryTests {
         staff = new Staff(track, true);
         voice = new Voice(track, 0);
 
-        NoteTimeTick ntt = new NoteTimeTick(track, 0L);
+        NoteTimeTick ntt = new NoteTimeTick(track, Fraction.ZERO);
         NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         note = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 8L);
+        ntt = new NoteTimeTick(track, Fraction.getFraction(8, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         tieStart = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 16L);
+        ntt = new NoteTimeTick(track, Fraction.getFraction(16, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         tieEnd = new Note(noteGroup, 69, false, NoteName.A);
         tieStart.tieWith(tieEnd);

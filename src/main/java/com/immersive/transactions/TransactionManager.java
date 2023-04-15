@@ -3,6 +3,7 @@ package com.immersive.transactions;
 import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
+import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
 
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
@@ -95,7 +96,7 @@ public class TransactionManager {
     }
 
     private void buildLogicalObjectTree(LogicalObjectTree LOT, DataModelEntity dme) {
-        LOT.createLogicalObjectKey(dme, null, false);
+        LOT.createLogicalObjectKey(dme);
         ArrayList<ChildEntity<?>> children = getChildren(dme);
         for (ChildEntity<?> child : children) {
             buildLogicalObjectTree(LOT, child);
@@ -193,16 +194,16 @@ public class TransactionManager {
                 }
             }
             //now its save to get the LOK from owner via remote!
-            LogicalObjectKey newKey = remote.createLogicalObjectKey(dme, keysCreatedSoFar, false);  //because this is creation and dme is not currently present in remote, this generates a NEW key and puts it in remote!
+            LogicalObjectKey newKey = remote.createLogicalObjectKey(dme);  //because this is creation and dme is not currently present in remote, this generates a NEW key and puts it in remote!
             keysCreatedSoFar.add(newKey);
             commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(remote));
         }
         else {
             LogicalObjectKey before = remote.getKey(dme);
             remote.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in remote!
-            LogicalObjectKey after = remote.createLogicalObjectKey(dme, keysCreatedSoFar, false);
+            LogicalObjectKey after = remote.createLogicalObjectKey(dme);
             keysCreatedSoFar.add(after);
-            //linking cross references together. This changes subscribedLOKs which becomes MUTABLE across commits!
+            //linking cross-references together. This changes subscribedLOKs which becomes MUTABLE across commits!
             //if two objects cross-reference each other, one of them is handled first and therefore receives the new LOK in its subscribedLOKs!
             for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
                 if (!keysCreatedSoFar.contains(subscribed.getKey()))  //object subscribed is not itself part of a change or not done yet so add a chore!
@@ -262,7 +263,7 @@ public class TransactionManager {
 
     public void createUndoState() {
         if (history == null)
-            throw new RuntimeException("Undos/Redos were not enabled!");
+            throw new RuntimeException("Undos/Redos are not enabled!");
         history.createUndoState();
     }
 

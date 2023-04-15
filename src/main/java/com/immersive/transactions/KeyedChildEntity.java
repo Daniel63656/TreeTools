@@ -1,7 +1,16 @@
 package com.immersive.transactions;
 
+/**
+ * Child entity that is owned in a map.
+ * @param <O> class-type of the owner class
+ * @param <K> class-type of the key used to own this class
+ */
 public abstract class KeyedChildEntity<O extends DataModelEntity, K> extends ChildEntity<O> {
-    final K key;
+
+    /**
+     * reference to the key the object is saved with
+     */
+    protected final K key;
 
     public KeyedChildEntity(O owner, K key) {
         super(owner);

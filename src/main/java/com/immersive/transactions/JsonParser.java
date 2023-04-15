@@ -1,6 +1,7 @@
 package com.immersive.transactions;
 
 import static com.immersive.transactions.DataModelInfo.getAllFieldsIncludingInheritedOnes;
+import static com.immersive.transactions.DataModelInfo.isComplexObject;
 import static com.immersive.transactions.TransactionManager.getChildFields;
 
 import com.immersive.transactions.annotations.CrossReference;
@@ -56,14 +57,13 @@ public final class JsonParser {
 
         Serialization(RootEntity rootEntity, boolean prettyPrinting) {
             this.prettyPrinting = prettyPrinting;
-            printObject(rootEntity, 0);
+            printObject(rootEntity, 0, false);
         }
 
         @SuppressWarnings("unchecked")
-        private void printObject(Object object, int indentation) {
-            if (indentation > 0) {
-                if(prettyPrinting) newIndentedLine(strb, indentation);
-            }
+        private void printObject(Object object, int indentation, boolean newLine) {
+            if (newLine && prettyPrinting)
+                newIndentedLine(strb, indentation);
             strb.append("{");
             indentation++;
             DataModelEntity dme = null;
@@ -75,32 +75,17 @@ public final class JsonParser {
                 dme = (DataModelEntity) object;
                 if (!createdIDs.containsKey(dme))
                     createdIDs.put(dme, createdIDs.size());
+
                 //print DataModelEntityFields
                 if(prettyPrinting) newIndentedLine(strb, indentation);
                 strb.append("'uid':").append(createdIDs.get(dme)).append(",");
-
-                //TODO handle like normal fields
                 if (dme instanceof KeyedChildEntity<?,?>) {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
-                    Object key = ((KeyedChildEntity<?,?>) dme).getKey();
-                    if (key instanceof DataModelEntity) {
-                        if (!createdIDs.containsKey(key))
-                            createdIDs.put((DataModelEntity) key, createdIDs.size());
-                        strb.append("'key1':|").append(createdIDs.get(key)).append("|,");
-                    }
-                    else
-                        strb.append("'key1':").append(key).append(",");
+                    printKey(((KeyedChildEntity<?,?>) dme).getKey(), "key1", indentation);
                 }
                 if (dme instanceof DoubleKeyedChildEntity<?,?>) {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
-                    Object key = ((DoubleKeyedChildEntity<?,?>) dme).getEndKey();
-                    if (key instanceof DataModelEntity) {
-                        if (!createdIDs.containsKey(key))
-                            createdIDs.put((DataModelEntity) key, createdIDs.size());
-                        strb.append("'key2':|").append(createdIDs.get(key)).append("|,");
-                    }
-                    else
-                        strb.append("'key2':").append(key).append(",");
+                    printKey(((DoubleKeyedChildEntity<?,?>) dme).getEndKey(), "key2", indentation);
                 }
             }
             
@@ -145,7 +130,7 @@ public final class JsonParser {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
                     if (DataModelInfo.isComplexObject(field.getType())) {
                         strb.append("\"").append(field.getName()).append("\":");
-                        printObject(fieldValue, indentation+1);
+                        printObject(fieldValue, indentation, false);
                     }
                     else if (fieldValue instanceof String)
                         strb.append("\"").append(field.getName()).append("\":\"").append(fieldValue).append("\",");
@@ -182,7 +167,7 @@ public final class JsonParser {
                                 if(prettyPrinting) newIndentedLine(strb, indentation);
                                 strb.append("\"").append(field.getName()).append("\":[");
                                 for (DataModelEntity dm : collection) {
-                                    printObject(dm, indentation+1);
+                                    printObject(dm, indentation+1, true);
                                     strb.append(",");
                                 }
                                 strb.setLength(strb.length() - 1);
@@ -195,7 +180,7 @@ public final class JsonParser {
                         else {
                             if(prettyPrinting) newIndentedLine(strb, indentation);
                             strb.append("\"").append(field.getName()).append("\":");
-                            printObject(field.get(dme), indentation);
+                            printObject(field.get(dme), indentation, false);
                             strb.append(",");
                         }
                     } catch (IllegalAccessException e) {
@@ -212,12 +197,29 @@ public final class JsonParser {
             strb.append("}");
         }
 
+        private void printKey(Object key, String fieldName, int indentation) {
+            strb.append("'").append(fieldName).append("':");
+            if (key instanceof DataModelEntity) {
+                if (!createdIDs.containsKey(key))
+                    createdIDs.put((DataModelEntity) key, createdIDs.size());
+                strb.append("|").append(createdIDs.get(key)).append("|");
+            }
+            else if (!isComplexObject(key.getClass())) {
+                if (key instanceof String)
+                    strb.append("\"").append(key).append("\"");
+                else    //primitive / primitive wrapper / Enum / Void
+                    strb.append(key);
+            }
+            else printObject(key, indentation, false);
+            strb.append(",");
+        }
+
         private void printArray(Field field, Object[] DMEs, int indentation) {
             if (DMEs.length > 0) {
                 if(prettyPrinting) newIndentedLine(strb, indentation);
                 strb.append("\"").append(field.getName()).append("\":[");
                 for (Object obj : DMEs) {
-                    printObject(obj, indentation+1);
+                    printObject(obj, indentation+1, true);
                     strb.append(",");
                 }
                 strb.setLength(strb.length() - 1);
@@ -241,7 +243,7 @@ public final class JsonParser {
         Deserialization(String json, Class<?> rootClass) {
             //remove artifacts of pretty printing
             json = json.replace("\n", "");
-            json = json.replace(INDENT, "");
+            json = json.replace(" ", "");
             //split into object-tokens
             StringTokenizer objectSeparator = new StringTokenizer(json, "{}]", true);
             ObjectInfo owner = null;
@@ -314,10 +316,18 @@ public final class JsonParser {
                             assert owner != null;
                             if (currentKeyClass == null)
                                 throw new RuntimeException("error getting key class for object " + currentObj.clazz.getSimpleName());
-                            if (stringEnclosedBy(pair[1], '|'))
+
+                            //key is another object
+                            if (pair.length == 1) {
+                                ObjectInfo info = readObject(objectSeparator, currentObj, currentKeyClass, null);
+                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, createObject(info)));
+
+                            }
+                            //field is another DME
+                            else if (stringEnclosedBy(pair[1], '|'))
                                 currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToID(pair[1])));
+                            //primitive, primitive wrapper
                             else {
-                                //TODO complex object may also be a key
                                 currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToPrimitiveWrapper(currentKeyClass, pair[1])));
                             }
                             break;

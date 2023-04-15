@@ -1,14 +1,25 @@
 package com.immersive.transactions;
 
+import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
 import com.immersive.transactions.exceptions.TransactionException;
 import com.immersive.wrap.Wrapper;
 import com.immersive.wrap.WrapperScope;
+
 import java.util.HashMap;
 import java.util.Map;
 
+
+/**
+ * Transactional class for the root element of the data model. This class holds transactional
+ * methods like push, pull, redo and undo are called via this object.
+ */
 public abstract class RootEntity implements DataModelEntity {
-    TransactionManager tm = TransactionManager.getInstance();
-    final Map<WrapperScope, Wrapper<?>> registeredWrappers = new HashMap<>();
+    private final TransactionManager tm = TransactionManager.getInstance();
+
+    /**
+     * list of subscribed wrapper objects that receive updates when object chages or gets deleted
+     */
+    private final Map<WrapperScope, Wrapper<?>> registeredWrappers = new HashMap<>();
     @Override
     public Map<WrapperScope, Wrapper<?>> getRegisteredWrappers() {
         return registeredWrappers;
@@ -49,12 +60,15 @@ public abstract class RootEntity implements DataModelEntity {
     public synchronized Commit commit() {
         return TransactionManager.getInstance().commit(this);
     }
+
     public synchronized Commit undo() {
         return tm.undo(this);
     }
+
     public synchronized Commit redo() {
         return tm.redo(this);
     }
+
     public synchronized boolean pull() {
         return TransactionManager.getInstance().pull(this);
     }

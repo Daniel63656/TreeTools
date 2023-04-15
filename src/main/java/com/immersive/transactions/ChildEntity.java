@@ -6,8 +6,32 @@ import com.immersive.wrap.WrapperScope;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Base class for each class in the data model except the root element. Each such class has an owner in the data model
+ * @param <O> class-type of the owner class
+ */
 public abstract class ChildEntity<O extends DataModelEntity> implements DataModelEntity {
-    final Map<WrapperScope, Wrapper<?>> registeredWrappers = new HashMap<>();
+
+    /**
+     * cache reference to the root entity of the data model for direct access
+     */
+    private final RootEntity root;
+
+    /**
+     * reference to the owner of the class
+     */
+    protected final O owner;
+
+    /**
+     * prevent clearing to happen while object is in the process of clearing
+     */
+    private boolean clearingInProgress;
+
+    /**
+     * list of subscribed wrapper objects that receive updates when object chages or gets deleted
+     */
+    private final Map<WrapperScope, Wrapper<?>> registeredWrappers = new HashMap<>();
+
     @Override
     public Map<WrapperScope, Wrapper<?>> getRegisteredWrappers() {
         return registeredWrappers;
@@ -23,9 +47,7 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         registeredWrappers.values().removeIf(Wrapper::onWrappedChanged);
     }
 
-    private boolean clearingInProgress;
-    final RootEntity root;
-    final O owner;
+
 
     protected ChildEntity(O owner) {
         this.owner = owner;

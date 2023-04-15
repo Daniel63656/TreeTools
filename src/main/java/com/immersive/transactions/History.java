@@ -1,6 +1,7 @@
 package com.immersive.transactions;
 
 import java.util.Map;
+import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
 
 class History {
     private final int capacity;     //TODO respect capacity

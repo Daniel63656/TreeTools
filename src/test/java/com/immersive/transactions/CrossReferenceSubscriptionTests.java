@@ -1,13 +1,7 @@
 package com.immersive.transactions;
 
-import com.immersive.test_model.FullScore;
-import com.immersive.test_model.Note;
-import com.immersive.test_model.NoteGroup;
-import com.immersive.test_model.NoteName;
-import com.immersive.test_model.NoteTimeTick;
-import com.immersive.test_model.Staff;
-import com.immersive.test_model.Track;
-import com.immersive.test_model.Voice;
+import com.immersive.test_model.*;
+import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -31,15 +25,15 @@ public class CrossReferenceSubscriptionTests {
         staff = new Staff(track, true);
         voice = new Voice(track, 0);
 
-        NoteTimeTick ntt = new NoteTimeTick(track, 0L);
+        NoteTimeTick ntt = new NoteTimeTick(track, Fraction.ZERO);
         NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         note = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 8L);
+        ntt = new NoteTimeTick(track, Fraction.getFraction(8, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         tieStart = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 16L);
+        ntt = new NoteTimeTick(track, Fraction.getFraction(16, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         tieEnd = new Note(noteGroup, 69, false, NoteName.A);
         tieStart.tieWith(tieEnd);
@@ -51,10 +45,10 @@ public class CrossReferenceSubscriptionTests {
     private void verifyTying(LogicalObjectTree LOT) throws NoSuchFieldException {
         LogicalObjectKey lok_tieStart = LOT.getKey(tieStart);
         LogicalObjectKey lok_tieEnd   = LOT.getKey(tieEnd);
-        Assertions.assertSame(lok_tieEnd, (LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("nextTied")));
-        Assertions.assertSame(null, (LogicalObjectKey) lok_tieStart.get(note.getClass().getDeclaredField("previousTied")));
-        Assertions.assertSame(lok_tieStart, (LogicalObjectKey) lok_tieEnd.get(note.getClass().getDeclaredField("previousTied")));
-        Assertions.assertSame(null, (LogicalObjectKey) lok_tieEnd.get(note.getClass().getDeclaredField("nextTied")));
+        Assertions.assertSame(lok_tieEnd, lok_tieStart.get(note.getClass().getDeclaredField("nextTied")));
+        Assertions.assertSame(null, lok_tieStart.get(note.getClass().getDeclaredField("previousTied")));
+        Assertions.assertSame(lok_tieStart, lok_tieEnd.get(note.getClass().getDeclaredField("previousTied")));
+        Assertions.assertSame(null, lok_tieEnd.get(note.getClass().getDeclaredField("nextTied")));
         //test subscription
         Assertions.assertTrue(lok_tieStart.subscribedLOKs.containsKey(lok_tieEnd));
         Assertions.assertEquals(1, lok_tieStart.subscribedLOKs.size());
@@ -106,7 +100,7 @@ public class CrossReferenceSubscriptionTests {
     public void testTiedNoteCreated() throws NoSuchFieldException {
         Workcopy workcopy = createTransactionWorkcopy();
         tieEnd.setPitch(30);
-        NoteTimeTick ntt = new NoteTimeTick(track, 24L);
+        NoteTimeTick ntt = new NoteTimeTick(track, Fraction.getFraction(24, 1));
         NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         Note newTied = new Note(noteGroup, 69, false, NoteName.A);
         tieEnd.tieWith(newTied);

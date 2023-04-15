@@ -1,4 +1,3 @@
 package com.immersive.wrap;
 
-public interface WrapperScope {
-}
+public interface WrapperScope {}

@@ -3,6 +3,7 @@ package com.immersive.test_model;
 
 import com.immersive.transactions.ChildEntity;
 
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
@@ -10,7 +11,7 @@ import java.util.TreeMap;
 public class Track extends ChildEntity<FullScore> {
     List<Staff> staffs = new ArrayList<>();
     List<Voice> voices = new ArrayList<>();
-    TreeMap<Long, NoteTimeTick> noteTimeTicks = new TreeMap<>();
+    TreeMap<Fraction, NoteTimeTick> noteTimeTicks = new TreeMap<>();
 
     //this constructor the transactional logic is looking for
     public Track(FullScore fullScore) {
@@ -30,7 +31,7 @@ public class Track extends ChildEntity<FullScore> {
         return voices.get(idx);
     }
 
-    public NoteTimeTick getNTT(long idx) {
+    public NoteTimeTick getNTT(Fraction idx) {
         return noteTimeTicks.get(idx);
     }
 

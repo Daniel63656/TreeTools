@@ -3,11 +3,24 @@ package com.immersive.transactions;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * A class that wraps around the {@link com.immersive.transactions.RootEntity} and provides the necessary
+ * structures to make transactions possible.
+ */
 public class Workcopy {
-    boolean ongoingPull;        //used by aspect to suppress logging creations during pull
+
+    /**
+     * the wrapped root entity
+     */
     RootEntity rootEntity;
     LogicalObjectTree LOT;
     CommitId currentCommitId;
+
+    /**
+     * used by aspect to suppress logging creations during pull
+     */
+    boolean ongoingPull;
+
 
     Set<ChildEntity<?>> locallyDeleted = new HashSet<>();
     Set<DataModelEntity> locallyChangedOrCreated = new HashSet<>();

@@ -1,14 +1,9 @@
 package com.immersive.transactions;
 
 
-import com.immersive.test_model.FullScore;
-import com.immersive.test_model.Note;
-import com.immersive.test_model.NoteGroup;
-import com.immersive.test_model.NoteName;
-import com.immersive.test_model.NoteTimeTick;
-import com.immersive.test_model.Staff;
-import com.immersive.test_model.Track;
-import com.immersive.test_model.Voice;
+import com.immersive.test_model.*;
+import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
+
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -47,15 +42,15 @@ public class TransactionTests {
         voice = new Voice(track, 0);
         Workcopy w = tm.workcopies.get(fullScore);
 
-        NoteTimeTick ntt = new NoteTimeTick(track, 0L);
+        NoteTimeTick ntt = new NoteTimeTick(track, Fraction.ZERO);
         NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         note = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 8L);
+        ntt = new NoteTimeTick(track, Fraction.getFraction(8, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         tieStart = new Note(noteGroup, 69, false, NoteName.A);
 
-        ntt = new NoteTimeTick(track, 16L);
+        ntt = new NoteTimeTick(track, Fraction.getFraction(16, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
         tieEnd = new Note(noteGroup, 69, false, NoteName.A);
         tieStart.tieWith(tieEnd);
@@ -99,7 +94,7 @@ public class TransactionTests {
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(note));
         tm.commit(workcopy.rootEntity);
         //get note of read workcopy
-        Note note = ((NoteGroup) read.getTrack(0).getNTT(0).getNGOT(read.getTrack(0).getVoice(0))).getNote(0);
+        Note note = ((NoteGroup) read.getTrack(0).getNTT(Fraction.ZERO).getNGOT(read.getTrack(0).getVoice(0))).getNote(0);
         //check note is untouched before pull
         Assertions.assertSame(note.getPitch(), 69);
         Assertions.assertSame(note.getAccidental(), false);
@@ -129,7 +124,7 @@ public class TransactionTests {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
         //create new NoteGroup and 2 notes at its place
-        NoteGroup newNoteGroup = new NoteGroup(track.getNTT(0), staff, voice, 4, false);
+        NoteGroup newNoteGroup = new NoteGroup(track.getNTT(Fraction.ZERO), staff, voice, 4, false);
         Note nn1 = new Note(newNoteGroup, 51, false, NoteName.D);
         Note nn2 = new Note(newNoteGroup, 34, true, NoteName.B);
         Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNoteGroup));
@@ -145,7 +140,7 @@ public class TransactionTests {
     public void testPullingDeletions() {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
-        NoteGroup noteGroup = ((NoteGroup) ((FullScore)workcopy.rootEntity).getTrack(0).getNTT(0).getNGOT(voice));
+        NoteGroup noteGroup = ((NoteGroup) ((FullScore)workcopy.rootEntity).getTrack(0).getNTT(Fraction.ZERO).getNGOT(voice));
         Note note = noteGroup.getNote(0);
         noteGroup.clear();
         Assertions.assertTrue(workcopy.locallyDeleted.contains(noteGroup));
@@ -159,8 +154,8 @@ public class TransactionTests {
     public void testDeletionOverridesChangedOrCreatedObjectsInCommitAlsoPull() {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
-        NoteTimeTick ntt = track.getNTT(0);
-        NoteGroup noteGroup = ((NoteGroup)track.getNTT(0).getNGOT(voice));
+        NoteTimeTick ntt = track.getNTT(Fraction.ZERO);
+        NoteGroup noteGroup = ((NoteGroup)track.getNTT(Fraction.ZERO).getNGOT(voice));
         Note note = noteGroup.getNote(0);
         //change a note
         note.setPitch(30);
@@ -194,8 +189,8 @@ public class TransactionTests {
     public void testPullingSeveralCommitsAtOnceAndCleanup() {
         Workcopy workcopy = createTransactionWorkcopy();
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
-        NoteTimeTick ntt = track.getNTT(0);
-        NoteGroup noteGroup = ((NoteGroup)track.getNTT(0).getNGOT(voice));
+        NoteTimeTick ntt = track.getNTT(Fraction.ZERO);
+        NoteGroup noteGroup = ((NoteGroup)track.getNTT(Fraction.ZERO).getNGOT(voice));
         Note note = noteGroup.getNote(0);
         //change a note
         note.setPitch(30);

@@ -8,4 +8,10 @@ public final class Fo {
         this.f = f;
         F = f1;
     }
+
+    //transactional constructor
+    private Fo() {
+        f = 0;
+        F = null;
+    }
 }

@@ -2,6 +2,7 @@ package com.immersive.transactions;
 
 import org.jetbrains.annotations.NotNull;
 
+
 public class CommitId implements Comparable<CommitId> {
     int id;
 

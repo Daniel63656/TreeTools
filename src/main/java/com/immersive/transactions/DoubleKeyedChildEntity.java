@@ -1,7 +1,17 @@
 package com.immersive.transactions;
 
+/**
+ * Child entity that is owned with two keys of the same type. Typical applications may be classes that
+ * represent ranges of some sort.
+ * @param <O> class-type of the owner class
+ * @param <K> class-type of the keys used to own this class
+ */
 public abstract class DoubleKeyedChildEntity<O extends DataModelEntity, K> extends KeyedChildEntity<O, K> {
-    final K endKey;
+
+    /**
+     * reference to the second key the object is associated with
+     */
+    private final K endKey;
 
     public DoubleKeyedChildEntity(O owner, K startKey, K endKey) {
         super(owner, startKey);
