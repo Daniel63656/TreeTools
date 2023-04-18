@@ -66,7 +66,7 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         if (clearingInProgress)
             return true;
         clearingInProgress = true;
-        TransactionManager.destruct(this);
+        destruct();
         for (Wrapper<?> wrapper : getRegisteredWrappers().values()) {
             wrapper.onWrappedCleared();
         }

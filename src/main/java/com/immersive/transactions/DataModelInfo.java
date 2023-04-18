@@ -3,17 +3,10 @@ package com.immersive.transactions;
 import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.annotations.PolymorphOwner;
 import com.immersive.transactions.exceptions.IllegalDataModelException;
-
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -45,13 +38,6 @@ class DataModelInfo {
     Constructor<?> constructor;
 
     /**
-     * the class destructor used to delete classes. {@link com.immersive.transactions.RootEntity} has no
-     * destructor, so this field is null
-     */
-    Method destructor;
-
-
-    /**
      * create detailed class info
      * @param clazz class to be described
      * @param constructorParams classes used in the transactional constructor
@@ -77,14 +63,6 @@ class DataModelInfo {
             constructor = clazz.getDeclaredConstructor(constructorParams);
         } catch (NoSuchMethodException e) {
             throw new IllegalDataModelException(clazz, " has no suitable constructor!");
-        }
-
-        //find and cache the transactional destructor
-        try {
-            if (!RootEntity.class.isAssignableFrom(clazz))
-                destructor = clazz.getDeclaredMethod("destruct");
-        } catch (NoSuchMethodException e) {
-            throw new IllegalDataModelException(clazz, " has no suitable destructor!");
         }
     }
 
@@ -201,17 +179,6 @@ class DataModelInfo {
         throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
     }
 
-    void destruct(ChildEntity<?> te) {
-        try {
-            destructor.setAccessible(true);
-            destructor.invoke(te);
-            return;
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
-        }
-        throw new RuntimeException("Error invoking class destructor "+clazz.getSimpleName()+"!");
-    }
-
     @Override
     public String toString() {
         StringBuilder strb = new StringBuilder();
@@ -279,7 +246,7 @@ class DataModelInfo {
                 throw new IllegalDataModelException(type, "must be immutable but contains mutable field \"" + f.getName() + "\". Make it a field whose changes " +
                     "are not tracked by declaring it static or transient or make it final!");
             else {
-                //complex objects contained in fields must also be immutable themselves TODO and have the right constructor
+                //complex objects contained in fields must also be immutable themselves
                 if (isComplexObject(fieldType)) {
                     throwIfMutable(fieldType);
                 }

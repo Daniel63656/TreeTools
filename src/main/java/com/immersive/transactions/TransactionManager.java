@@ -346,7 +346,7 @@ public class TransactionManager {
                 ChildEntity<?> objectToDelete = (ChildEntity<?>) LOT.get(entry.getKey());
                 objectToDelete.onWrappedCleared();
                 objectToDelete.getOwner().onWrappedChanged();
-                destruct(objectToDelete);
+                objectToDelete.destruct();
                 LOT.removeValue(objectToDelete);
             }
             //CREATION - Recursion possible because of dependency on owner and cross-references
@@ -504,13 +504,4 @@ public class TransactionManager {
         }
         return dataModelInfo.get(clazz).construct(objects);
     }
-
-    static void destruct(ChildEntity<?> te) {
-        if (!dataModelInfo.containsKey(te.getClass()))
-            dataModelInfo.put(te.getClass(), new DataModelInfo(te.getClass(), te.getClassesOfConstructorParams()));
-        dataModelInfo.get(te.getClass()).destruct(te);
-    }
-
-
-
 }
