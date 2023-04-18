@@ -19,7 +19,7 @@ public class NoteGroup extends NoteGroupOrTuplet {
         super(noteTimeTick, voice);
     }
     //this method the transactional logic is looking for in order to atomically delete objects
-    private void destruct() {
+    protected void destruct() {
         getOwner().noteGroupOrTuplets.remove(getKey());
     }
 

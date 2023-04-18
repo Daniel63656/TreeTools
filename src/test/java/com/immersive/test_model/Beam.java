@@ -14,7 +14,7 @@ public class Beam extends DoubleKeyedChildEntity<Voice, Long> implements Compara
 		voice.beams.put(startTick, this);
 	}
 
-	private void destruct() {
+	protected void destruct() {
 		getOwner().beams.remove(getKey());
 	}
 

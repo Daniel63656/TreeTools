@@ -11,7 +11,7 @@ public class NoteTimeTick extends KeyedChildEntity<Track, Fraction> {
     Map<Voice, NoteGroupOrTuplet> noteGroupOrTuplets = new HashMap<>();
 
     //this method the transactional logic is looking for in order to atomically delete objects
-    private void destruct() {
+    protected void destruct() {
         getOwner().noteTimeTicks.remove(getKey());
     }
 

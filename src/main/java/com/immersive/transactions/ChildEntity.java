@@ -47,8 +47,6 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         registeredWrappers.values().removeIf(Wrapper::onWrappedChanged);
     }
 
-
-
     protected ChildEntity(O owner) {
         this.owner = owner;
         DataModelEntity it = owner;
@@ -61,6 +59,8 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
     public O getOwner() {
         return owner;
     }
+
+    protected abstract void destruct();
 
     public boolean clear() {
         if (clearingInProgress)

@@ -14,7 +14,7 @@ public class Voice extends ChildEntity<Track> {
         track.voices.add(this);
     }
     //this method the transactional logic is looking for in order to atomically delete objects
-    private void destruct() {
+    protected void destruct() {
         getOwner().voices.remove(this);
     }
 

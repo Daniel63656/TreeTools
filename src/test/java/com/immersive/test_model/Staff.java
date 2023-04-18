@@ -12,7 +12,7 @@ public class Staff extends ChildEntity<Track> {
     }
 
     //this method the transactional logic is looking for in order to atomically delete objects
-    private void destruct() {
+    protected void destruct() {
         getOwner().staffs.remove(this);
     }
 
