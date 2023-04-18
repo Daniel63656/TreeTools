@@ -54,6 +54,14 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
             it = ((ChildEntity<?>)it).getOwner();
         }
         root = (RootEntity) it;
+
+        //log as creation if not in an ongoing pull
+        Workcopy workcopy = TransactionManager.getInstance().workcopies.get(getRootEntity());
+        if (workcopy != null && !workcopy.ongoingPull) {
+            /*if (!workcopy.locallyChangedOrCreated.contains(this))
+                System.out.println(getClass().getSimpleName()+" got created");*/
+            workcopy.locallyChangedOrCreated.add(this);
+        }
     }
 
     public O getOwner() {
