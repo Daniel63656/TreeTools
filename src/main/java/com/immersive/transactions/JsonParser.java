@@ -320,7 +320,7 @@ public final class JsonParser {
                             //key is another object
                             if (pair.length == 1) {
                                 ObjectInfo info = readObject(objectSeparator, currentObj, currentKeyClass, null);
-                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, createObject(info)));
+                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, createNonDmeObject(info)));
 
                             }
                             //field is another DME
@@ -397,7 +397,7 @@ public final class JsonParser {
                 ObjectInfo pojo = info.complexObjFields.get(field.getName());
                 if (pojo != null) {
                     field.setAccessible(true);
-                    field.set(info.dme, createObject(pojo));
+                    field.set(info.dme, createNonDmeObject(pojo));
                     continue;
                 }
                 String value = info.fields.get(field.getName());
@@ -418,7 +418,7 @@ public final class JsonParser {
         }
     }
 
-    private static Object createObject(ObjectInfo info) {
+    private static Object createNonDmeObject(ObjectInfo info) {
         Object object = null;
         try {
             Constructor<?> constructor = info.clazz.getDeclaredConstructor();
@@ -431,7 +431,7 @@ public final class JsonParser {
                 ObjectInfo pojo = info.complexObjFields.get(field.getName());
                 String value = info.fields.get(field.getName());
                 if (pojo != null)
-                    field.set(object, createObject(pojo));
+                    field.set(object, createNonDmeObject(pojo));
                 else if (value != null)
                     field.set(object, parseToPrimitiveWrapper(field.getType(), value));
             }

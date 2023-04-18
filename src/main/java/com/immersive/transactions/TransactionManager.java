@@ -455,7 +455,7 @@ public class TransactionManager {
         private void imprintLogicalContentOntoObject(LogicalObjectKey after, DataModelEntity dme) throws IllegalAccessException {
             for (Field field : getContentFields(dme)) {
                 if (after.containsKey(field)) {
-                    //save cross references to do at the very end to avoid infinite recursion when cross-references point at each other!
+                    //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
                     if (field.getAnnotation(CrossReference.class) != null) {
                         if (after.get(field) != null)
                             crossReferences.add(new CrossReferenceToDo(dme, after, (LogicalObjectKey) after.get(field), field));
