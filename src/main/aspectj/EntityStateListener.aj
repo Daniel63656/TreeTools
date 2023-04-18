@@ -14,10 +14,6 @@ private static TransactionManager tm = TransactionManager.getInstance();
         && target(te)
         && args(owner,..);
 
-    pointcut deletion(ChildEntity te) : execution(* ChildEntity+.clear())
-        && target(te);
-
-
     //this will not be called when pulling changes cause reflections do not trigger set but redos!
     before(DataModelEntity dme, Object newValue) : contentFieldSetter(dme, newValue) {
         Workcopy workcopy = getWorkcopy(dme);
@@ -35,16 +31,6 @@ private static TransactionManager tm = TransactionManager.getInstance();
             if (tm.logAspects && !workcopy.locallyChangedOrCreated.contains(te))
                 System.out.println(te.getClass().getSimpleName()+" got created");
             workcopy.locallyChangedOrCreated.add(te);
-        }
-    }
-
-    //not triggered by pulling because pulling uses its separate destructor methods
-    before(ChildEntity te) : deletion(te) {
-        Workcopy workcopy = getWorkcopy(te);
-        if (workcopy != null) {
-            workcopy.locallyDeleted.add(te);
-            if (tm.logAspects)
-                System.out.println(te.getClass().getSimpleName() + " got deleted");
         }
     }
 

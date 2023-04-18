@@ -62,11 +62,19 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
 
     protected abstract void destruct();
 
+
+    //not triggered by pulling because pulling uses destruct() only
     public boolean clear() {
         if (clearingInProgress)
             return true;
         clearingInProgress = true;
         destruct();
+        Workcopy workcopy = TransactionManager.getInstance().workcopies.get(getRootEntity());
+        if (workcopy != null) {
+            workcopy.locallyDeleted.add(this);
+            //System.out.println(te.getClass().getSimpleName() + " got deleted");
+        }
+
         for (Wrapper<?> wrapper : getRegisteredWrappers().values()) {
             wrapper.onWrappedCleared();
         }
