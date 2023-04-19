@@ -88,7 +88,7 @@ public final class JsonParser {
                     printKey(((DoubleKeyedChildEntity<?,?>) dme).getEndKey(), "key2", indentation);
                 }
             }
-            
+
             //get content fields
             Field[] contentFields;
             if (dme != null)
@@ -418,6 +418,7 @@ public final class JsonParser {
         }
     }
 
+    //TODO remove dependency on default constructor?
     private static Object createNonDmeObject(ObjectInfo info) {
         Object object = null;
         try {

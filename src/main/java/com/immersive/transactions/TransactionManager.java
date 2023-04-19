@@ -17,23 +17,42 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+
+/**
+ * Class following the singleton pattern that handles transactions of data models.
+ */
 public class TransactionManager {
     private static final TransactionManager transactionManager = new TransactionManager();
-    private int commitID = 1;
     private TransactionManager() {}
     public static TransactionManager getInstance() {
         return transactionManager;
     }
 
-    static Map<Class<? extends DataModelEntity>, DataModelInfo> dataModelInfo = new HashMap<>();
-    final TreeMap<CommitId, Commit> commits = new TreeMap<>();
-    History history;
-    Map<RootEntity, Workcopy> workcopies = new HashMap<>();
-    private boolean logAspects;   //print debug messages
 
-    public void logAspects(boolean log) {
-        logAspects = log;
+    /** cache class information for better performance */
+    private static final Map<Class<? extends DataModelEntity>, DataModelInfo> dataModelInfo = new HashMap<>();
+
+    /** keep track of all existing workcopies */
+    Map<RootEntity, Workcopy> workcopies = new HashMap<>();
+
+    /** save all commits in a time-ordered manner*/
+    final TreeMap<CommitId, Commit> commits = new TreeMap<>();  //TODO shuldn't this be workcopy specific?
+
+    /** object responsible for grouping commits and providing a history for {@link TransactionManager#undo(RootEntity)}
+     * and {@link TransactionManager#redo(RootEntity)} */
+    History history;
+
+    /**
+     * index for the next commit to come. Each {@link TransactionManager#commit(RootEntity)} will increment this value
+     */
+    private int commitNumber = 1;
+
+    /** print messages about object creation, deletion and changes for debug purposes */
+    private boolean verbose;
+    public void setVerbose(boolean verbose) {
+        this.verbose = verbose;
     }
+
     public boolean transactionsEnabled(RootEntity rootEntity) {
         return workcopies.containsKey(rootEntity);
     }
@@ -57,6 +76,10 @@ public class TransactionManager {
         history = new History(capactity);
     }
 
+    /**
+     * @param rootEntity root of the data model that is to be copied
+     * @return a copy of the provided rootEntity that can pull changes made in the original data model
+     */
     public RootEntity getWorkcopyOf(RootEntity rootEntity) {
         if (!workcopies.containsKey(rootEntity))
             throw new NoTransactionsEnabledException();
@@ -90,6 +113,9 @@ public class TransactionManager {
         return workcopies.get(rootEntity).currentCommitId;
     }
 
+    /**
+     * end and clean up  all traces of transactions
+     */
     public void shutdown() {
         commits.clear();
         workcopies.clear();
@@ -103,6 +129,10 @@ public class TransactionManager {
         }
     }
 
+    /**
+     * build a commit used for initialization by parsing the content of a given {@link DataModelEntity} recursively
+     * into a {@link LogicalObjectTree} and adding the object to the commits' {@link Commit#creationRecords}
+     */
     private void buildInitializationCommit(LogicalObjectTree LOT, Commit commit, DataModelEntity dme) {
         if (!(dme instanceof RootEntity))
             commit.creationRecords.put(LOT.getKey(dme), dme.getConstructorParamsAsKeys(LOT));
@@ -130,32 +160,36 @@ public class TransactionManager {
 
     Commit commit(RootEntity rootEntity) {
         Workcopy workcopy = workcopies.get(rootEntity);
+        //ensure transactions are enabled for rootEntity
         if (workcopy == null)
             throw new NoTransactionsEnabledException();
-        if (workcopy.locallyChangedOrCreated.isEmpty() && workcopy.locallyDeleted.isEmpty())
+        //skip "empty" commits
+        if (workcopy.locallyCreatedOrChanged.isEmpty() && workcopy.locallyDeleted.isEmpty())
             return null;
 
-        CommitId commitId = new CommitId(commitID);
-        commitID++;
+        CommitId commitId = new CommitId(commitNumber);
+        commitNumber++;
         Commit commit = new Commit(commitId);
-        LogicalObjectTree remote = workcopy.LOT; //This corresponds to the rollback version or "remote"
+        //get a reference to the LogicalObjectTree of the workcopy which is a representation of the "remote" state
+        LogicalObjectTree remote = workcopy.LOT;
+        //initialize collections that help execute the commit
         List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
         Set<LogicalObjectKey> keysCreatedSoFar = new HashSet<>();
 
-        //create ModificationRecords for CREATED or CHANGED objects
-        while (!workcopy.locallyChangedOrCreated.isEmpty()) {
-            DataModelEntity dme = workcopy.locallyChangedOrCreated.iterator().next();
-            //deletion OVERRIDES creation or change!
+        //create ModificationRecords in commit for CREATED or CHANGED objects
+        while (!workcopy.locallyCreatedOrChanged.isEmpty()) {
+            DataModelEntity dme = workcopy.locallyCreatedOrChanged.iterator().next();
+            //ignore creation or change if object got deleted in the end
             if (dme instanceof ChildEntity<?>) {
                 if (workcopy.locallyDeleted.contains(dme)) {
-                    workcopy.locallyChangedOrCreated.remove(dme);
-                    //remove deletion instruction if chore was a creation
+                    workcopy.locallyCreatedOrChanged.remove(dme);
+                    //remove deletion instruction if chore was a creation that got removed right now
                     if (!remote.containsValue(dme) || (remote.containsValue(dme) && keysCreatedSoFar.contains(remote.getKey(dme))))
                         workcopy.locallyDeleted.remove(dme);
                     continue;
                 }
             }
-            commitCreationOrChange(workcopy.locallyChangedOrCreated, commit, remote, dme, keysCreatedSoFar);
+            commitCreationOrChange(workcopy.locallyCreatedOrChanged, commit, remote, dme, keysCreatedSoFar);
         }
 
         //create ModificationRecords for DELETED objects
@@ -163,17 +197,18 @@ public class TransactionManager {
         while (iterator.hasNext()) {
             ChildEntity<?> te = iterator.next();
             commit.deletionRecords.put(remote.getKey(te), te.getConstructorParamsAsKeys(remote));
-            //don't remove from remote yet, because this destroys owner information for possible deletion entries below!
+            //don't remove from remote yet, because this destroys owner information for possible deletion entries of children!
             //save this action in a list to do it at the end of the deletion part of the commit instead
             removeFromLOT.add(te);
             iterator.remove();
         }
-        //remove all entries from remote
+        //now it is safe to remove all entries from remote
         for (ChildEntity<?> te : removeFromLOT) {
             remote.removeValue(te);
         }
+        //clear workcopies deltas
         workcopy.locallyDeleted.clear();
-        workcopy.locallyChangedOrCreated.clear();
+        workcopy.locallyCreatedOrChanged.clear();
         workcopy.currentCommitId = commitId;
         synchronized (commits) {
             commits.put(commitId, commit);
@@ -213,7 +248,7 @@ public class TransactionManager {
                     subscribed.getKey().put(subscribed.getValue(), after);
                 }
             }
-            commit.changeRecords.put(before, after);
+            commit.changeRecords.put(before, after);  //TODO notify wrappers?
         }
         chores.remove(dme);
     }
@@ -223,13 +258,13 @@ public class TransactionManager {
             throw new RuntimeException("Undos/Redos were not enabled!");
         if (history.undosAvailable()) {
             Commit commit = history.head.self;
-            CommitId commitId = new CommitId(commitID);
+            CommitId commitId = new CommitId(commitNumber);
             commit.commitId = commitId;
             history.head = history.head.previous;
             new Pull(rootEntity, commit, true);
             //revert the commit for commit-list!
             Commit revertedCommit = new Commit(commitId);
-            commitID++;
+            commitNumber++;
             revertedCommit.creationRecords = commit.deletionRecords;
             revertedCommit.deletionRecords = commit.creationRecords;
             DualHashBidiMap<LogicalObjectKey, LogicalObjectKey> changes = new DualHashBidiMap<>();
@@ -250,8 +285,8 @@ public class TransactionManager {
         if (history.redosAvailable()) {
             history.head = history.head.next;
             Commit commit = history.head.self;
-            commit.commitId = new CommitId(commitID);
-            commitID++;
+            commit.commitId = new CommitId(commitNumber);
+            commitNumber++;
             new Pull(rootEntity, commit, false);
             synchronized (commits) {
                 commits.put(commit.commitId, commit);
@@ -273,7 +308,9 @@ public class TransactionManager {
         return new Pull(rootEntity).pulledSomething;
     }
 
-    //for local context
+    /**
+     * Utility class to hold fields needed during a pull
+     */
     private class Pull {
         boolean pulledSomething;
         Workcopy workcopy;

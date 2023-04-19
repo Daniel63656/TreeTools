@@ -58,7 +58,11 @@ public abstract class RootEntity implements DataModelEntity {
     }
 
     public synchronized Commit commit() {
-        return TransactionManager.getInstance().commit(this);
+        return tm.commit(this);
+    }
+
+    public synchronized boolean pull() {
+        return tm.pull(this);
     }
 
     public synchronized Commit undo() {
@@ -69,9 +73,6 @@ public abstract class RootEntity implements DataModelEntity {
         return tm.redo(this);
     }
 
-    public synchronized boolean pull() {
-        return TransactionManager.getInstance().pull(this);
-    }
 
     synchronized DataModelEntity getObjectSynchronizedIn(DataModelEntity dme, RootEntity dstRootEntity) {
         CommitId srcCommitId = tm.getCurrentCommitId(this);

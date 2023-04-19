@@ -60,7 +60,7 @@ public class CrossReferenceSubscriptionTests {
     public void testOnlyOneTiedNoteChanged() throws NoSuchFieldException {
         Workcopy workcopy = createTransactionWorkcopy();
         tieStart.setPitch(30);
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieStart));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(tieStart));
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
         Commit c = tm.commit(workcopy.rootEntity);
         // tie end also got a change record, because it must point to a different LOK now!
@@ -73,8 +73,8 @@ public class CrossReferenceSubscriptionTests {
         Workcopy workcopy = createTransactionWorkcopy();
         tieStart.setPitch(30);
         tieEnd.setPitch(30);
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieStart));
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieEnd));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(tieStart));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(tieEnd));
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
         System.out.println(tm.commit(workcopy.rootEntity));
         verifyTying(tm.workcopies.get(workcopy.rootEntity).LOT);
@@ -84,8 +84,8 @@ public class CrossReferenceSubscriptionTests {
     public void testTiedNoteDeleted() throws NoSuchFieldException {
         Workcopy workcopy = createTransactionWorkcopy();
         tieStart.clear();
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieStart));
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(tieEnd));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(tieStart));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(tieEnd));
         tm.commit(workcopy.rootEntity);
 
         LogicalObjectTree LOT = tm.workcopies.get(workcopy.rootEntity).LOT;

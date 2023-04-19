@@ -18,8 +18,8 @@ public class TransactionTests {
     Note note, tieStart, tieEnd;
 
     @BeforeEach
-    public void logAspects() {
-        tm.logAspects(true);
+    public void setVerbose() {
+        tm.setVerbose(true);
     }
     @AfterEach
     public void cleanUp(){
@@ -91,13 +91,13 @@ public class TransactionTests {
         FullScore read = (FullScore) tm.getWorkcopyOf(workcopy.rootEntity);
         note.setPitch(30);
         note.setAccidental(true);
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(note));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(note));
         tm.commit(workcopy.rootEntity);
         //get note of read workcopy
         Note note = ((NoteGroup) read.getTrack(0).getNTT(Fraction.ZERO).getNGOT(read.getTrack(0).getVoice(0))).getNote(0);
         //check note is untouched before pull
-        Assertions.assertSame(note.getPitch(), 69);
-        Assertions.assertSame(note.getAccidental(), false);
+        Assertions.assertSame(69, note.getPitch());
+        Assertions.assertSame(false, note.getAccidental());
         //now pull and check if changed made it into the object
         System.out.println("pulling...");
         tm.pull(read);
@@ -112,8 +112,8 @@ public class TransactionTests {
         NoteGroup ng = note.getOwner();
         ng.stemUp = false;
         Note newNote = new Note(ng, 80, false, NoteName.A);
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(ng));
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNote));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(ng));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(newNote));
         tm.commit(workcopy.rootEntity);
         System.out.println("pulling...");
         tm.pull(read);
@@ -127,10 +127,10 @@ public class TransactionTests {
         NoteGroup newNoteGroup = new NoteGroup(track.getNTT(Fraction.ZERO), staff, voice, 4, false);
         Note nn1 = new Note(newNoteGroup, 51, false, NoteName.D);
         Note nn2 = new Note(newNoteGroup, 34, true, NoteName.B);
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNoteGroup));
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(nn1));
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(nn2));
-        Assertions.assertSame(workcopy.locallyChangedOrCreated.size(), 3);
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(newNoteGroup));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(nn1));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(nn2));
+        Assertions.assertSame(workcopy.locallyCreatedOrChanged.size(), 3);
         tm.commit(workcopy.rootEntity);
         System.out.println("pulling...");
         tm.pull(read);
@@ -160,7 +160,7 @@ public class TransactionTests {
         //change a note
         note.setPitch(30);
         note.setAccidental(true);
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(note)); //aspects automatically listed changed object
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(note)); //aspects automatically listed changed object
         //delete same note and its owner -> change should not be appearing in commit but its gets in local deletion list at first
         noteGroup.clear();
         Assertions.assertTrue(workcopy.locallyDeleted.contains(noteGroup));     //aspects automatically listed deleted noteGroup
@@ -169,10 +169,10 @@ public class TransactionTests {
         NoteGroup newNoteGroup = new NoteGroup(ntt, staff, voice, 16, false);
         Note newNote = new Note(newNoteGroup, 51, false, NoteName.D);
         Note newNote2= new Note(newNoteGroup, 34, true, NoteName.B);
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNoteGroup));
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNote));
-        Assertions.assertTrue(workcopy.locallyChangedOrCreated.contains(newNote2));
-        Assertions.assertSame(5, workcopy.locallyChangedOrCreated.size());
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(newNoteGroup));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(newNote));
+        Assertions.assertTrue(workcopy.locallyCreatedOrChanged.contains(newNote2));
+        Assertions.assertSame(5, workcopy.locallyCreatedOrChanged.size());
         //delete one of the created notes -> this notes creation should not be appearing in commit
         newNote2.clear();
 

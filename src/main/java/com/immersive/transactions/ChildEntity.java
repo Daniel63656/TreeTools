@@ -60,7 +60,7 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         if (workcopy != null && !workcopy.ongoingPull) {
             /*if (!workcopy.locallyChangedOrCreated.contains(this))
                 System.out.println(getClass().getSimpleName()+" got created");*/
-            workcopy.locallyChangedOrCreated.add(this);
+            workcopy.locallyCreatedOrChanged.add(this);
         }
     }
 
@@ -69,7 +69,6 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
     }
 
     protected abstract void destruct();
-
 
     //not triggered by pulling because pulling uses destruct() only
     public boolean clear() {

@@ -22,8 +22,9 @@ public class Workcopy {
     boolean ongoingPull;
 
 
+    //deltas
     Set<ChildEntity<?>> locallyDeleted = new HashSet<>();
-    Set<DataModelEntity> locallyChangedOrCreated = new HashSet<>();
+    Set<DataModelEntity> locallyCreatedOrChanged = new HashSet<>();
 
     Workcopy(RootEntity rootEntity, LogicalObjectTree LOT, CommitId currentCommitId) {
         this.rootEntity = rootEntity;

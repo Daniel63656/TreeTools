@@ -66,6 +66,47 @@ class DataModelInfo {
         }
     }
 
+
+
+
+    /**
+     * get a list of all children stored in that object
+     * @param dme object to get children from
+     */
+    @SuppressWarnings("unchecked")
+    ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
+        ArrayList<ChildEntity<?>> children = new ArrayList<>();
+        for (Field field : childFields) {
+            field.setAccessible(true);
+            try {
+                //field is an array and also initialized
+                if (field.getType().isArray() && field.get(dme) != null)
+                    children.addAll((Collection<? extends ChildEntity<?>>) field.get(dme));
+                    //field is a collection
+                else if (Collection.class.isAssignableFrom(field.getType()))
+                    children.addAll(new ArrayList<>((Collection<ChildEntity<?>>)field.get(dme)));
+                    //field is a map
+                else if (Map.class.isAssignableFrom(field.getType()))
+                    children.addAll(new ArrayList<>(((Map<?,ChildEntity<?>>)field.get(dme)).values()));
+                else
+                    children.add((ChildEntity<?>) field.get(dme));
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
+        return children;
+    }
+
+    DataModelEntity construct(Object...objects) {
+        constructor.setAccessible(true);
+        try {
+            return (DataModelEntity) constructor.newInstance(objects);
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
+    }
+
     private void traceClassFields() {
         //first collect all fields of class and all its superclasses
         Field[] relevantFields = new Field[0];
@@ -140,64 +181,6 @@ class DataModelInfo {
         childFields = childFieldList.toArray(new Field[0]);
     }
 
-
-    /**
-     * get a list of all children stored in that object
-     * @param dme specific object to get children from
-     */
-    @SuppressWarnings("unchecked")
-    ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
-        ArrayList<ChildEntity<?>> children = new ArrayList<>();
-        for (Field field : childFields) {
-            field.setAccessible(true);
-            try {
-                //field is an array and also initialized
-                if (field.getType().isArray() && field.get(dme) != null)
-                    children.addAll((Collection<? extends ChildEntity<?>>) field.get(dme));
-                //field is a collection
-                else if (Collection.class.isAssignableFrom(field.getType()))
-                    children.addAll(new ArrayList<>((Collection<ChildEntity<?>>)field.get(dme)));
-                //field is a map
-                else if (Map.class.isAssignableFrom(field.getType()))
-                    children.addAll(new ArrayList<>(((Map<?,ChildEntity<?>>)field.get(dme)).values()));
-                else
-                    children.add((ChildEntity<?>) field.get(dme));
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            }
-        }
-        return children;
-    }
-
-    DataModelEntity construct(Object...objects) {
-        constructor.setAccessible(true);
-        try {
-            return (DataModelEntity) constructor.newInstance(objects);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
-        }
-        throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder strb = new StringBuilder();
-        strb.append(">Info of ").append(clazz.getSimpleName()).append(":");
-        if (contentFields.length > 0) {
-            strb.append("\ncontentFields: ");
-            for (Field field : contentFields) {
-                strb.append(field.getName()).append(" ");
-            }
-        }
-        if (childFields.length > 0) {
-            strb.append("\nchildFields: ");
-            for (Field field : childFields) {
-                strb.append(field.getName()).append(" ");
-            }
-        }
-        return strb.append("\n").toString();
-    }
-
     /**
      * returns true if the specified type is not a primitive, primitive wrapper, String, Enum or Void
      */
@@ -252,5 +235,24 @@ class DataModelInfo {
                 }
             }
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder strb = new StringBuilder();
+        strb.append(">Info of ").append(clazz.getSimpleName()).append(":");
+        if (contentFields.length > 0) {
+            strb.append("\ncontentFields: ");
+            for (Field field : contentFields) {
+                strb.append(field.getName()).append(" ");
+            }
+        }
+        if (childFields.length > 0) {
+            strb.append("\nchildFields: ");
+            for (Field field : childFields) {
+                strb.append(field.getName()).append(" ");
+            }
+        }
+        return strb.append("\n").toString();
     }
 }
