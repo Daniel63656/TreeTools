@@ -28,10 +28,6 @@ public class TransactionManager {
         return transactionManager;
     }
 
-
-    /** cache class information for better performance */
-    private static final Map<Class<? extends DataModelEntity>, DataModelInfo> dataModelInfo = new HashMap<>();
-
     /** keep track of all existing workcopies */
     Map<RootEntity, Workcopy> workcopies = new HashMap<>();
 
@@ -85,12 +81,12 @@ public class TransactionManager {
             throw new NoTransactionsEnabledException();
         Commit initializationCommit = new Commit(null);  //since this is only a temporary commit the commitId doesn't really matter!
         //this is necessary to get a DataModel SPECIFIC class!
-        RootEntity newRootEntity = (RootEntity) construct(rootEntity.getClass());
+        RootEntity newRootEntity = (RootEntity) DataModelInfo.construct(rootEntity.getClass());
         LogicalObjectTree LOT = workcopies.get(rootEntity).LOT;
         LogicalObjectTree newLOT = new LogicalObjectTree();
         buildInitializationCommit(LOT, initializationCommit, rootEntity);
         //copy content of root entity
-        for (Field field : getContentFields(newRootEntity)) {
+        for (Field field : DataModelInfo.getContentFields(newRootEntity)) {
             if (field.getAnnotation(CrossReference.class) != null)
                 throw new RuntimeException("Cross references not allowed in Root Entity!");
             field.setAccessible(true);
@@ -123,7 +119,7 @@ public class TransactionManager {
 
     private void buildLogicalObjectTree(LogicalObjectTree LOT, DataModelEntity dme) {
         LOT.createLogicalObjectKey(dme);
-        ArrayList<ChildEntity<?>> children = getChildren(dme);
+        ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
         for (ChildEntity<?> child : children) {
             buildLogicalObjectTree(LOT, child);
         }
@@ -136,7 +132,7 @@ public class TransactionManager {
     private void buildInitializationCommit(LogicalObjectTree LOT, Commit commit, DataModelEntity dme) {
         if (!(dme instanceof RootEntity))
             commit.creationRecords.put(LOT.getKey(dme), dme.getConstructorParamsAsKeys(LOT));
-        ArrayList<ChildEntity<?>> children = getChildren(dme);
+        ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
         if (children != null) {
             for (ChildEntity<?> child : children) {
                 buildInitializationCommit(LOT, commit, child);
@@ -468,7 +464,7 @@ public class TransactionManager {
                     params[i] = key;
                 }
             }
-            DataModelEntity objectToCreate = construct(objKey.clazz, params);
+            DataModelEntity objectToCreate = DataModelInfo.construct(objKey.clazz, params);
             imprintLogicalContentOntoObject(objKey, objectToCreate);
             if (objectToCreate instanceof ChildEntity) {
                 ((ChildEntity<?>) objectToCreate).getOwner().onWrappedChanged();
@@ -490,7 +486,7 @@ public class TransactionManager {
         }
 
         private void imprintLogicalContentOntoObject(LogicalObjectKey after, DataModelEntity dme) throws IllegalAccessException {
-            for (Field field : getContentFields(dme)) {
+            for (Field field : DataModelInfo.getContentFields(dme)) {
                 if (after.containsKey(field)) {
                     //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
                     if (field.getAnnotation(CrossReference.class) != null) {
@@ -508,37 +504,5 @@ public class TransactionManager {
                 }
             }
         }
-    }
-
-
-    //=====getting and caching class fields and methods===============================================
-
-    static ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
-        if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
-        return dataModelInfo.get(dme.getClass()).getChildren(dme);
-    }
-
-    static Field[] getContentFields(DataModelEntity dme) {
-        if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
-        return dataModelInfo.get(dme.getClass()).contentFields;
-    }
-
-    static Field[] getChildFields(DataModelEntity dme) {
-        if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
-        return dataModelInfo.get(dme.getClass()).childFields;
-    }
-
-    static DataModelEntity construct(Class<? extends DataModelEntity> clazz, Object...objects) {
-        if (!dataModelInfo.containsKey(clazz)) {
-            Class<?>[] classes = new Class<?>[objects.length];
-            for (int i=0; i<objects.length; i++) {
-                classes[i] = objects[i].getClass();
-            }
-            dataModelInfo.put(clazz, new DataModelInfo(clazz, classes));
-        }
-        return dataModelInfo.get(clazz).construct(objects);
     }
 }

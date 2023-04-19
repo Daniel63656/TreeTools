@@ -9,6 +9,7 @@ import org.apache.commons.lang3.ClassUtils;
 import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -16,6 +17,9 @@ import java.util.Map;
  * be obtained for each class each time with reflections
  */
 class DataModelInfo {
+
+    /** store class information of analyzed classes for quick access */
+    private static final Map<Class<? extends DataModelEntity>, DataModelInfo> dataModelInfo = new HashMap<>();
 
     /**
      * class whose content is described
@@ -67,16 +71,50 @@ class DataModelInfo {
     }
 
 
+    static DataModelEntity construct(Class<? extends DataModelEntity> clazz, Object...objects) {
+        if (!dataModelInfo.containsKey(clazz)) {
+            Class<?>[] classes = new Class<?>[objects.length];
+            for (int i=0; i<objects.length; i++) {
+                classes[i] = objects[i].getClass();
+            }
+            dataModelInfo.put(clazz, new DataModelInfo(clazz, classes));
+        }
 
+        DataModelInfo info = dataModelInfo.get(clazz);
+        info.constructor.setAccessible(true);
+        try {
+            return (DataModelEntity) info.constructor.newInstance(objects);
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
+    }
+
+    static Field[] getContentFields(DataModelEntity dme) {
+        if (!dataModelInfo.containsKey(dme.getClass()))
+            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
+        return dataModelInfo.get(dme.getClass()).contentFields;
+    }
+
+    static Field[] getChildFields(DataModelEntity dme) {
+        if (!dataModelInfo.containsKey(dme.getClass()))
+            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
+        return dataModelInfo.get(dme.getClass()).childFields;
+    }
 
     /**
-     * get a list of all children stored in that object
+     * get a list of all children stored in a given {@link DataModelEntity}
      * @param dme object to get children from
      */
     @SuppressWarnings("unchecked")
-    ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
+    static ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
+        if (!dataModelInfo.containsKey(dme.getClass()))
+            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
+        DataModelInfo info = dataModelInfo.get(dme.getClass());
+
+        //collect all children into an ArrayList
         ArrayList<ChildEntity<?>> children = new ArrayList<>();
-        for (Field field : childFields) {
+        for (Field field : info.childFields) {
             field.setAccessible(true);
             try {
                 //field is an array and also initialized
@@ -97,15 +135,27 @@ class DataModelInfo {
         return children;
     }
 
-    DataModelEntity construct(Object...objects) {
-        constructor.setAccessible(true);
-        try {
-            return (DataModelEntity) constructor.newInstance(objects);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
-        }
-        throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
+    /**
+     * returns true if the specified type is not a primitive, primitive wrapper, String, Enum or Void
+     */
+    static boolean isComplexObject(Class<?> type) {
+        return (!ClassUtils.isPrimitiveOrWrapper(type)
+                && !String.class.isAssignableFrom(type)
+                && !Void.class.isAssignableFrom(type)
+                && !type.isEnum());
     }
+
+    static Field[] getAllFieldsIncludingInheritedOnes(Class<?> iterator) {
+        Field[] relevantFields = new Field[0];
+        while(iterator.getSuperclass() != null) {
+            relevantFields = ArrayUtils.addAll(relevantFields, iterator.getDeclaredFields());
+            iterator = iterator.getSuperclass();
+        }
+        return relevantFields;
+    }
+
+
+    //==========PRIVATE METHODS====================================================
 
     private void traceClassFields() {
         //first collect all fields of class and all its superclasses
@@ -179,25 +229,6 @@ class DataModelInfo {
         //cache fields
         contentFields = contentFieldList.toArray(new Field[0]);
         childFields = childFieldList.toArray(new Field[0]);
-    }
-
-    /**
-     * returns true if the specified type is not a primitive, primitive wrapper, String, Enum or Void
-     */
-    static boolean isComplexObject(Class<?> type) {
-        return (!ClassUtils.isPrimitiveOrWrapper(type)
-                && !String.class.isAssignableFrom(type)
-                && !Void.class.isAssignableFrom(type)
-                && !type.isEnum());
-    }
-
-    static Field[] getAllFieldsIncludingInheritedOnes(Class<?> iterator) {
-        Field[] relevantFields = new Field[0];
-        while(iterator.getSuperclass() != null) {
-            relevantFields = ArrayUtils.addAll(relevantFields, iterator.getDeclaredFields());
-            iterator = iterator.getSuperclass();
-        }
-        return relevantFields;
     }
 
     private static void throwIfMutable(Class<?> type) {

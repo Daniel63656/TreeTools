@@ -2,7 +2,6 @@ package com.immersive.transactions;
 
 import static com.immersive.transactions.DataModelInfo.getAllFieldsIncludingInheritedOnes;
 import static com.immersive.transactions.DataModelInfo.isComplexObject;
-import static com.immersive.transactions.TransactionManager.getChildFields;
 
 import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.annotations.AbstractClass;
@@ -92,7 +91,7 @@ public final class JsonParser {
             //get content fields
             Field[] contentFields;
             if (dme != null)
-                contentFields = TransactionManager.getContentFields((DataModelEntity) object);
+                contentFields = DataModelInfo.getContentFields((DataModelEntity) object);
             else
                 contentFields = getAllFieldsIncludingInheritedOnes(object.getClass());
 
@@ -141,7 +140,7 @@ public final class JsonParser {
 
             //loop over child fields if object is a DataModelEntity (static and transient fields are not in that list)
             if (dme != null) {
-                for (Field field : getChildFields(dme)) {
+                for (Field field : DataModelInfo.getChildFields(dme)) {
                     field.setAccessible(true);
                     try {
                         //field is null - This is not the same as an empty collection!
@@ -301,6 +300,7 @@ public final class JsonParser {
                             }
                             break;
                         case "'uid'":
+                            assert  currentObj != null;
                             if (owner == null)
                                 rootEntity = currentObj;
                             else {
@@ -314,6 +314,7 @@ public final class JsonParser {
                         case "'key1'":
                         case "'key2'":
                             assert owner != null;
+                            assert  currentObj != null;
                             if (currentKeyClass == null)
                                 throw new RuntimeException("error getting key class for object " + currentObj.clazz.getSimpleName());
 
@@ -335,6 +336,7 @@ public final class JsonParser {
                     //content fields
                     if (stringEnclosedBy(key, '"')) {
                         Field field = null;
+                        assert  currentObj != null;
                         for (Class<?> iterator=currentObj.clazz; iterator!=null; iterator=iterator.getSuperclass()) {
                             try {
                                 field = iterator.getDeclaredField(key.substring(1, key.length() - 1));
@@ -390,9 +392,9 @@ public final class JsonParser {
                     params[i] = kvp.value;
                 }
             }
-            info.dme = TransactionManager.construct((Class<? extends DataModelEntity>) info.clazz, params);
+            info.dme = DataModelInfo.construct((Class<? extends DataModelEntity>) info.clazz, params);
             //unwrap content fields
-            for (Field field : TransactionManager.getContentFields(info.dme)) {
+            for (Field field : DataModelInfo.getContentFields(info.dme)) {
                 //field is non DME-object
                 ObjectInfo pojo = info.complexObjFields.get(field.getName());
                 if (pojo != null) {

@@ -36,7 +36,7 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
         put(logicalObjectKey, dme);
 
         //start iterating over fields using reflections
-        for (Field field : TransactionManager.getContentFields(dme)) {
+        for (Field field : DataModelInfo.getContentFields(dme)) {
             Object fieldValue = null;
             try {
                 field.setAccessible(true);
