@@ -10,8 +10,12 @@ public class CommitId implements Comparable<CommitId> {
         this.id = id;
     }
 
+    static CommitId increment(CommitId commitId) {
+        return new CommitId(commitId.id+1);
+    }
+
     @Override
     public int compareTo(@NotNull CommitId right) {
-        return Integer.compare(id,right.id);
+        return Integer.compare(id, right.id);
     }
 }

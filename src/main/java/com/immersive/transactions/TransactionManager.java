@@ -19,7 +19,7 @@ import java.util.TreeMap;
 
 
 /**
- * Class following the singleton pattern that handles transactions of data models.
+ * Class following the singleton pattern that handles transactions of a data model.
  */
 public class TransactionManager {
     private static final TransactionManager transactionManager = new TransactionManager();
@@ -39,9 +39,9 @@ public class TransactionManager {
     History history;
 
     /**
-     * index for the next commit to come. Each {@link TransactionManager#commit(RootEntity)} will increment this value
+     * {@link CommitId} for the next commit to come. Each {@link TransactionManager#commit(RootEntity)} will increment this value
      */
-    private int commitNumber = 1;
+    private CommitId currentCommitId = new CommitId(1);
 
     /** print messages about object creation, deletion and changes for debug purposes */
     private boolean verbose;
@@ -53,14 +53,14 @@ public class TransactionManager {
         return workcopies.containsKey(rootEntity);
     }
 
+    /**
+     * enables transactions for a data model. After this method is called once on the data model,
+     * new workcopies can be retrieved with {@link TransactionManager#getWorkcopyOf(RootEntity)}
+     */
     public void enableTransactionsForRootEntity(RootEntity rootEntity) {
-        //transactions already enabled
-        if (workcopies.containsKey(rootEntity))
-            return;
-        if (!workcopies.isEmpty()) {
-            throw new RuntimeException("Transactions already enabled! Use getWorkcopyOf() to receive another copy to work on.");
-        }
-        else {
+        //transactions are enabled, if there exists at least one workcopy. If workcopy is empty, create the
+        //first workcopy for the given rootEntity
+        if (workcopies.isEmpty()) {
             LogicalObjectTree LOT = new LogicalObjectTree();
             Workcopy workcopy = new Workcopy(rootEntity, LOT, new CommitId(0));
             buildLogicalObjectTree(LOT, rootEntity);
@@ -73,8 +73,8 @@ public class TransactionManager {
     }
 
     /**
-     * @param rootEntity root of the data model that is to be copied
-     * @return a copy of the provided rootEntity that can pull changes made in the original data model
+     * @param rootEntity root of the data model that is to be copied. Needs to have transactions enabled.
+     * @return a copy of the provided rootEntity that can engage in transactions
      */
     public RootEntity getWorkcopyOf(RootEntity rootEntity) {
         if (!workcopies.containsKey(rootEntity))
@@ -110,13 +110,17 @@ public class TransactionManager {
     }
 
     /**
-     * end and clean up  all traces of transactions
+     * disable transactions and clean up
      */
     public void shutdown() {
+        workcopies.clear(); //effectively disabling transactions
         commits.clear();
-        workcopies.clear();
     }
 
+
+    /**
+     * build {@link LogicalObjectTree} of a given {@link DataModelEntity} recursively
+     */
     private void buildLogicalObjectTree(LogicalObjectTree LOT, DataModelEntity dme) {
         LOT.createLogicalObjectKey(dme);
         ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
@@ -133,10 +137,8 @@ public class TransactionManager {
         if (!(dme instanceof RootEntity))
             commit.creationRecords.put(LOT.getKey(dme), dme.getConstructorParamsAsKeys(LOT));
         ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
-        if (children != null) {
-            for (ChildEntity<?> child : children) {
-                buildInitializationCommit(LOT, commit, child);
-            }
+        for (ChildEntity<?> child : children) {
+            buildInitializationCommit(LOT, commit, child);
         }
     }
 
@@ -163,9 +165,8 @@ public class TransactionManager {
         if (workcopy.locallyCreatedOrChanged.isEmpty() && workcopy.locallyDeleted.isEmpty())
             return null;
 
-        CommitId commitId = new CommitId(commitNumber);
-        commitNumber++;
-        Commit commit = new Commit(commitId);
+        Commit commit = new Commit(currentCommitId);
+        currentCommitId = CommitId.increment(currentCommitId);
         //get a reference to the LogicalObjectTree of the workcopy which is a representation of the "remote" state
         LogicalObjectTree remote = workcopy.LOT;
         //initialize collections that help execute the commit
@@ -205,9 +206,9 @@ public class TransactionManager {
         //clear workcopies deltas
         workcopy.locallyDeleted.clear();
         workcopy.locallyCreatedOrChanged.clear();
-        workcopy.currentCommitId = commitId;
+        workcopy.currentCommitId = commit.commitId;
         synchronized (commits) {
-            commits.put(commitId, commit);
+            commits.put(commit.commitId, commit);
             if (history != null)
                 history.addToOngoingCommit(commit);
         }
@@ -254,13 +255,12 @@ public class TransactionManager {
             throw new RuntimeException("Undos/Redos were not enabled!");
         if (history.undosAvailable()) {
             Commit commit = history.head.self;
-            CommitId commitId = new CommitId(commitNumber);
-            commit.commitId = commitId;
+            commit.commitId = currentCommitId;
             history.head = history.head.previous;
             new Pull(rootEntity, commit, true);
             //revert the commit for commit-list!
-            Commit revertedCommit = new Commit(commitId);
-            commitNumber++;
+            Commit revertedCommit = new Commit(commit.commitId);
+            currentCommitId = CommitId.increment(currentCommitId);
             revertedCommit.creationRecords = commit.deletionRecords;
             revertedCommit.deletionRecords = commit.creationRecords;
             DualHashBidiMap<LogicalObjectKey, LogicalObjectKey> changes = new DualHashBidiMap<>();
@@ -281,8 +281,8 @@ public class TransactionManager {
         if (history.redosAvailable()) {
             history.head = history.head.next;
             Commit commit = history.head.self;
-            commit.commitId = new CommitId(commitNumber);
-            commitNumber++;
+            commit.commitId = currentCommitId;
+            currentCommitId = CommitId.increment(currentCommitId);
             new Pull(rootEntity, commit, false);
             synchronized (commits) {
                 commits.put(commit.commitId, commit);
