@@ -1,10 +1,7 @@
 package com.immersive.transactions;
 
-import com.immersive.wrap.Wrapper;
-import com.immersive.wrap.WrapperScope;
-
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Base class for each class in the data model except the root element. Each such class has an owner in the data model
@@ -23,29 +20,10 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
     protected final O owner;
 
     /**
-     * prevent clearing to happen while object is in the process of clearing
+     * prevent clearing to happen while object is in the process of clearing. As member of this class, this field
+     * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
     private boolean clearingInProgress;
-
-    /**
-     * list of subscribed wrapper objects that receive updates when object chages or gets deleted
-     */
-    private final Map<WrapperScope, Wrapper<?>> registeredWrappers = new HashMap<>();
-
-    @Override
-    public Map<WrapperScope, Wrapper<?>> getRegisteredWrappers() {
-        return registeredWrappers;
-    }
-    @Override
-    public void onWrappedCleared() {
-        for (Wrapper<?> w : registeredWrappers.values()) {
-            w.onWrappedCleared();
-        }
-    }
-    @Override
-    public void onWrappedChanged() {
-        registeredWrappers.values().removeIf(Wrapper::onWrappedChanged);
-    }
 
     protected ChildEntity(O owner) {
         this.owner = owner;
@@ -81,11 +59,38 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
             workcopy.locallyDeleted.add(this);
             //System.out.println(te.getClass().getSimpleName() + " got deleted");
         }
-
-        for (Wrapper<?> wrapper : getRegisteredWrappers().values()) {
-            wrapper.onWrappedCleared();
-        }
+        onCleared();
         return false;
+    }
+
+    @Override
+    public List<Wrapper<?>> getRegisteredWrappers() {
+        List<Wrapper<?>> wrappers = new ArrayList<>();
+        for (WrapperScope scope : root.wrapperScopes) {
+            if (scope.registeredWrappers.containsKey(this))
+                wrappers.add(scope.registeredWrappers.get(this));
+        }
+        return wrappers;
+    }
+
+    @Override
+    public Wrapper<?> getRegisteredWrapper(WrapperScope scope) {
+        return scope.registeredWrappers.get(this);
+    }
+
+    @Override
+    public void onCleared() {
+        for (WrapperScope scope : root.wrapperScopes) {
+            if (scope.registeredWrappers.containsKey(this))
+                scope.registeredWrappers.get(this).onWrappedCleared();
+        }
+    }
+    @Override
+    public void onChanged() {
+        for (WrapperScope scope : root.wrapperScopes) {
+            if (scope.registeredWrappers.containsKey(this))
+                scope.registeredWrappers.get(this).onWrappedChanged();
+        }
     }
 
     @Override

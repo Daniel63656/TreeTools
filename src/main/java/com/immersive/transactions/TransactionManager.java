@@ -393,8 +393,8 @@ public class TransactionManager {
             //DELETION - Assumes Deletion Records are created for all subsequent children!!!
             for (Map.Entry<LogicalObjectKey, Object[]> entry : deletionChores.entrySet()) {
                 ChildEntity<?> objectToDelete = (ChildEntity<?>) LOT.get(entry.getKey());
-                objectToDelete.onWrappedCleared();
-                objectToDelete.getOwner().onWrappedChanged();
+                objectToDelete.onCleared();
+                objectToDelete.getOwner().onChanged();
                 objectToDelete.destruct();
                 LOT.removeValue(objectToDelete);
             }
@@ -486,7 +486,7 @@ public class TransactionManager {
             DataModelEntity objectToCreate = DataModelInfo.construct(objKey.clazz, params);
             imprintLogicalContentOntoObject(objKey, objectToCreate);
             if (objectToCreate instanceof ChildEntity) {
-                ((ChildEntity<?>) objectToCreate).getOwner().onWrappedChanged();
+                ((ChildEntity<?>) objectToCreate).getOwner().onChanged();
             }
             //System.out.println("PULL: created key "+objKey.hashCode());
             LOT.put(objKey, objectToCreate);
@@ -498,7 +498,7 @@ public class TransactionManager {
             if (objectToChange == null)
                 throw new TransactionException("object to change is null!", before.hashCode());
             imprintLogicalContentOntoObject(after, objectToChange);
-            objectToChange.onWrappedChanged();
+            objectToChange.onChanged();
             //System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
             LOT.put(after, objectToChange);
             changeChores.remove(after);

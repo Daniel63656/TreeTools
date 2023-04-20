@@ -2,11 +2,8 @@ package com.immersive.transactions;
 
 import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
 import com.immersive.transactions.exceptions.TransactionException;
-import com.immersive.wrap.Wrapper;
-import com.immersive.wrap.WrapperScope;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 
 /**
@@ -17,22 +14,44 @@ public abstract class RootEntity implements DataModelEntity {
     private final TransactionManager tm = TransactionManager.getInstance();
 
     /**
-     * list of subscribed wrapper objects that receive updates when object chages or gets deleted
+     * Set, holding all wrapper scopes. As member of this class, this field
+     * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
-    private final Map<WrapperScope, Wrapper<?>> registeredWrappers = new HashMap<>();
-    @Override
-    public Map<WrapperScope, Wrapper<?>> getRegisteredWrappers() {
-        return registeredWrappers;
+    final Set<WrapperScope> wrapperScopes = new HashSet<>();
+
+    public void addWrapperScope(WrapperScope scope) {
+        wrapperScopes.add(scope);
     }
+    public void removeWrapperScope(WrapperScope scope) {
+        wrapperScopes.remove(scope);
+    }
+
     @Override
-    public void onWrappedCleared() {
-        for (Wrapper<?> w : registeredWrappers.values()) {
-            w.onWrappedCleared();
+    public List<Wrapper<?>> getRegisteredWrappers() {
+        List<Wrapper<?>> wrappers = new ArrayList<>();
+        for (WrapperScope scope : wrapperScopes) {
+            if (scope.registeredWrappers.containsKey(this))
+                wrappers.add(scope.registeredWrappers.get(this));
         }
+        return wrappers;
+    }
+
+    @Override
+    public Wrapper<?> getRegisteredWrapper(WrapperScope scope) {
+        return scope.registeredWrappers.get(this);
+    }
+
+    @Override
+    public void onCleared() {
+        //this is never called since RootEntity has no clear() function
+        throw new RuntimeException("Can't clear the RootEntity of a data model!");
     }
     @Override
-    public void onWrappedChanged() {
-        registeredWrappers.values().removeIf(Wrapper::onWrappedChanged);
+    public void onChanged() {
+        for (WrapperScope scope : wrapperScopes) {
+            if (scope.registeredWrappers.containsKey(this))
+                scope.registeredWrappers.get(this).onWrappedChanged();
+        }
     }
 
     @Override
