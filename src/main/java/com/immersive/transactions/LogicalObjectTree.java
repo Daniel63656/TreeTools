@@ -12,7 +12,8 @@ import java.util.Set;
 
 /**
  * A data structure providing a two-way-link between {@link DataModelEntity} and corresponding
- * logical content of the object (represented by a {@link LogicalObjectKey}).
+ * logical content of the object (represented by a {@link LogicalObjectKey}). Acts as a remote state the data model
+ * can revert to while uncommitted changes exist.
  */
 public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.LogicalObjectKey, DataModelEntity> {
 
@@ -87,12 +88,12 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
         /**
          * corresponding class-type whose content is saved by this logical key
          */
-        Class<? extends DataModelEntity> clazz;
+        final Class<? extends DataModelEntity> clazz;
 
         /**
          * save other logical keys that depend on this one (due to cross-references) together with the responsible field
          */
-        HashMap<LogicalObjectKey, Field> subscribedLOKs = new HashMap<>();
+        final HashMap<LogicalObjectKey, Field> subscribedLOKs = new HashMap<>();
 
         /**
          * A unique {@link LogicalObjectTree} wide ID to identify the logical key. Necessary because all fields can be the same

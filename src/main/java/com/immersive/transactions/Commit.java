@@ -27,7 +27,8 @@ class Commit {
     Map<LogicalObjectKey, Object[]> creationRecords = new HashMap<>();
 
     /**
-     * keep track of changed objects since the last commit. Stored as a pair of their old and new {@link com.immersive.transactions.LogicalObjectTree.LogicalObjectKey}
+     * keep track of changed (but not created) objects since the last commit. Stored as a pair of their old and
+     * new {@link com.immersive.transactions.LogicalObjectTree.LogicalObjectKey}
      */
     DualHashBidiMap<LogicalObjectKey, LogicalObjectKey> changeRecords = new DualHashBidiMap<>();
 

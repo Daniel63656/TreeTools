@@ -193,7 +193,7 @@ public class TransactionManager {
         Iterator<ChildEntity<?>> iterator = workcopy.locallyDeleted.iterator();
         while (iterator.hasNext()) {
             ChildEntity<?> te = iterator.next();
-            commit.deletionRecords.put(remote.getKey(te), te.getConstructorParamsAsKeys(remote));
+            commit.deletionRecords.put(remote.getKey(te), te.getConstructorParamsAsKeys(remote));  //TODO notify wrappers?
             //don't remove from remote yet, because this destroys owner information for possible deletion entries of children!
             //save this action in a list to do it at the end of the deletion part of the commit instead
             removeFromLOT.add(te);
@@ -215,39 +215,49 @@ public class TransactionManager {
         return commit;
     }
 
-    private void commitCreationOrChange(Set<DataModelEntity> chores, Commit commit, LogicalObjectTree remote, DataModelEntity dme, Set<LogicalObjectKey> keysCreatedSoFar) {
+    private void commitCreationOrChange(Set<DataModelEntity> createdOrChanged, Commit commit, LogicalObjectTree remote, DataModelEntity dme, Set<LogicalObjectKey> keysCreatedSoFar) {
         //CREATION - not in remote before or only because a cross-reference created it!
         if (!remote.containsValue(dme) || (remote.containsValue(dme) && keysCreatedSoFar.contains(remote.getKey(dme)))) {
             if (dme instanceof RootEntity)
                 throw new RuntimeException("Root Entity can only be CHANGED by commits!");
+            //object that are needed for current object construction are also subject to creation or change, so handle them first
             for (DataModelEntity obj : dme.getConstructorParamsAsObjects()) {
-                if (chores.contains(obj)) {
-                    commitCreationOrChange(chores, commit, remote, obj, keysCreatedSoFar);
+                if (createdOrChanged.contains(obj)) {
+                    commitCreationOrChange(createdOrChanged, commit, remote, obj, keysCreatedSoFar);
                 }
             }
-            //now its save to get the LOK from owner via remote!
-            LogicalObjectKey newKey = remote.createLogicalObjectKey(dme);  //because this is creation and dme is not currently present in remote, this generates a NEW key and puts it in remote!
+            //dme is not currently present in remote, so generates a NEW key and put it in remote
+            LogicalObjectKey newKey = remote.createLogicalObjectKey(dme);
             keysCreatedSoFar.add(newKey);
-            commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(remote));
+            //now its save to get the LOK from owner and keys from the remote
+            commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(remote));  //TODO notify wrappers?
         }
+
+        //CHANGE
         else {
             LogicalObjectKey before = remote.getKey(dme);
-            remote.removeValue(dme); //remove entry first or otherwise the createLogicalObjectKey method won't actually create a NEW key and puts it in remote!
+            //remove old key from remote first to enable the creation of a new key for this particular dme
+            remote.removeValue(dme);
             LogicalObjectKey after = remote.createLogicalObjectKey(dme);
             keysCreatedSoFar.add(after);
-            //linking cross-references together. This changes subscribedLOKs which becomes MUTABLE across commits!
+
+            //migrate any dependency on old key to new one before old key is lost
             //if two objects cross-reference each other, one of them is handled first and therefore receives the new LOK in its subscribedLOKs!
             for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
-                if (!keysCreatedSoFar.contains(subscribed.getKey()))  //object subscribed is not itself part of a change or not done yet so add a chore!
-                    chores.add(remote.get(subscribed.getKey()));
-                else {                                                //make all LOKs previously subscribed to before subscribe to after and change their field!
+                if (!keysCreatedSoFar.contains(subscribed.getKey())) {
+                    //object subscribed is not itself part of a change or not done yet so add a chore!
+                    createdOrChanged.add(remote.get(subscribed.getKey()));
+                }
+                else {
+                    //make all LOKs previously subscribed to before subscribe to after and change their field!
+                    //this is the only case an otherwise immutable LOK gets modified!
                     after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
                     subscribed.getKey().put(subscribed.getValue(), after);
                 }
             }
             commit.changeRecords.put(before, after);  //TODO notify wrappers?
         }
-        chores.remove(dme);
+        createdOrChanged.remove(dme);
     }
 
     Commit undo(RootEntity rootEntity) {
@@ -358,6 +368,12 @@ public class TransactionManager {
             cleanUpUnnecessaryCommits();
         }
 
+        /**
+         *
+         * @param commit
+         * @param revert if true, the changes of the specified commit are reverted instead of pulled
+         * @param redoUndo important for linking cross-references
+         */
         private void pullOneCommit(Commit commit, boolean revert, boolean redoUndo) {
             if (!revert) {
                 //copy modificationRecords to safely cross things off without changing commit itself!
@@ -431,6 +447,9 @@ public class TransactionManager {
             workcopy.currentCommitId = commit.commitId;
         }
 
+        /**
+         * removes obsolete commits that are no longer used by any workcopy
+         */
         private void cleanUpUnnecessaryCommits() {
             synchronized(commits) {
                 CommitId earliestCommitInUse = workcopy.currentCommitId;
