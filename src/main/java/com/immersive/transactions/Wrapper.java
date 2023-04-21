@@ -9,7 +9,7 @@ public abstract class Wrapper<WO extends DataModelEntity> {
 
     public Wrapper(WrapperScope ws, WO wrapped) {
         this.wrapped = wrapped;
-        ws.registerWrapper(this);
+        ws.registeredWrappers.put(wrapped, this);
     }
 
     //Override these methods to implement wrapper specific behaviour

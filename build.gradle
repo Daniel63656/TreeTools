@@ -37,6 +37,11 @@ test {
     useJUnitPlatform()
 }
 
+//provide .java classes in sources.jar
+java {
+    withSourcesJar()
+}
+
 publishing {
     publications {
         mavenJava(MavenPublication) {

@@ -21,9 +21,7 @@ public class WrapperScope {
         return registeredWrappers.get(dme);
     }
 
-    public void registerWrapper(Wrapper<?> wrapper) {
-        registeredWrappers.put(wrapper.wrapped, wrapper);
-    }
+    //add wrappers by constructing them!
 
     public Wrapper<?> removeWrapper(Wrapper<?> wrapper) {
         return registeredWrappers.remove(wrapper.wrapped);
@@ -48,5 +46,4 @@ public class WrapperScope {
     public void clear() {
         registeredWrappers.clear();
     }
-
 }

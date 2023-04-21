@@ -32,7 +32,7 @@ public class TransactionManager {
     Map<RootEntity, Workcopy> workcopies = new HashMap<>();
 
     /** save all commits in a time-ordered manner*/
-    final TreeMap<CommitId, Commit> commits = new TreeMap<>();  //TODO shuldn't this be workcopy specific?
+    final TreeMap<CommitId, Commit> commits = new TreeMap<>();  //TODO shouldn't this be workcopy specific?
 
     /** object responsible for grouping commits and providing a history for {@link TransactionManager#undo(RootEntity)}
      * and {@link TransactionManager#redo(RootEntity)} */
@@ -260,6 +260,7 @@ public class TransactionManager {
         createdOrChanged.remove(dme);
     }
 
+
     Commit undo(RootEntity rootEntity) {
         if (history == null)
             throw new RuntimeException("Undos/Redos were not enabled!");
@@ -368,12 +369,7 @@ public class TransactionManager {
             cleanUpUnnecessaryCommits();
         }
 
-        /**
-         *
-         * @param commit
-         * @param revert if true, the changes of the specified commit are reverted instead of pulled
-         * @param redoUndo important for linking cross-references
-         */
+
         private void pullOneCommit(Commit commit, boolean revert, boolean redoUndo) {
             if (!revert) {
                 //copy modificationRecords to safely cross things off without changing commit itself!
