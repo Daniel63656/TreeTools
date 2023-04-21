@@ -23,18 +23,18 @@ public abstract class DoubleKeyedChildEntity<O extends DataModelEntity, K> exten
     }
 
     @Override
-    public Class<?>[] getClassesOfConstructorParams() {
+    public Class<?>[] constructorParameterTypes() {
         return new Class<?>[]{owner.getClass(), key.getClass(), key.getClass()};
     }
     @Override
-    public Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT) {
+    public Object[] constructorParameterLOKs(LogicalObjectTree LOT) {
         if (key instanceof DataModelEntity)
             return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), LOT.getKey(key), LOT.getKey(endKey)};
         else    //the key instance can be directly used for construction in other workcopy, because primitive wrapper classes are IMMUTABLE in Java
             return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), key, endKey};
     }
     @Override
-    public DataModelEntity[] getConstructorParamsAsObjects() {
+    public DataModelEntity[] constructorParameterObjects() {
         if (key instanceof DataModelEntity)
             return new DataModelEntity[]{owner, (DataModelEntity) key, (DataModelEntity) endKey};
         else

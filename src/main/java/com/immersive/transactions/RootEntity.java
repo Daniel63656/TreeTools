@@ -55,16 +55,16 @@ public abstract class RootEntity implements DataModelEntity {
     }
 
     @Override
-    public Class<?>[] getClassesOfConstructorParams() {
+    public Class<?>[] constructorParameterTypes() {
         return new Class<?>[0];
     }
     @Override
-    public Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT) {
+    public Object[] constructorParameterLOKs(LogicalObjectTree LOT) {
         return new Object[0];
     }
 
     @Override
-    public DataModelEntity[] getConstructorParamsAsObjects() { return new DataModelEntity[0];}
+    public DataModelEntity[] constructorParameterObjects() { return new DataModelEntity[0];}
 
     @Override
     public RootEntity getRootEntity() {

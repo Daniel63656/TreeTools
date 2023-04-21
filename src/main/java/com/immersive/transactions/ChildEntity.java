@@ -94,15 +94,15 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
     }
 
     @Override
-    public Class<?>[] getClassesOfConstructorParams() {
+    public Class<?>[] constructorParameterTypes() {
         return new Class<?>[]{owner.getClass()};
     }
     @Override
-    public Object[] getConstructorParamsAsKeys(LogicalObjectTree LOT) {
+    public Object[] constructorParameterLOKs(LogicalObjectTree LOT) {
         return new Object[]{LOT.getLogicalObjectKeyOfOwner(this)};
     }
     @Override
-    public DataModelEntity[] getConstructorParamsAsObjects() {
+    public DataModelEntity[] constructorParameterObjects() {
         return new DataModelEntity[]{owner};
     }
     @Override

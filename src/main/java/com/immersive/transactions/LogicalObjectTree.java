@@ -162,7 +162,7 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
             StringBuilder strb = new StringBuilder();
             strb.append(clazz.getSimpleName()).append("(").append(uniqueID).append(")");
             if (!isEmpty()) {
-                strb.append("={");
+                strb.append(" = {");
                 for (Entry<Field, Object> entry : entrySet()) {
                     if (entry.getValue() instanceof LogicalObjectKey)
                         strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("]");

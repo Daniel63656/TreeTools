@@ -17,12 +17,14 @@ class Commit {
     CommitId commitId;
 
     /**
-     * keep track of deleted objects since the last commit. Stored as a pair of object and corresponding constructionParams
+     * keep track of deleted objects since the last commit. Stored as a pair of key and corresponding constructionParams,
+     * which might be used to instantiate the object when reverting
      */
     Map<LogicalObjectKey, Object[]> deletionRecords = new HashMap<>();
 
     /**
-     * keep track of created objects since the last commit. Stored as a pair of object and corresponding constructionParams
+     * keep track of created objects since the last commit. Stored as a pair of key and corresponding constructionParams,
+     * which are used to create the object when pulling
      */
     Map<LogicalObjectKey, Object[]> creationRecords = new HashMap<>();
 

@@ -43,7 +43,7 @@ public class TransactionManager {
      */
     private CommitId currentCommitId = new CommitId(1);
 
-    /** print messages about object creation, deletion and changes for debug purposes */
+    /** print messages for debug purposes */
     private boolean verbose;
     public void setVerbose(boolean verbose) {
         this.verbose = verbose;
@@ -135,7 +135,7 @@ public class TransactionManager {
      */
     private void buildInitializationCommit(LogicalObjectTree LOT, Commit commit, DataModelEntity dme) {
         if (!(dme instanceof RootEntity))
-            commit.creationRecords.put(LOT.getKey(dme), dme.getConstructorParamsAsKeys(LOT));
+            commit.creationRecords.put(LOT.getKey(dme), dme.constructorParameterLOKs(LOT));
         ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
         for (ChildEntity<?> child : children) {
             buildInitializationCommit(LOT, commit, child);
@@ -177,6 +177,7 @@ public class TransactionManager {
         while (!workcopy.locallyCreatedOrChanged.isEmpty()) {
             DataModelEntity dme = workcopy.locallyCreatedOrChanged.iterator().next();
             //ignore creation or change if object got deleted in the end
+            //TODO handle this when adding to delta?
             if (dme instanceof ChildEntity<?>) {
                 if (workcopy.locallyDeleted.contains(dme)) {
                     workcopy.locallyCreatedOrChanged.remove(dme);
@@ -193,9 +194,9 @@ public class TransactionManager {
         Iterator<ChildEntity<?>> iterator = workcopy.locallyDeleted.iterator();
         while (iterator.hasNext()) {
             ChildEntity<?> te = iterator.next();
-            commit.deletionRecords.put(remote.getKey(te), te.getConstructorParamsAsKeys(remote));  //TODO notify wrappers?
-            //don't remove from remote yet, because this destroys owner information for possible deletion entries of children!
-            //save this action in a list to do it at the end of the deletion part of the commit instead
+            commit.deletionRecords.put(remote.getKey(te), te.constructorParameterLOKs(remote));
+            //don't remove from remote yet, because this destroys owner information for possible deletion
+            //entries of children!
             removeFromLOT.add(te);
             iterator.remove();
         }
@@ -217,11 +218,11 @@ public class TransactionManager {
 
     private void commitCreationOrChange(Set<DataModelEntity> createdOrChanged, Commit commit, LogicalObjectTree remote, DataModelEntity dme, Set<LogicalObjectKey> keysCreatedSoFar) {
         //CREATION - not in remote before or only because a cross-reference created it!
-        if (!remote.containsValue(dme) || (remote.containsValue(dme) && keysCreatedSoFar.contains(remote.getKey(dme)))) {
+        if (!remote.containsValue(dme) || keysCreatedSoFar.contains(remote.getKey(dme))) {
             if (dme instanceof RootEntity)
                 throw new RuntimeException("Root Entity can only be CHANGED by commits!");
             //object that are needed for current object construction are also subject to creation or change, so handle them first
-            for (DataModelEntity obj : dme.getConstructorParamsAsObjects()) {
+            for (DataModelEntity obj : dme.constructorParameterObjects()) {
                 if (createdOrChanged.contains(obj)) {
                     commitCreationOrChange(createdOrChanged, commit, remote, obj, keysCreatedSoFar);
                 }
@@ -230,7 +231,7 @@ public class TransactionManager {
             LogicalObjectKey newKey = remote.createLogicalObjectKey(dme);
             keysCreatedSoFar.add(newKey);
             //now its save to get the LOK from owner and keys from the remote
-            commit.creationRecords.put(newKey, dme.getConstructorParamsAsKeys(remote));  //TODO notify wrappers?
+            commit.creationRecords.put(newKey, dme.constructorParameterLOKs(remote));
         }
 
         //CHANGE
@@ -255,7 +256,7 @@ public class TransactionManager {
                     subscribed.getKey().put(subscribed.getValue(), after);
                 }
             }
-            commit.changeRecords.put(before, after);  //TODO notify wrappers?
+            commit.changeRecords.put(before, after);
         }
         createdOrChanged.remove(dme);
     }
@@ -346,6 +347,7 @@ public class TransactionManager {
             cleanUpUnnecessaryCommits();
         }
 
+        //used for normal pulls
         private Pull(RootEntity rootEntity) {
             workcopy = workcopies.get(rootEntity);
             if (workcopy == null)
@@ -481,6 +483,7 @@ public class TransactionManager {
             }
             DataModelEntity objectToCreate = DataModelInfo.construct(objKey.clazz, params);
             imprintLogicalContentOntoObject(objKey, objectToCreate);
+            //notify owner that it has changed!
             if (objectToCreate instanceof ChildEntity) {
                 ((ChildEntity<?>) objectToCreate).getOwner().onChanged();
             }
@@ -493,6 +496,7 @@ public class TransactionManager {
             DataModelEntity objectToChange = LOT.get(before);
             if (objectToChange == null)
                 throw new TransactionException("object to change is null!", before.hashCode());
+
             imprintLogicalContentOntoObject(after, objectToChange);
             objectToChange.onChanged();
             //System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
@@ -513,7 +517,8 @@ public class TransactionManager {
                         }
                         continue;
                     }
-                    //set the field
+
+                    //set the field if no cross-reference
                     field.setAccessible(true);
                     field.set(dme, after.get(field));
                 }

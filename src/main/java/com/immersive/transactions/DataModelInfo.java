@@ -92,13 +92,13 @@ class DataModelInfo {
 
     static Field[] getContentFields(DataModelEntity dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
+            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
         return dataModelInfo.get(dme.getClass()).contentFields;
     }
 
     static Field[] getChildFields(DataModelEntity dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
+            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
         return dataModelInfo.get(dme.getClass()).childFields;
     }
 
@@ -109,7 +109,7 @@ class DataModelInfo {
     @SuppressWarnings("unchecked")
     static ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.getClassesOfConstructorParams()));
+            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
         DataModelInfo info = dataModelInfo.get(dme.getClass());
 
         //collect all children into an ArrayList
