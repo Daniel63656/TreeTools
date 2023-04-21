@@ -182,7 +182,7 @@ public class TransactionManager {
                 if (workcopy.locallyDeleted.contains(dme)) {
                     workcopy.locallyCreatedOrChanged.remove(dme);
                     //remove deletion instruction if chore was a creation that got removed right now
-                    if (!remote.containsValue(dme) || (remote.containsValue(dme) && keysCreatedSoFar.contains(remote.getKey(dme))))
+                    if (!remote.containsValue(dme) || keysCreatedSoFar.contains(remote.getKey(dme)))
                         workcopy.locallyDeleted.remove(dme);
                     continue;
                 }
@@ -217,7 +217,7 @@ public class TransactionManager {
     }
 
     private void commitCreationOrChange(Set<DataModelEntity> createdOrChanged, Commit commit, LogicalObjectTree remote, DataModelEntity dme, Set<LogicalObjectKey> keysCreatedSoFar) {
-        //CREATION - not in remote before or only because a cross-reference created it!
+        //CREATION - not in remote before or only because a cross-reference or key created it!
         if (!remote.containsValue(dme) || keysCreatedSoFar.contains(remote.getKey(dme))) {
             if (dme instanceof RootEntity)
                 throw new RuntimeException("Root Entity can only be CHANGED by commits!");
@@ -230,7 +230,7 @@ public class TransactionManager {
             //dme is not currently present in remote, so generates a NEW key and put it in remote
             LogicalObjectKey newKey = remote.createLogicalObjectKey(dme);
             keysCreatedSoFar.add(newKey);
-            //now its save to get the LOK from owner and keys from the remote
+            //now its save to get the LOKs from owner/keys from the remote
             commit.creationRecords.put(newKey, dme.constructorParameterLOKs(remote));
         }
 
