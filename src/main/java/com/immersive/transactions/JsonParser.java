@@ -377,22 +377,27 @@ public final class JsonParser {
 
         @SuppressWarnings("unchecked")
         private void createDataModelEntity(Map<Integer, ObjectInfo> creationChores, ObjectInfo info) throws IllegalAccessException {
-            Object[] params = new Object[info.constructionParams.size()];
-            for (int i=0; i<info.constructionParams.size(); i++) {
-                KeyValuePair<Class<?>, Object> kvp = info.constructionParams.get(i);
-                if (DataModelEntity.class.isAssignableFrom(kvp.key)) {
-                    int uniqueID = (int) kvp.value;
-                    if (creationChores.containsKey(uniqueID)) {
-                        createDataModelEntity(creationChores, creationChores.get(uniqueID));
-                    }
-                    //now object can be safely assigned from objects list
-                    params[i] = DMEs.get(uniqueID).dme;
-                }
-                else {
-                    params[i] = kvp.value;
-                }
+            if (RootEntity.class.isAssignableFrom(info.clazz)) {
+                info.dme = DataModelInfo.constructRootEntity((Class<? extends RootEntity>) info.clazz);
             }
-            info.dme = DataModelInfo.construct((Class<? extends DataModelEntity>) info.clazz, params);
+            else {
+                Object[] params = new Object[info.constructionParams.size()];
+                for (int i = 0; i < info.constructionParams.size(); i++) {
+                    KeyValuePair<Class<?>, Object> kvp = info.constructionParams.get(i);
+                    if (DataModelEntity.class.isAssignableFrom(kvp.key)) {
+                        int uniqueID = (int) kvp.value;
+                        if (creationChores.containsKey(uniqueID)) {
+                            createDataModelEntity(creationChores, creationChores.get(uniqueID));
+                        }
+                        //now object can be safely assigned from objects list
+                        params[i] = DMEs.get(uniqueID).dme;
+                    } else {
+                        params[i] = kvp.value;
+                    }
+                }
+                info.dme = DataModelInfo.construct((Class<? extends DataModelEntity>) info.clazz, params);
+            }
+
             //unwrap content fields
             for (Field field : DataModelInfo.getContentFields(info.dme)) {
                 //field is non DME-object

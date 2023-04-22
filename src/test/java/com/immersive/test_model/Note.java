@@ -51,6 +51,14 @@ public class Note extends ChildEntity<NoteGroup> {
         note.previousTied = this;
     }
 
+    public Note getPreviousTied() {
+        return previousTied;
+    }
+
+    public Note getNextTied() {
+        return nextTied;
+    }
+
     @Override
     public boolean clear() {
         if (!super.clear()) {

@@ -38,7 +38,7 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         if (workcopy != null && !workcopy.ongoingPull) {
             /*if (!workcopy.locallyChangedOrCreated.contains(this))
                 System.out.println(getClass().getSimpleName()+" got created");*/
-            workcopy.locallyCreatedOrChanged.add(this);
+            workcopy.logLocalCreation(this);
         }
     }
 
@@ -56,7 +56,7 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         destruct();
         Workcopy workcopy = TransactionManager.getInstance().workcopies.get(getRootEntity());
         if (workcopy != null) {
-            workcopy.locallyDeleted.add(this);
+            workcopy.logLocalDeletion(this);
             //System.out.println(te.getClass().getSimpleName() + " got deleted");
         }
         onCleared();
@@ -102,7 +102,7 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         return new Object[]{LOT.getLogicalObjectKeyOfOwner(this)};
     }
     @Override
-    public DataModelEntity[] constructorParameterObjects() {
+    public DataModelEntity[] constructorParameterDMEs() {
         return new DataModelEntity[]{owner};
     }
     @Override

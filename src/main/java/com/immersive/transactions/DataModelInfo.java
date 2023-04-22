@@ -70,8 +70,24 @@ class DataModelInfo {
         }
     }
 
+    /**
+     * construct a data model specific {@link RootEntity}
+     */
+    static RootEntity constructRootEntity(Class<? extends RootEntity> clazz) {
+        if (!dataModelInfo.containsKey(clazz)) {
+            dataModelInfo.put(clazz, new DataModelInfo(clazz));
+        }
+        DataModelInfo info = dataModelInfo.get(clazz);
+        info.constructor.setAccessible(true);
+        try {
+            return (RootEntity) info.constructor.newInstance();
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
+    }
 
-    static DataModelEntity construct(Class<? extends DataModelEntity> clazz, Object...objects) {
+    static ChildEntity<?> construct(Class<? extends DataModelEntity> clazz, Object...objects) {
         if (!dataModelInfo.containsKey(clazz)) {
             Class<?>[] classes = new Class<?>[objects.length];
             for (int i=0; i<objects.length; i++) {
@@ -83,7 +99,7 @@ class DataModelInfo {
         DataModelInfo info = dataModelInfo.get(clazz);
         info.constructor.setAccessible(true);
         try {
-            return (DataModelEntity) info.constructor.newInstance(objects);
+            return (ChildEntity<?>) info.constructor.newInstance(objects);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
@@ -211,7 +227,7 @@ class DataModelInfo {
                 //cross-referenced DMEs are not considered to be children of the class
                 if (field.getAnnotation(CrossReference.class) != null)
                     contentFieldList.add(field);
-                else
+                else //child simply owned by reference
                     childFieldList.add(field);
             }
 

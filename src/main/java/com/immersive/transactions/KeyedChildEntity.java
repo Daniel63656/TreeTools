@@ -33,7 +33,7 @@ public abstract class KeyedChildEntity<O extends DataModelEntity, K> extends Chi
             return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), key};
     }
     @Override
-    public DataModelEntity[] constructorParameterObjects() {
+    public DataModelEntity[] constructorParameterDMEs() {
         if (key instanceof DataModelEntity)
             return new DataModelEntity[]{owner, (DataModelEntity) key};
         else

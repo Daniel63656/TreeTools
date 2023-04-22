@@ -17,14 +17,16 @@ class Commit {
     CommitId commitId;
 
     /**
-     * keep track of deleted objects since the last commit. Stored as a pair of key and corresponding constructionParams,
-     * which might be used to instantiate the object when reverting
+     * keep track of deleted objects since the last commit, stored as a pair of key and corresponding keys of
+     * constructionParams (immutable objects act as their own key, {@link DataModelEntity}s are saved as
+     * {@link LogicalObjectKey}). These params might be used to instantiate the object when reverting
      */
     Map<LogicalObjectKey, Object[]> deletionRecords = new HashMap<>();
 
     /**
-     * keep track of created objects since the last commit. Stored as a pair of key and corresponding constructionParams,
-     * which are used to create the object when pulling
+     * keep track of created objects since the last commit, stored as a pair of key and corresponding keys of
+     * constructionParams (immutable objects act as their own key, {@link DataModelEntity}s are saved as
+     * {@link LogicalObjectKey}). These params are used to create the object when pulling
      */
     Map<LogicalObjectKey, Object[]> creationRecords = new HashMap<>();
 
@@ -51,10 +53,10 @@ class Commit {
             strb.append(">Deleted ").append(entry.getKey()).append("\n");
         }
         for (Map.Entry<LogicalObjectKey, Object[]> entry : creationRecords.entrySet()) {
-            strb.append(">Created ").append(entry.getKey()).append(entry.getKey().printSubscribers()).append("\n");
+            strb.append(">Created ").append(entry.getKey()).append("\n");
         }
         for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : changeRecords.entrySet()) {
-            strb.append(">Changed ").append(entry.getKey()).append("\n      to ").append(entry.getValue()).append(entry.getValue().printSubscribers()).append("\n");
+            strb.append(">Changed ").append(entry.getKey()).append("\n      to ").append(entry.getValue()).append("\n");
         }
         return strb.append("\n").toString();
     }

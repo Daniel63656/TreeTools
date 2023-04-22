@@ -48,11 +48,10 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
             //field is a cross-reference
             if (field.getAnnotation(CrossReference.class) != null) {
                 if (fieldValue == null)
-                    logicalObjectKey.put(field, null);
+                    logicalObjectKey.crossReferences.put(field, null);
                 else {
                     LogicalObjectKey crossReference = createLogicalObjectKey((DataModelEntity) fieldValue);
-                    logicalObjectKey.put(field, crossReference);
-                    crossReference.subscribedLOKs.put(logicalObjectKey, field);
+                    logicalObjectKey.crossReferences.put(field, crossReference);
                 }
             }
             //field is of primitive data type
@@ -61,13 +60,6 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
             }
         }
         return logicalObjectKey;
-    }
-
-    @Override
-    public LogicalObjectKey removeValue(Object value) {
-         LogicalObjectKey LOK = super.removeValue(value);
-         LOK.unsubscribeFromCrossReferences();
-         return LOK;
     }
 
     public LogicalObjectKey getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
@@ -79,9 +71,9 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
 
     /**
      * Class containing the logical content of an object as field-object pairs. Logical content is considered to be all
-     * {@link com.immersive.transactions.DataModelInfo#contentFields} and therefore excludes the owner, keys the class
-     * is mapped by the owner and children. These objects can be instead determined via the links provided by the
-     * {@link com.immersive.transactions.LogicalObjectTree}.
+     * {@link com.immersive.transactions.DataModelInfo#contentFields} and therefore excludes the owner, keys
+     * and children. Is designed as a IMMUTABLE class, meaning that all saved values stay constant. If a value requires
+     * a change, this is expressed by creating a new key entirely.
      */
     static class LogicalObjectKey extends HashMap<Field, Object> {
 
@@ -91,9 +83,11 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
         final Class<? extends DataModelEntity> clazz;
 
         /**
-         * save other logical keys that depend on this one (due to cross-references) together with the responsible field
+         * save cross-references in a separate map. The saved {@link LogicalObjectKey}s only point to valid entries in
+         * the {@link LogicalObjectTree} in the commit that this key was created. These cross-referenced objects may
+         * get new keys in later commits, which is fine because the cross-reference itself is unmodified
          */
-        final HashMap<LogicalObjectKey, Field> subscribedLOKs = new HashMap<>();
+        final HashMap<Field, LogicalObjectKey> crossReferences = new HashMap<>();
 
         /**
          * A unique {@link LogicalObjectTree} wide ID to identify the logical key. Necessary because all fields can be the same
@@ -110,14 +104,6 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
             this.clazz = clazz;
             this.uniqueID = globalID;
             globalID++;
-        }
-
-        private void unsubscribeFromCrossReferences() {
-            for (Object obj : this.values()) {
-                if (obj instanceof LogicalObjectKey) {
-                    ((LogicalObjectKey) obj).subscribedLOKs.remove(this);
-                }
-            }
         }
 
         boolean logicallySameWith(LogicalObjectKey lok) {
@@ -144,17 +130,6 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
         @Override
         public int hashCode() {
             return uniqueID;
-        }
-
-        String printSubscribers() {
-            StringBuilder strb = new StringBuilder();
-            if (!subscribedLOKs.isEmpty()) {
-                strb.append(" subscribed: ");
-                for (LogicalObjectKey LOK : subscribedLOKs.keySet()) {
-                    strb.append("["). append(LOK.uniqueID).append("]");
-                }
-            }
-            return strb.toString();
         }
 
         @Override

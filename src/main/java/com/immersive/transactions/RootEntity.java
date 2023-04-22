@@ -59,12 +59,12 @@ public abstract class RootEntity implements DataModelEntity {
         return new Class<?>[0];
     }
     @Override
-    public Object[] constructorParameterLOKs(LogicalObjectTree LOT) {
-        return new Object[0];
+    public LogicalObjectKey[] constructorParameterLOKs(LogicalObjectTree LOT) {
+        return new LogicalObjectKey[0];
     }
 
     @Override
-    public DataModelEntity[] constructorParameterObjects() { return new DataModelEntity[0];}
+    public DataModelEntity[] constructorParameterDMEs() { return new DataModelEntity[0];}
 
     @Override
     public RootEntity getRootEntity() {

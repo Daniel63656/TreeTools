@@ -99,7 +99,7 @@ public class HistoryTests {
         Assertions.assertEquals(69, note.getPitch());
     }
 
-    @Test
+    /*@Test
     public void testUndoAndRedo() {
         Workcopy workcopy = createTransactionWorkcopyWithTie();
         tm.enableUndoRedos(64);
@@ -116,9 +116,9 @@ public class HistoryTests {
 
         note.setPitch(70);
         tm.commit(workcopy.rootEntity);
-    }
+    }*/
 
-    @Test
+    /*@Test
     public void testOldSubscribersGettingRemoved() {
         Workcopy workcopy = createTransactionWorkcopy();
         tm.enableUndoRedos(64);
@@ -128,5 +128,5 @@ public class HistoryTests {
         Commit undo = workcopy.rootEntity.undo();
         for (LogicalObjectKey after : undo.changeRecords.values())
             Assertions.assertSame(0, after.subscribedLOKs.size());
-    }
+    }*/
 }

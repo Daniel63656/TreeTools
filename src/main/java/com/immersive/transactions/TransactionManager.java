@@ -8,13 +8,11 @@ import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 
@@ -81,7 +79,7 @@ public class TransactionManager {
             throw new NoTransactionsEnabledException();
         Commit initializationCommit = new Commit(null);  //since this is only a temporary commit the commitId doesn't really matter!
         //this is necessary to get a DataModel SPECIFIC class!
-        RootEntity newRootEntity = (RootEntity) DataModelInfo.construct(rootEntity.getClass());
+        RootEntity newRootEntity = DataModelInfo.constructRootEntity(rootEntity.getClass());
         LogicalObjectTree LOT = workcopies.get(rootEntity).LOT;
         LogicalObjectTree newLOT = new LogicalObjectTree();
         buildInitializationCommit(LOT, initializationCommit, rootEntity);
@@ -142,6 +140,7 @@ public class TransactionManager {
         }
     }
 
+    //only used by Pull
     private static class CrossReferenceToDo {
         DataModelEntity dme;
         LogicalObjectKey objectKey, crossReferenceKey;
@@ -156,13 +155,14 @@ public class TransactionManager {
 
     //=========these methods are synchronized per RootEntity and therefore package-private============
 
+    //TODO make class to store local context
     Commit commit(RootEntity rootEntity) {
         Workcopy workcopy = workcopies.get(rootEntity);
         //ensure transactions are enabled for rootEntity
         if (workcopy == null)
             throw new NoTransactionsEnabledException();
         //skip "empty" commits
-        if (workcopy.locallyCreatedOrChanged.isEmpty() && workcopy.locallyDeleted.isEmpty())
+        if (workcopy.hasNoLocalChanges())
             return null;
 
         Commit commit = new Commit(currentCommitId);
@@ -171,42 +171,36 @@ public class TransactionManager {
         LogicalObjectTree remote = workcopy.LOT;
         //initialize collections that help execute the commit
         List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
-        Set<LogicalObjectKey> keysCreatedSoFar = new HashSet<>();
 
-        //create ModificationRecords in commit for CREATED or CHANGED objects
-        while (!workcopy.locallyCreatedOrChanged.isEmpty()) {
-            DataModelEntity dme = workcopy.locallyCreatedOrChanged.iterator().next();
-            //ignore creation or change if object got deleted in the end
-            //TODO handle this when adding to delta?
-            if (dme instanceof ChildEntity<?>) {
-                if (workcopy.locallyDeleted.contains(dme)) {
-                    workcopy.locallyCreatedOrChanged.remove(dme);
-                    //remove deletion instruction if chore was a creation that got removed right now
-                    if (!remote.containsValue(dme) || keysCreatedSoFar.contains(remote.getKey(dme)))
-                        workcopy.locallyDeleted.remove(dme);
-                    continue;
-                }
-            }
-            commitCreationOrChange(workcopy.locallyCreatedOrChanged, commit, remote, dme, keysCreatedSoFar);
+        //create ModificationRecords for CREATED objects. This may cause other creation or changes to be handled first
+        ChildEntity<?> te = workcopy.getOneCreation();
+        while (te != null) {
+            commitCreation(workcopy, commit, remote, te);
+            te = workcopy.getOneCreation();
+        }
+
+        //create ModificationRecords for remaining CHANGED objects
+        DataModelEntity dme = workcopy.getOneChange();
+        while (dme != null) {
+            commitChange(workcopy, commit, remote, dme);
+            dme = workcopy.getOneChange();
         }
 
         //create ModificationRecords for DELETED objects
-        Iterator<ChildEntity<?>> iterator = workcopy.locallyDeleted.iterator();
-        while (iterator.hasNext()) {
-            ChildEntity<?> te = iterator.next();
+        te = workcopy.getOneDeletion();
+        while (te != null) {
             commit.deletionRecords.put(remote.getKey(te), te.constructorParameterLOKs(remote));
-            //don't remove from remote yet, because this destroys owner information for possible deletion
-            //entries of children!
+            //don't remove from remote yet, because this destroys owner information for possible deletion of children
             removeFromLOT.add(te);
-            iterator.remove();
+            workcopy.removeDeletion(te);
+            te = workcopy.getOneDeletion();
         }
         //now it is safe to remove all entries from remote
-        for (ChildEntity<?> te : removeFromLOT) {
-            remote.removeValue(te);
+        for (ChildEntity<?> t : removeFromLOT) {
+            remote.removeValue(t);
         }
-        //clear workcopies deltas
-        workcopy.locallyDeleted.clear();
-        workcopy.locallyCreatedOrChanged.clear();
+        //clear workcopy deltas
+        workcopy.clearUncommittedChanges();
         workcopy.currentCommitId = commit.commitId;
         synchronized (commits) {
             commits.put(commit.commitId, commit);
@@ -216,49 +210,70 @@ public class TransactionManager {
         return commit;
     }
 
-    private void commitCreationOrChange(Set<DataModelEntity> createdOrChanged, Commit commit, LogicalObjectTree remote, DataModelEntity dme, Set<LogicalObjectKey> keysCreatedSoFar) {
-        //CREATION - not in remote before or only because a cross-reference or key created it!
-        if (!remote.containsValue(dme) || keysCreatedSoFar.contains(remote.getKey(dme))) {
-            if (dme instanceof RootEntity)
-                throw new RuntimeException("Root Entity can only be CHANGED by commits!");
-            //object that are needed for current object construction are also subject to creation or change, so handle them first
-            for (DataModelEntity obj : dme.constructorParameterObjects()) {
-                if (createdOrChanged.contains(obj)) {
-                    commitCreationOrChange(createdOrChanged, commit, remote, obj, keysCreatedSoFar);
-                }
-            }
-            //dme is not currently present in remote, so generates a NEW key and put it in remote
-            LogicalObjectKey newKey = remote.createLogicalObjectKey(dme);
-            keysCreatedSoFar.add(newKey);
-            //now its save to get the LOKs from owner/keys from the remote
-            commit.creationRecords.put(newKey, dme.constructorParameterLOKs(remote));
-        }
 
-        //CHANGE
-        else {
-            LogicalObjectKey before = remote.getKey(dme);
-            //remove old key from remote first to enable the creation of a new key for this particular dme
-            remote.removeValue(dme);
-            LogicalObjectKey after = remote.createLogicalObjectKey(dme);
-            keysCreatedSoFar.add(after);
+    /**
+     * process a local creation into a creationRecord. Makes sure that all {@link LogicalObjectKey}s used either
+     * for construction parameters or cross-references, are up-to-date
+     */
+    private LogicalObjectKey commitCreation(Workcopy workcopy, Commit commit, LogicalObjectTree remote, ChildEntity<?> te) {
+        //creationRecord contains LOKs needed to construct this object. These LOKs have to be present and the current
+        //version. The method makes sure this is the case by recursively processing these creation or changes first
 
-            //migrate any dependency on old key to new one before old key is lost
-            //if two objects cross-reference each other, one of them is handled first and therefore receives the new LOK in its subscribedLOKs!
-            for (Map.Entry<LogicalObjectKey, Field> subscribed : before.subscribedLOKs.entrySet()) {
-                if (!keysCreatedSoFar.contains(subscribed.getKey())) {
-                    //object subscribed is not itself part of a change or not done yet so add a chore!
-                    createdOrChanged.add(remote.get(subscribed.getKey()));
-                }
-                else {
-                    //make all LOKs previously subscribed to before subscribe to after and change their field!
-                    //this is the only case an otherwise immutable LOK gets modified!
-                    after.subscribedLOKs.put(subscribed.getKey(), subscribed.getValue());
-                    subscribed.getKey().put(subscribed.getValue(), after);
-                }
-            }
-            commit.changeRecords.put(before, after);
+        //loop over all objects needed for construction. Non DataModelEntities are not included
+        for (DataModelEntity dme : te.constructorParameterDMEs()) {
+            if (dme instanceof ChildEntity<?> && workcopy.locallyCreatedContains((ChildEntity<?>) dme))
+                commitCreation(workcopy, commit, remote, (ChildEntity<?>) dme);
+            else if (workcopy.locallyChangedContains(dme))
+                commitChange(workcopy, commit, remote, dme);
         }
-        createdOrChanged.remove(dme);
+        //te is not currently present in remote, so generates a NEW key and put it in remote
+        LogicalObjectKey newKey = remote.createLogicalObjectKey(te);
+        //now its save to get the LOKs of owner/keys from the remote and create the creation record with them
+        commit.creationRecords.put(newKey, te.constructorParameterLOKs(remote));
+        //log of from creation tasks
+        workcopy.removeCreation(te);
+
+        //the newly created key may reference LOKs in cross-references, that may become outdated with this commit
+        //avoid this by deploying the same strategy as above
+        for (Map.Entry<Field, LogicalObjectKey> crossReference : newKey.crossReferences.entrySet()) {
+            //get the object the cross-reference is pointing at
+            DataModelEntity dme = remote.get(crossReference.getValue());
+            if (dme != null) {
+                //update or create object first. If the object points back at this due to the cross-reference being
+                //circular, this is already logged of from local creations
+                if (dme instanceof ChildEntity<?> && workcopy.locallyCreatedContains((ChildEntity<?>) dme))
+                    crossReference.setValue(commitCreation(workcopy, commit, remote, (ChildEntity<?>) dme));
+                else if (workcopy.locallyChangedContains(dme))
+                    crossReference.setValue(commitChange(workcopy, commit, remote, dme));
+            }
+        }
+        return newKey;
+    }
+
+    private LogicalObjectKey commitChange(Workcopy workcopy, Commit commit, LogicalObjectTree remote, DataModelEntity dme) {
+        LogicalObjectKey before = remote.getKey(dme);
+        //remove old key from remote first to enable the change of a new key for this particular dme
+        remote.removeValue(dme);
+        LogicalObjectKey after = remote.createLogicalObjectKey(dme);
+        commit.changeRecords.put(before, after);
+        //log of from change tasks
+        workcopy.removeChange(dme);
+
+        //the newly created key may reference LOKs in cross-references, that may become outdated with this commit
+        //avoid this by deploying the same strategy as above
+        for (Map.Entry<Field, LogicalObjectKey> crossReference : after.crossReferences.entrySet()) {
+            //get the object the cross-reference is pointing at
+            DataModelEntity d = remote.get(crossReference.getValue());
+            if (d != null) {
+                //update or create object first. If the object points back at this due to the cross-reference being
+                //circular, this is already logged of from local creations
+                if (d instanceof ChildEntity<?> && workcopy.locallyCreatedContains((ChildEntity<?>) d))
+                    crossReference.setValue(commitCreation(workcopy, commit, remote, (ChildEntity<?>) d));
+                else if (workcopy.locallyChangedContains(d))
+                    crossReference.setValue(commitChange(workcopy, commit, remote, d));
+            }
+        }
+        return after;
     }
 
 
@@ -335,17 +350,6 @@ public class TransactionManager {
             workcopy.ongoingPull = false;
             workcopy.currentCommitId = new CommitId(0);
         }
-        //used for redos/undos
-        private Pull(RootEntity rootEntity, Commit commit, boolean revert) {
-            workcopy = workcopies.get(rootEntity);
-            if (workcopy == null)
-                throw new NoTransactionsEnabledException();
-            workcopy.ongoingPull = true;
-            pullOneCommit(commit, revert, true);
-            workcopy.ongoingPull = false;
-            workcopy.currentCommitId = commit.commitId;
-            cleanUpUnnecessaryCommits();
-        }
 
         //used for normal pulls
         private Pull(RootEntity rootEntity) {
@@ -368,6 +372,18 @@ public class TransactionManager {
             if (!commitsToPull.isEmpty())
                 pulledSomething = true;
             workcopy.ongoingPull = false;
+            cleanUpUnnecessaryCommits();
+        }
+
+        //used for redos/undos
+        private Pull(RootEntity rootEntity, Commit commit, boolean revert) {
+            workcopy = workcopies.get(rootEntity);
+            if (workcopy == null)
+                throw new NoTransactionsEnabledException();
+            workcopy.ongoingPull = true;
+            pullOneCommit(commit, revert, true);
+            workcopy.ongoingPull = false;
+            workcopy.currentCommitId = commit.commitId;
             cleanUpUnnecessaryCommits();
         }
 
@@ -396,6 +412,7 @@ public class TransactionManager {
                 objectToDelete.destruct();
                 LOT.removeValue(objectToDelete);
             }
+
             //CREATION - Recursion possible because of dependency on owner and cross-references
             Map.Entry<LogicalObjectKey, Object[]> creationRecord;
             while (!creationChores.isEmpty()) {
@@ -406,6 +423,7 @@ public class TransactionManager {
                     e.printStackTrace();
                 }
             }
+
             //CHANGE - Recursion possible because of dependency on cross-references
             Map.Entry<LogicalObjectKey, LogicalObjectKey> changeRecord;
             while (!changeChores.isEmpty()) {
@@ -416,6 +434,7 @@ public class TransactionManager {
                     e.printStackTrace();
                 }
             }
+
             //at last link the open cross-reference dependencies
             for (CrossReferenceToDo cr : crossReferences) {
                 cr.ObjectField.setAccessible(true);
@@ -423,22 +442,8 @@ public class TransactionManager {
                     if (LOT.get(cr.crossReferenceKey) == null)
                         throw new TransactionException("error linking cross references for "+LOT.getKey(cr.dme).hashCode(), cr.crossReferenceKey.hashCode());
                     cr.ObjectField.set(cr.dme, LOT.get(cr.crossReferenceKey));
-                    //since subscribedLOKs are MUTABLE over commits, they have to be RESTORED when doing undos/redos!
-                    if (redoUndo)
-                        cr.crossReferenceKey.subscribedLOKs.put(cr.objectKey, cr.ObjectField);  //put new value in
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
-                }
-            }
-            //remove invalid subscribers by checking if they are present in current LOT for each changed object
-            if (redoUndo) {
-                if (!revert) {
-                    for (LogicalObjectKey after : commit.changeRecords.values())
-                        after.subscribedLOKs.keySet().removeIf(LOK -> !LOT.containsKey(LOK));
-                }
-                else {
-                    for (LogicalObjectKey after : commit.changeRecords.keySet())
-                        after.subscribedLOKs.keySet().removeIf(LOK -> !LOT.containsKey(LOK));
                 }
             }
             crossReferences.clear();
@@ -459,34 +464,42 @@ public class TransactionManager {
             }
         }
 
-        //-----recursive functions-----//
 
-        private void pullCreationRecord(LogicalObjectKey objKey, Object[] constKeys) throws IllegalAccessException {
-            Object[] params = new Object[constKeys.length];
-            for (int i=0; i<constKeys.length; i++) {
-                Object key = constKeys[i];
+        /**
+         * creates an object from a creation record and put its key into the {@link LogicalObjectTree}
+         * @param objKey key of the object to be created
+         * @param constructionParams list of objects needed for construction. These are {@link LogicalObjectKey}s if
+         *                           the param is another {@link DataModelEntity} or an immutable object itself
+         * @throws IllegalAccessException
+         */
+        private void pullCreationRecord(LogicalObjectKey objKey, Object[] constructionParams) throws IllegalAccessException {
+            //parse construction params into array
+            Object[] params = new Object[constructionParams.length];
+            for (int i=0; i<constructionParams.length; i++) {
+                Object key = constructionParams[i];
+                //DMEs need to be resolved to their objects which may need to be created/changed themselves
                 if (key instanceof LogicalObjectKey) {
                     LogicalObjectKey LOK = (LogicalObjectKey) key;
                     if (creationChores.containsKey(LOK)) {
                         pullCreationRecord(LOK, creationChores.get(LOK));
                     }
-                    //check if AFTER exists in changeRecords!
-                    if (changeChores.containsKey(LOK)) {
+                    //check if LOK exists in changeRecords (now mapped as <after, before>
+                    else if (changeChores.containsKey(LOK)) {
                         pullChangeRecord(changeChores.get(LOK), LOK);
                     }
-                    //now object can be safely assigned using LOT
+                    //now object can be safely accessed via LOT
                     params[i] = LOT.get(key);
                 }
+                //object is an immutable, no parsing needed
                 else {
                     params[i] = key;
                 }
             }
-            DataModelEntity objectToCreate = DataModelInfo.construct(objKey.clazz, params);
+            //construct the object
+            ChildEntity<?> objectToCreate = DataModelInfo.construct(objKey.clazz, params);
             imprintLogicalContentOntoObject(objKey, objectToCreate);
-            //notify owner that it has changed!
-            if (objectToCreate instanceof ChildEntity) {
-                ((ChildEntity<?>) objectToCreate).getOwner().onChanged();
-            }
+            //notify owner that a new child was created
+            objectToCreate.getOwner().onChanged();
             //System.out.println("PULL: created key "+objKey.hashCode());
             LOT.put(objKey, objectToCreate);
             creationChores.remove(objKey);
@@ -498,8 +511,9 @@ public class TransactionManager {
                 throw new TransactionException("object to change is null!", before.hashCode());
 
             imprintLogicalContentOntoObject(after, objectToChange);
+            //notify potential wrappers about the change
             objectToChange.onChanged();
-            //System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
+            //if (verbose) System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
             LOT.put(after, objectToChange);
             changeChores.remove(after);
         }
@@ -507,20 +521,19 @@ public class TransactionManager {
         private void imprintLogicalContentOntoObject(LogicalObjectKey after, DataModelEntity dme) throws IllegalAccessException {
             for (Field field : DataModelInfo.getContentFields(dme)) {
                 if (after.containsKey(field)) {
-                    //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
-                    if (field.getAnnotation(CrossReference.class) != null) {
-                        if (after.get(field) != null)
-                            crossReferences.add(new CrossReferenceToDo(dme, after, (LogicalObjectKey) after.get(field), field));
-                        else {
-                            field.setAccessible(true);
-                            field.set(dme, null);
-                        }
-                        continue;
-                    }
-
-                    //set the field if no cross-reference
                     field.setAccessible(true);
                     field.set(dme, after.get(field));
+                }
+                //field is a cross-reference
+                else if (after.crossReferences.containsKey(field)) {
+                    if (after.crossReferences.get(field) != null) {
+                        //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
+                        crossReferences.add(new CrossReferenceToDo(dme, after, after.crossReferences.get(field), field));
+                    }
+                    else {
+                        field.setAccessible(true);
+                        field.set(dme, null);
+                    }
                 }
             }
         }

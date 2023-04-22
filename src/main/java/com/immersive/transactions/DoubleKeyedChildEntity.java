@@ -34,7 +34,7 @@ public abstract class DoubleKeyedChildEntity<O extends DataModelEntity, K> exten
             return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), key, endKey};
     }
     @Override
-    public DataModelEntity[] constructorParameterObjects() {
+    public DataModelEntity[] constructorParameterDMEs() {
         if (key instanceof DataModelEntity)
             return new DataModelEntity[]{owner, (DataModelEntity) key, (DataModelEntity) endKey};
         else
