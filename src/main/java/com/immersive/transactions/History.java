@@ -1,7 +1,7 @@
 package com.immersive.transactions;
 
 import java.util.Map;
-import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
+import com.immersive.transactions.Remote.ObjectState;
 
 class History {
     private final int capacity;     //TODO respect capacity
@@ -26,7 +26,7 @@ class History {
     }
 
     public void addToOngoingCommit(Commit commit) {
-        for (Map.Entry<LogicalObjectKey, Object[]> entry : commit.deletionRecords.entrySet()) {
+        for (Map.Entry<ObjectState, Object[]> entry : commit.deletionRecords.entrySet()) {
             if (ongoingCommit.changeRecords.containsValue(entry.getKey())) {
                 ongoingCommit.deletionRecords.put(ongoingCommit.changeRecords.getKey(entry.getKey()), entry.getValue());
                 ongoingCommit.changeRecords.removeValue(entry.getKey());
@@ -40,7 +40,7 @@ class History {
                 }
             }
         }
-        for (Map.Entry<LogicalObjectKey, LogicalObjectKey> entry : commit.changeRecords.entrySet()) {
+        for (Map.Entry<ObjectState, ObjectState> entry : commit.changeRecords.entrySet()) {
             if (ongoingCommit.changeRecords.containsValue(entry.getKey()))
                 ongoingCommit.changeRecords.put(ongoingCommit.changeRecords.getKey(entry.getKey()), entry.getValue());
             else if (ongoingCommit.creationRecords.containsKey(entry.getKey())) {
@@ -53,9 +53,9 @@ class History {
         //handle key was referenced in params of creation records
         for (Object[] objects : ongoingCommit.creationRecords.values()) {
             for (int i=0; i<objects.length; i++) {
-                if (objects[i] instanceof LogicalObjectKey) {
-                    LogicalObjectKey LOK = (LogicalObjectKey) objects[i];
-                    if (commit.changeRecords.containsKey((LogicalObjectKey) objects[i]))
+                if (objects[i] instanceof ObjectState) {
+                    ObjectState LOK = (ObjectState) objects[i];
+                    if (commit.changeRecords.containsKey((ObjectState) objects[i]))
                         objects[i] = commit.changeRecords.get(LOK);
                 }
             }
@@ -63,9 +63,9 @@ class History {
         //handle key was referenced in params of deletion records
         for (Object[] objects : ongoingCommit.deletionRecords.values()) {
             for (int i=0; i<objects.length; i++) {
-                if (objects[i] instanceof LogicalObjectKey) {
-                    LogicalObjectKey LOK = (LogicalObjectKey) objects[i];
-                    if (commit.changeRecords.containsKey((LogicalObjectKey) objects[i]))
+                if (objects[i] instanceof ObjectState) {
+                    ObjectState LOK = (ObjectState) objects[i];
+                    if (commit.changeRecords.containsKey((ObjectState) objects[i]))
                         objects[i] = commit.changeRecords.get(LOK);
                 }
             }

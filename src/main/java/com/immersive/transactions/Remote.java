@@ -7,34 +7,33 @@ import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Objects;
-import java.util.Set;
 
 
 /**
- * A data structure providing a two-way-link between {@link DataModelEntity} and corresponding
- * logical content of the object (represented by a {@link LogicalObjectKey}). Acts as a remote state the data model
- * can revert to while uncommitted changes exist.
+ * A data structure providing a two-way-link between {@link MutableObject} and corresponding
+ * logical content of the object (represented by a {@link ObjectState}). These keys are immutable, therefore this
+ * acts as a remote state the data model can revert to while uncommitted changes exist.
  */
-public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.LogicalObjectKey, DataModelEntity> {
+public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
 
     /**
-     * make sure each {@link LogicalObjectKey} gets assigned a unique ID
+     * make sure each {@link ObjectState} gets assigned a unique ID
      */
     private static int globalID;
 
     /**
-     * create a logical key. Instantiating a key via the tree makes sure, they are only created once per object and
-     * handles nasty stuff like cross-references
+     * create an object state. Instantiating a state via the {@link Remote} makes sure, they are only created once per object and
+     * nasty stuff like cross-references are properly handled
      * @param dme object to create the logical key for
      */
-    LogicalObjectKey createLogicalObjectKey(DataModelEntity dme) {
+    ObjectState createObjectState(MutableObject dme) {
         //avoid creating duplicate LOKs for same object within a tree. This also avoids infinite recursion when
         //two cross-references point at each other!
         if (containsValue(dme)) {
             return getKey(dme);
         }
-        LogicalObjectKey logicalObjectKey = new LogicalObjectKey(dme.getClass());
-        put(logicalObjectKey, dme);
+        ObjectState objectState = new ObjectState(dme.getClass());
+        put(objectState, dme);
 
         //start iterating over fields using reflections
         for (Field field : DataModelInfo.getContentFields(dme)) {
@@ -48,21 +47,21 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
             //field is a cross-reference
             if (field.getAnnotation(CrossReference.class) != null) {
                 if (fieldValue == null)
-                    logicalObjectKey.crossReferences.put(field, null);
+                    objectState.crossReferences.put(field, null);
                 else {
-                    LogicalObjectKey crossReference = createLogicalObjectKey((DataModelEntity) fieldValue);
-                    logicalObjectKey.crossReferences.put(field, crossReference);
+                    ObjectState crossReference = createObjectState((MutableObject) fieldValue);
+                    objectState.crossReferences.put(field, crossReference);
                 }
             }
             //field is of primitive data type
             else {
-                logicalObjectKey.put(field, fieldValue);
+                objectState.put(field, fieldValue);
             }
         }
-        return logicalObjectKey;
+        return objectState;
     }
 
-    public LogicalObjectKey getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
+    public ObjectState getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
         if (!this.containsValue(te.getOwner())) {
             throw new TransactionException("Owner not found in LOT!", getKey(te).hashCode());
         }
@@ -75,38 +74,38 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
      * and children. Is designed as a IMMUTABLE class, meaning that all saved values stay constant. If a value requires
      * a change, this is expressed by creating a new key entirely.
      */
-    static class LogicalObjectKey extends HashMap<Field, Object> {
+    static class ObjectState extends HashMap<Field, Object> {
 
         /**
          * corresponding class-type whose content is saved by this logical key
          */
-        final Class<? extends DataModelEntity> clazz;
+        final Class<? extends MutableObject> clazz;
 
         /**
-         * save cross-references in a separate map. The saved {@link LogicalObjectKey}s only point to valid entries in
-         * the {@link LogicalObjectTree} in the commit that this key was created. These cross-referenced objects may
+         * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
+         * the {@link Remote} in the commit that this key was created. These cross-referenced objects may
          * get new keys in later commits, which is fine because the cross-reference itself is unmodified
          */
-        final HashMap<Field, LogicalObjectKey> crossReferences = new HashMap<>();
+        final HashMap<Field, ObjectState> crossReferences = new HashMap<>();
 
         /**
-         * A unique {@link LogicalObjectTree} wide ID to identify the logical key. Necessary because all fields can be the same
+         * A unique {@link Remote} wide ID to identify the logical key. Necessary because all fields can be the same
          * for differnet objects in the tree
          */
         private final int uniqueID;
 
 
         /**
-         * constructor is private so that logical keys are only instantiated via the {@link LogicalObjectTree} that
+         * constructor is private so that logical keys are only instantiated via the {@link Remote} that
          * they are held in
          */
-        private LogicalObjectKey(Class<? extends DataModelEntity> clazz) {
+        private ObjectState(Class<? extends MutableObject> clazz) {
             this.clazz = clazz;
             this.uniqueID = globalID;
             globalID++;
         }
 
-        boolean logicallySameWith(LogicalObjectKey lok) {
+        boolean logicallySameWith(ObjectState lok) {
             for(Field f:keySet()) {
                 if(!lok.containsKey(f)) {
                     return false;
@@ -120,10 +119,10 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
 
         @Override
         public boolean equals(Object o) {
-            if (!(o instanceof LogicalObjectKey)) {
+            if (!(o instanceof ObjectState)) {
                 return false;
             }
-            LogicalObjectKey right = (LogicalObjectKey) o;
+            ObjectState right = (ObjectState) o;
             return this.uniqueID == right.uniqueID;
         }
 
@@ -139,7 +138,7 @@ public class LogicalObjectTree extends DualHashBidiMap<LogicalObjectTree.Logical
             if (!isEmpty()) {
                 strb.append(" = {");
                 for (Entry<Field, Object> entry : entrySet()) {
-                    if (entry.getValue() instanceof LogicalObjectKey)
+                    if (entry.getValue() instanceof ObjectState)
                         strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("]");
                     else
                         strb.append(entry.getKey().getName()).append("=").append(entry.getValue());

@@ -5,7 +5,7 @@ package com.immersive.transactions;
  * @param <O> class-type of the owner class
  * @param <K> class-type of the key used to own this class
  */
-public abstract class KeyedChildEntity<O extends DataModelEntity, K> extends ChildEntity<O> {
+public abstract class KeyedChildEntity<O extends MutableObject, K> extends ChildEntity<O> {
 
     /**
      * reference to the key the object is saved with
@@ -26,17 +26,17 @@ public abstract class KeyedChildEntity<O extends DataModelEntity, K> extends Chi
         return new Class<?>[]{owner.getClass(), key.getClass()};
     }
     @Override
-    public Object[] constructorParameterLOKs(LogicalObjectTree LOT) {
-        if (key instanceof DataModelEntity)
-            return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), LOT.getKey(key)};
-        else    //the key instance can be directly used for construction in other workcopy, because primitive wrapper classes are IMMUTABLE in Java
-            return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), key};
+    public Object[] constructorParameterStates(Remote remote) {
+        if (key instanceof MutableObject)
+            return new Object[]{remote.getLogicalObjectKeyOfOwner(this), remote.getKey(key)};
+        else    //any immutable object act as their own state in the transactional system
+            return new Object[]{remote.getLogicalObjectKeyOfOwner(this), key};
     }
     @Override
-    public DataModelEntity[] constructorParameterDMEs() {
-        if (key instanceof DataModelEntity)
-            return new DataModelEntity[]{owner, (DataModelEntity) key};
+    public MutableObject[] constructorParameterMutables() {
+        if (key instanceof MutableObject)
+            return new MutableObject[]{owner, (MutableObject) key};
         else
-            return new DataModelEntity[]{owner};
+            return new MutableObject[]{owner};
     }
 }

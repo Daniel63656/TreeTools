@@ -4,7 +4,7 @@ package com.immersive.transactions;
 import java.util.List;
 
 /**
- * Specifies methods a wrappable object must have.
+ * Specifies methods a wrappable object must have to send notifications to its registered {@link Wrapper}s.
  */
 public interface Wrappable {
 

@@ -9,25 +9,24 @@ import java.util.Map;
 /**
  * Acts as a "category" for wrappers. Provides direct access to all wrappers of the same scope. Scopes get added to
  * a data models' {@link RootEntity} and removing the scope gets rid of all wrappers without the need for clean up.
+ * Wrappers are added to a scope by using the scope in the wrapper-constructor.
  */
 public class WrapperScope {
-    protected final Map<DataModelEntity, Wrapper<?>> registeredWrappers = new HashMap<>();
+    protected final Map<MutableObject, Wrapper<?>> registeredWrappers = new HashMap<>();
 
     public Collection<Wrapper<?>> getRegisteredWrappers() {
         return Collections.unmodifiableCollection(registeredWrappers.values());
     }
 
-    public Wrapper<?> getWrapper(DataModelEntity dme) {
+    public Wrapper<?> getWrapper(MutableObject dme) {
         return registeredWrappers.get(dme);
     }
-
-    //add wrappers by constructing them!
 
     public Wrapper<?> removeWrapper(Wrapper<?> wrapper) {
         return registeredWrappers.remove(wrapper.wrapped);
     }
 
-    public Wrapper<?> removeWrapperFor(DataModelEntity dme) {
+    public Wrapper<?> removeWrapperFor(MutableObject dme) {
         return registeredWrappers.remove(dme);
     }
 
@@ -35,7 +34,7 @@ public class WrapperScope {
         return registeredWrappers.isEmpty();
     }
 
-    public boolean contains(DataModelEntity dme) {
+    public boolean contains(MutableObject dme) {
         return registeredWrappers.containsKey(dme);
     }
 

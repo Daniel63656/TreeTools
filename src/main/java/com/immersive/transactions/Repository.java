@@ -7,18 +7,18 @@ import java.util.Set;
  * A class that wraps around the {@link com.immersive.transactions.RootEntity} and provides the necessary
  * structures to make transactions possible.
  */
-public class Workcopy {
+public class Repository {
 
     /**
-     * the wrapped root entity
+     * the wrapped {@link RootEntity}
      */
     RootEntity rootEntity;
 
-    /** link between data model objects and their content, acting as a remote state the data model
+    /** link between data model objects and their states, acting as a remote state the data model
      * can revert to while uncommitted changes exist.*/
-    LogicalObjectTree LOT;
+    Remote remote;
 
-    /** keep track of at which commit the workcopy is at */
+    /** keep track of at which commit the {@link Repository} is currently at */
     CommitId currentCommitId;
 
     /**
@@ -30,12 +30,12 @@ public class Workcopy {
 
     private final Set<ChildEntity<?>> locallyDeleted = new HashSet<>();
 
-    private final Set<DataModelEntity> locallyChanged = new HashSet<>();
+    private final Set<MutableObject> locallyChanged = new HashSet<>();
 
 
-    Workcopy(RootEntity rootEntity, LogicalObjectTree LOT, CommitId currentCommitId) {
+    Repository(RootEntity rootEntity, Remote remote, CommitId currentCommitId) {
         this.rootEntity = rootEntity;
-        this.LOT = LOT;
+        this.remote = remote;
         this.currentCommitId = currentCommitId;
     }
 
@@ -61,7 +61,7 @@ public class Workcopy {
     }
 
     //used by aspect
-    void logLocalChange(DataModelEntity dme) {
+    void logLocalChange(MutableObject dme) {
         if (dme instanceof ChildEntity) {
             if (!locallyCreated.contains(dme) && !locallyDeleted.contains(dme)) {
                 locallyChanged.add(dme);
@@ -78,7 +78,7 @@ public class Workcopy {
         return locallyDeleted.contains(te);
     }
 
-    boolean locallyChangedContains(DataModelEntity dme) {
+    boolean locallyChangedContains(MutableObject dme) {
         return locallyChanged.contains(dme);
     }
 
@@ -95,7 +95,7 @@ public class Workcopy {
         return locallyDeleted.iterator().next();
     }
 
-    DataModelEntity getOneChange() {
+    MutableObject getOneChange() {
         if (locallyChanged.isEmpty())
             return null;
         return locallyChanged.iterator().next();
@@ -109,7 +109,7 @@ public class Workcopy {
         locallyDeleted.remove(te);
     }
 
-    void removeChange(DataModelEntity dme) {
+    void removeChange(MutableObject dme) {
         locallyChanged.remove(dme);
     }
 

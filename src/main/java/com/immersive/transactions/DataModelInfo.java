@@ -13,18 +13,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Class to cache for transactions relevant information about a {@link DataModelEntity} class's fields and methods, so they don't have to
+ * Class to cache for transactions relevant information about a {@link MutableObject} class's fields and methods, so they don't have to
  * be obtained for each class each time with reflections
  */
 class DataModelInfo {
 
     /** store class information of analyzed classes for quick access */
-    private static final Map<Class<? extends DataModelEntity>, DataModelInfo> dataModelInfo = new HashMap<>();
+    private static final Map<Class<? extends MutableObject>, DataModelInfo> dataModelInfo = new HashMap<>();
 
     /**
      * class whose content is described
      */
-    Class<? extends DataModelEntity> clazz;
+    Class<? extends MutableObject> clazz;
 
     /**
      * all fields that contain children of the described class and superclass(es) either in containers or directly
@@ -46,14 +46,14 @@ class DataModelInfo {
      * @param clazz class to be described
      * @param constructorParams classes used in the transactional constructor
      */
-    DataModelInfo(Class<? extends DataModelEntity> clazz, Class<?>...constructorParams) {
+    DataModelInfo(Class<? extends MutableObject> clazz, Class<?>...constructorParams) {
         this.clazz = clazz;
         traceClassFields();
 
         //check if keys are immutable if not a DataModelEntity
         for (int i=1; i<constructorParams.length; i++) {
             Class<?> key = constructorParams[i];
-            if (!DataModelEntity.class.isAssignableFrom(key) && isComplexObject(key)) {
+            if (!MutableObject.class.isAssignableFrom(key) && isComplexObject(key)) {
                 throwIfMutable(key);
             }
         }
@@ -87,7 +87,7 @@ class DataModelInfo {
         throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
     }
 
-    static ChildEntity<?> construct(Class<? extends DataModelEntity> clazz, Object...objects) {
+    static ChildEntity<?> construct(Class<? extends MutableObject> clazz, Object...objects) {
         if (!dataModelInfo.containsKey(clazz)) {
             Class<?>[] classes = new Class<?>[objects.length];
             for (int i=0; i<objects.length; i++) {
@@ -106,24 +106,24 @@ class DataModelInfo {
         throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
     }
 
-    static Field[] getContentFields(DataModelEntity dme) {
+    static Field[] getContentFields(MutableObject dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
             dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
         return dataModelInfo.get(dme.getClass()).contentFields;
     }
 
-    static Field[] getChildFields(DataModelEntity dme) {
+    static Field[] getChildFields(MutableObject dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
             dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
         return dataModelInfo.get(dme.getClass()).childFields;
     }
 
     /**
-     * get a list of all children stored in a given {@link DataModelEntity}
+     * get a list of all children stored in a given {@link MutableObject}
      * @param dme object to get children from
      */
     @SuppressWarnings("unchecked")
-    static ArrayList<ChildEntity<?>> getChildren(DataModelEntity dme) {
+    static ArrayList<ChildEntity<?>> getChildren(MutableObject dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
             dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
         DataModelInfo info = dataModelInfo.get(dme.getClass());
@@ -177,7 +177,7 @@ class DataModelInfo {
         //first collect all fields of class and all its superclasses
         Field[] relevantFields = new Field[0];
         Class<?> iterator = clazz;
-        Package transactionPackage = DataModelEntity.class.getPackage();
+        Package transactionPackage = MutableObject.class.getPackage();
         while(iterator.getSuperclass() != null) {
             //stop when reaching transaction package so owners and keys won't be considered
             if (iterator.getPackage() == transactionPackage)
@@ -202,14 +202,14 @@ class DataModelInfo {
             //field is an array
             if (type.isArray()) {
                 Class<?> storedType = type.getComponentType();
-                if (!DataModelEntity.class.isAssignableFrom(storedType))
+                if (!MutableObject.class.isAssignableFrom(storedType))
                     throw new IllegalDataModelException(clazz, "contains non DataModelEntities in array \""+field.getName()+"\" which is illegal, because changes of this field can't be tracked!");
                 childFieldList.add(field);
             }
             //field is a collection
             else if (Collection.class.isAssignableFrom(type)) {
                 Class<?> storedType = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
-                if (!DataModelEntity.class.isAssignableFrom(storedType))
+                if (!MutableObject.class.isAssignableFrom(storedType))
                     throw new IllegalDataModelException(clazz, "contains non DataModelEntities in collection \""+field.getName()+"\" which is illegal, because changes of this field can't be tracked!");
                 childFieldList.add(field);
             }
@@ -218,12 +218,12 @@ class DataModelInfo {
                 //get the type that is stored in the map. Assumes stored type is the last generic type!
                 Type[] types = ((ParameterizedType) field.getGenericType()).getActualTypeArguments();
                 Class<?> storedType = (Class<?>) types[types.length-1];
-                if (!DataModelEntity.class.isAssignableFrom(storedType))
+                if (!MutableObject.class.isAssignableFrom(storedType))
                     throw new IllegalDataModelException(clazz, "contains non DataModelEntities in map \""+field.getName()+"\" which is illegal, because changes of this field can't be tracked!");
                 childFieldList.add(field);
             }
             //field is other TransactionalEntity
-            else if (DataModelEntity.class.isAssignableFrom(type)) {
+            else if (MutableObject.class.isAssignableFrom(type)) {
                 //cross-referenced DMEs are not considered to be children of the class
                 if (field.getAnnotation(CrossReference.class) != null)
                     contentFieldList.add(field);
@@ -264,7 +264,7 @@ class DataModelInfo {
             Class<?> fieldType = f.getType();
 
             //don't allow non DME-objects to be DME-owners!
-            if (DataModelEntity.class.isAssignableFrom(fieldType))
+            if (MutableObject.class.isAssignableFrom(fieldType))
                 throw new IllegalDataModelException(type, "can't be owner of a DataModelEntity!");
 
             //static and transient fields are ignored by the transactional system

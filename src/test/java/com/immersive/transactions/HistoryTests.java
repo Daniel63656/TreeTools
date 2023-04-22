@@ -1,7 +1,7 @@
 package com.immersive.transactions;
 
 import com.immersive.test_model.*;
-import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
+import com.immersive.transactions.Remote.ObjectState;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -19,7 +19,7 @@ public class HistoryTests {
         tm.shutdown();
     }
 
-    private Workcopy createTransactionWorkcopy() {
+    private Repository createTransactionWorkcopy() {
         FullScore fullScore = new FullScore();
         track = new Track(fullScore);
         staff = new Staff(track, true);
@@ -38,10 +38,10 @@ public class HistoryTests {
         note3 = new Note(noteGroup, 69, false, NoteName.A);
 
         tm.enableTransactionsForRootEntity(fullScore);
-        return tm.workcopies.get(fullScore);
+        return tm.repositories.get(fullScore);
     }
 
-    private Workcopy createTransactionWorkcopyWithTie() {
+    private Repository createTransactionWorkcopyWithTie() {
         FullScore fullScore = new FullScore();
         track = new Track(fullScore);
         staff = new Staff(track, true);
@@ -61,23 +61,23 @@ public class HistoryTests {
         tieStart.tieWith(tieEnd);
 
         tm.enableTransactionsForRootEntity(fullScore);
-        return tm.workcopies.get(fullScore);
+        return tm.repositories.get(fullScore);
     }
 
     @Test
     public void testParamsDependencyChanging() {
-        Workcopy workcopy = createTransactionWorkcopy();
+        Repository repository = createTransactionWorkcopy();
         tm.enableUndoRedos(64);
         NoteGroup noteGroup = note.getOwner();
         Note newNote = new Note(noteGroup, 60, false, NoteName.E);
         note.clear();
-        tm.commit(workcopy.rootEntity);
+        tm.commit(repository.rootEntity);
         noteGroup.stemUp = false;
-        tm.commit(workcopy.rootEntity);
+        tm.commit(repository.rootEntity);
         noteGroup.stemUp = true;
-        tm.commit(workcopy.rootEntity);
+        tm.commit(repository.rootEntity);
 
-        LogicalObjectKey NG_key = workcopy.LOT.getKey(noteGroup);
+        ObjectState NG_key = repository.remote.getKey(noteGroup);
         for (Object[] objects : tm.history.ongoingCommit.creationRecords.values())
             objects[0] = NG_key;
         for (Object[] objects : tm.history.ongoingCommit.deletionRecords.values())
@@ -86,16 +86,16 @@ public class HistoryTests {
 
     @Test
     public void testSimpleUndo() {
-        Workcopy workcopy = createTransactionWorkcopy();
+        Repository repository = createTransactionWorkcopy();
         tm.enableUndoRedos(64);
         NoteGroup noteGroup = note.getOwner();
         note.setPitch(30);
         new Note(noteGroup, 40, false, NoteName.A);
-        tm.commit(workcopy.rootEntity);
+        tm.commit(repository.rootEntity);
         note2.setPitch(40);
-        tm.commit(workcopy.rootEntity);
+        tm.commit(repository.rootEntity);
         tm.createUndoState();
-        workcopy.rootEntity.undo();
+        repository.rootEntity.undo();
         Assertions.assertEquals(69, note.getPitch());
     }
 

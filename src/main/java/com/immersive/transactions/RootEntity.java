@@ -1,6 +1,7 @@
 package com.immersive.transactions;
 
-import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
+import com.immersive.transactions.Remote.ObjectState;
+import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
 
 import java.util.*;
@@ -8,13 +9,13 @@ import java.util.*;
 
 /**
  * Transactional class for the root element of the data model. This class holds transactional
- * methods like push, pull, redo and undo are called via this object.
+ * methods like push, pull, redo and undo.
  */
-public abstract class RootEntity implements DataModelEntity {
-    private final TransactionManager tm = TransactionManager.getInstance();
+public abstract class RootEntity implements MutableObject {
+    final TransactionManager tm = TransactionManager.getInstance();
 
     /**
-     * Set, holding all wrapper scopes. As member of this class, this field
+     * Set that holds all {@link WrapperScope}s. As member of this class, this field
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
     final Set<WrapperScope> wrapperScopes = new HashSet<>();
@@ -41,11 +42,13 @@ public abstract class RootEntity implements DataModelEntity {
         return scope.registeredWrappers.get(this);
     }
 
+
     @Override
     public void onCleared() {
-        //this is never called since RootEntity has no clear() function
-        throw new RuntimeException("Can't clear the RootEntity of a data model!");
+        //implement and catch this method here to make sure no specific RootEntity can be cleared
+        throw new RuntimeException("Can't remove the root of a data model!");
     }
+
     @Override
     public void onChanged() {
         for (WrapperScope scope : wrapperScopes) {
@@ -59,12 +62,12 @@ public abstract class RootEntity implements DataModelEntity {
         return new Class<?>[0];
     }
     @Override
-    public LogicalObjectKey[] constructorParameterLOKs(LogicalObjectTree LOT) {
-        return new LogicalObjectKey[0];
+    public ObjectState[] constructorParameterStates(Remote remote) {
+        return new ObjectState[0];
     }
 
     @Override
-    public DataModelEntity[] constructorParameterDMEs() { return new DataModelEntity[0];}
+    public MutableObject[] constructorParameterMutables() { return new MutableObject[0];}
 
     @Override
     public RootEntity getRootEntity() {
@@ -72,7 +75,7 @@ public abstract class RootEntity implements DataModelEntity {
     }
 
     @Override
-    public DataModelEntity getCorrespondingObjectIn(RootEntity dstRootEntity) {
+    public MutableObject getCorrespondingObjectIn(RootEntity dstRootEntity) {
         return getObjectSynchronizedIn(this, dstRootEntity);
     }
 
@@ -93,10 +96,10 @@ public abstract class RootEntity implements DataModelEntity {
     }
 
 
-    synchronized DataModelEntity getObjectSynchronizedIn(DataModelEntity dme, RootEntity dstRootEntity) {
-        CommitId srcCommitId = tm.getCurrentCommitId(this);
-        CommitId dstCommitId = tm.getCurrentCommitId(dstRootEntity);
-        LogicalObjectKey LOK = tm.workcopies.get(this).LOT.getKey(dme);
+    synchronized MutableObject getObjectSynchronizedIn(MutableObject dme, RootEntity dstRootEntity) {
+        CommitId srcCommitId = getCurrentCommitId();
+        CommitId dstCommitId = dstRootEntity.getCurrentCommitId();
+        ObjectState LOK = tm.repositories.get(this).remote.getKey(dme);
         for (Commit commit : tm.commits.subMap(srcCommitId, false, dstCommitId, true).values()) {
             if (commit.deletionRecords.containsKey(LOK)) {
                 return null;
@@ -106,9 +109,15 @@ public abstract class RootEntity implements DataModelEntity {
                 LOK = commit.changeRecords.get(LOK);
             }
         }
-        DataModelEntity result = tm.workcopies.get(dstRootEntity).LOT.get(LOK);
+        MutableObject result = tm.repositories.get(dstRootEntity).remote.get(LOK);
         if (result == null)
             throw new TransactionException("object mapping FAILED: couldn't find object in source RootEntity", LOK.hashCode());
         return result;
+    }
+
+    private CommitId getCurrentCommitId() {
+        if (!tm.repositories.containsKey(this))
+            throw new NoTransactionsEnabledException();
+        return tm.repositories.get(this).currentCommitId;
     }
 }

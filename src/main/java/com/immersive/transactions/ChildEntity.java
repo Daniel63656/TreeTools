@@ -4,10 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base class for each class in the data model except the root element. Each such class has an owner in the data model
+ * Base class for each class in the data model except the {@link RootEntity}. Each such class has one and only one owner
+ * in the data model which can not be changed during the objects lifetime.
  * @param <O> class-type of the owner class
  */
-public abstract class ChildEntity<O extends DataModelEntity> implements DataModelEntity {
+public abstract class ChildEntity<O extends MutableObject> implements MutableObject {
 
     /**
      * cache reference to the root entity of the data model for direct access
@@ -20,25 +21,25 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
     protected final O owner;
 
     /**
-     * prevent clearing to happen while object is in the process of clearing. As member of this class, this field
+     * prevent clearing to happen while object is already in the process of clearing. As member of this class, this field
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
     private boolean clearingInProgress;
 
     protected ChildEntity(O owner) {
         this.owner = owner;
-        DataModelEntity it = owner;
+        MutableObject it = owner;
         while(!(it instanceof RootEntity)) {
             it = ((ChildEntity<?>)it).getOwner();
         }
         root = (RootEntity) it;
 
         //log as creation if not in an ongoing pull
-        Workcopy workcopy = TransactionManager.getInstance().workcopies.get(getRootEntity());
-        if (workcopy != null && !workcopy.ongoingPull) {
+        Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
+        if (repository != null && !repository.ongoingPull) {
             /*if (!workcopy.locallyChangedOrCreated.contains(this))
                 System.out.println(getClass().getSimpleName()+" got created");*/
-            workcopy.logLocalCreation(this);
+            repository.logLocalCreation(this);
         }
     }
 
@@ -46,18 +47,25 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         return owner;
     }
 
+    /**
+     * removes itself from the specific owner collection it is owned in.
+     * This method needs to be implemented by any {@link ChildEntity}
+     */
     protected abstract void destruct();
 
-    //not triggered by pulling because pulling uses destruct() only
+    /**
+     * remove this object from the data model. Not triggered by {@link TransactionManager#pull(RootEntity)} because
+     * pulling uses only the {@link ChildEntity#destruct()} method
+     */
     public boolean clear() {
         if (clearingInProgress)
             return true;
         clearingInProgress = true;
         destruct();
-        Workcopy workcopy = TransactionManager.getInstance().workcopies.get(getRootEntity());
-        if (workcopy != null) {
-            workcopy.logLocalDeletion(this);
-            //System.out.println(te.getClass().getSimpleName() + " got deleted");
+        Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
+        if (repository != null) {
+            repository.logLocalDeletion(this);
+            //if (root.tm.verbose) System.out.println(getClass().getSimpleName() + " got deleted");
         }
         onCleared();
         return false;
@@ -98,12 +106,12 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
         return new Class<?>[]{owner.getClass()};
     }
     @Override
-    public Object[] constructorParameterLOKs(LogicalObjectTree LOT) {
-        return new Object[]{LOT.getLogicalObjectKeyOfOwner(this)};
+    public Object[] constructorParameterStates(Remote remote) {
+        return new Object[]{remote.getLogicalObjectKeyOfOwner(this)};
     }
     @Override
-    public DataModelEntity[] constructorParameterDMEs() {
-        return new DataModelEntity[]{owner};
+    public MutableObject[] constructorParameterMutables() {
+        return new MutableObject[]{owner};
     }
     @Override
     public RootEntity getRootEntity() {
@@ -111,7 +119,7 @@ public abstract class ChildEntity<O extends DataModelEntity> implements DataMode
     }
 
     @Override
-    public DataModelEntity getCorrespondingObjectIn(RootEntity dstRootEntity) {
+    public MutableObject getCorrespondingObjectIn(RootEntity dstRootEntity) {
         return root.getObjectSynchronizedIn(this, dstRootEntity);
     }
 }

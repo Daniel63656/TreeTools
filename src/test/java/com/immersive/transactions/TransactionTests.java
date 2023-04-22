@@ -2,7 +2,7 @@ package com.immersive.transactions;
 
 
 import com.immersive.test_model.*;
-import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
+import com.immersive.transactions.Remote.ObjectState;
 
 
 import org.junit.jupiter.api.AfterEach;
@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 public class TransactionTests {
     TransactionManager tm = TransactionManager.getInstance();
-    Workcopy workcopy;
+    Repository repository;
     FullScore fullScore, read;
     Track track;
     Voice voice;
@@ -23,7 +23,7 @@ public class TransactionTests {
     public void prepareFullScores() {
         tm.setVerbose(true);
         createFullScoreWithTransactionsEnabled();
-        read = (FullScore) tm.getWorkcopyOf(fullScore);
+        read = (FullScore) tm.clone(fullScore);
     }
     @AfterEach
     public void cleanUp(){
@@ -51,12 +51,12 @@ public class TransactionTests {
         tieStart.tieWith(tieEnd);
 
         tm.enableTransactionsForRootEntity(fullScore);
-        workcopy = tm.workcopies.get(fullScore);
+        repository = tm.repositories.get(fullScore);
     }
 
-    private void verifyTying(LogicalObjectTree LOT) throws NoSuchFieldException {
-        LogicalObjectKey lok_tieStart = LOT.getKey(tieStart);
-        LogicalObjectKey lok_tieEnd   = LOT.getKey(tieEnd);
+    private void verifyTying(Remote LOT) throws NoSuchFieldException {
+        ObjectState lok_tieStart = LOT.getKey(tieStart);
+        ObjectState lok_tieEnd   = LOT.getKey(tieEnd);
         Assertions.assertSame(lok_tieEnd, lok_tieStart.crossReferences.get(note.getClass().getDeclaredField("nextTied")));
         Assertions.assertSame(null, lok_tieStart.crossReferences.get(note.getClass().getDeclaredField("previousTied")));
         Assertions.assertSame(lok_tieStart, lok_tieEnd.crossReferences.get(note.getClass().getDeclaredField("previousTied")));
@@ -78,7 +78,7 @@ public class TransactionTests {
 
     @Test
     public void testLOTCreation() throws NoSuchFieldException {
-        LogicalObjectTree LOT = workcopy.LOT;
+        Remote LOT = repository.remote;
         //test if LOT contains all classes of JOT and nothing more
         Assertions.assertEquals(LOT.size(), 13);
         Assertions.assertTrue(LOT.containsValue(fullScore));
@@ -98,7 +98,7 @@ public class TransactionTests {
     public void testPullingAChange() {
         note.setPitch(30);
         note.setAccidental(true);
-        Assertions.assertTrue(workcopy.locallyChangedContains(note));
+        Assertions.assertTrue(repository.locallyChangedContains(note));
         fullScore.commit();
         //get note of read workcopy
         Note note = ((NoteGroup) read.getTrack(0).getNTT(Fraction.ZERO).getNGOT(read.getTrack(0).getVoice(0))).getNote(0);
@@ -117,8 +117,8 @@ public class TransactionTests {
         NoteGroup ng = note.getOwner();
         ng.stemUp = false;
         Note newNote = new Note(ng, 80, false, NoteName.A);
-        Assertions.assertTrue(workcopy.locallyChangedContains(ng));
-        Assertions.assertTrue(workcopy.locallyCreatedContains(newNote));
+        Assertions.assertTrue(repository.locallyChangedContains(ng));
+        Assertions.assertTrue(repository.locallyCreatedContains(newNote));
         fullScore.commit();
         System.out.println("pulling...");
         read.pull();
@@ -130,9 +130,9 @@ public class TransactionTests {
         NoteGroup newNoteGroup = new NoteGroup(track.getNTT(Fraction.ZERO), staff, voice, 4, false);
         Note nn1 = new Note(newNoteGroup, 51, false, NoteName.D);
         Note nn2 = new Note(newNoteGroup, 34, true, NoteName.B);
-        Assertions.assertTrue(workcopy.locallyCreatedContains(newNoteGroup));
-        Assertions.assertTrue(workcopy.locallyCreatedContains(nn1));
-        Assertions.assertTrue(workcopy.locallyCreatedContains(nn2));
+        Assertions.assertTrue(repository.locallyCreatedContains(newNoteGroup));
+        Assertions.assertTrue(repository.locallyCreatedContains(nn1));
+        Assertions.assertTrue(repository.locallyCreatedContains(nn2));
 
         fullScore.commit();
         read.pull();
@@ -140,11 +140,11 @@ public class TransactionTests {
 
     @Test
     public void testPullingDeletions() {
-        NoteGroup noteGroup = ((NoteGroup) ((FullScore)workcopy.rootEntity).getTrack(0).getNTT(Fraction.ZERO).getNGOT(voice));
+        NoteGroup noteGroup = ((NoteGroup) ((FullScore) repository.rootEntity).getTrack(0).getNTT(Fraction.ZERO).getNGOT(voice));
         Note note = noteGroup.getNote(0);
         noteGroup.clear();
-        Assertions.assertTrue(workcopy.locallyDeletedContains(noteGroup));
-        Assertions.assertTrue(workcopy.locallyDeletedContains(note));
+        Assertions.assertTrue(repository.locallyDeletedContains(noteGroup));
+        Assertions.assertTrue(repository.locallyDeletedContains(note));
 
         fullScore.commit();
         read.pull();
@@ -158,18 +158,18 @@ public class TransactionTests {
         //change a note
         note.setPitch(30);
         note.setAccidental(true);
-        Assertions.assertTrue(workcopy.locallyChangedContains(note)); //aspects automatically listed changed object
+        Assertions.assertTrue(repository.locallyChangedContains(note)); //aspects automatically listed changed object
         //delete same note and its owner -> change should not be appearing in commit but its gets in local deletion list at first
         noteGroup.clear();
-        Assertions.assertTrue(workcopy.locallyDeletedContains(noteGroup));     //aspects automatically listed deleted noteGroup
-        Assertions.assertTrue(workcopy.locallyDeletedContains(note));          //and its child due to how clear must work
+        Assertions.assertTrue(repository.locallyDeletedContains(noteGroup));     //aspects automatically listed deleted noteGroup
+        Assertions.assertTrue(repository.locallyDeletedContains(note));          //and its child due to how clear must work
         //create new NoteGroup and 2 notes at its place
         NoteGroup newNoteGroup = new NoteGroup(ntt, staff, voice, 16, false);
         Note newNote = new Note(newNoteGroup, 51, false, NoteName.D);
         Note newNote2= new Note(newNoteGroup, 34, true, NoteName.B);
-        Assertions.assertTrue(workcopy.locallyCreatedContains(newNoteGroup));
-        Assertions.assertTrue(workcopy.locallyCreatedContains(newNote));
-        Assertions.assertTrue(workcopy.locallyCreatedContains(newNote2));
+        Assertions.assertTrue(repository.locallyCreatedContains(newNoteGroup));
+        Assertions.assertTrue(repository.locallyCreatedContains(newNote));
+        Assertions.assertTrue(repository.locallyCreatedContains(newNote2));
         //delete one of the created notes -> this notes creation should not be appearing in commit
         newNote2.clear();
 
@@ -217,8 +217,8 @@ public class TransactionTests {
     @Test
     public void testTiedNotesChangingOneAtATime() throws NoSuchFieldException {
         tieStart.setPitch(30);
-        Assertions.assertTrue(workcopy.locallyChangedContains(tieStart));
-        verifyTying(workcopy.LOT);
+        Assertions.assertTrue(repository.locallyChangedContains(tieStart));
+        verifyTying(repository.remote);
         fullScore.commit();
 
         tieEnd.setPitch(30);
@@ -232,8 +232,8 @@ public class TransactionTests {
     public void testTiedNotesChangingAtOnce() {
         tieStart.setPitch(30);
         tieEnd.setPitch(30);
-        Assertions.assertTrue(workcopy.locallyChangedContains(tieStart));
-        Assertions.assertTrue(workcopy.locallyChangedContains(tieEnd));
+        Assertions.assertTrue(repository.locallyChangedContains(tieStart));
+        Assertions.assertTrue(repository.locallyChangedContains(tieEnd));
 
         fullScore.commit();
         read.pull();
@@ -244,12 +244,12 @@ public class TransactionTests {
     public void testTiedNoteGetsDeleted() {
         //this causes to untie and therefore changes tieEnd
         tieStart.clear();
-        Assertions.assertTrue(workcopy.locallyChangedContains(tieEnd));
+        Assertions.assertTrue(repository.locallyChangedContains(tieEnd));
         //but tieStart itself should not appear in the local changes despite the untying, because it gets deleted
-        Assertions.assertFalse(workcopy.locallyChangedContains(tieStart));
-        Assertions.assertTrue(workcopy.locallyDeletedContains(tieStart));
+        Assertions.assertFalse(repository.locallyChangedContains(tieStart));
+        Assertions.assertTrue(repository.locallyDeletedContains(tieStart));
 
-        tm.commit(workcopy.rootEntity);
+        tm.commit(repository.rootEntity);
         read.pull();
         Assertions.assertNull(getNoteInFullScoreAt(fullScore, Fraction.getFraction(16, 1)).getPreviousTied());
     }
@@ -262,7 +262,7 @@ public class TransactionTests {
         Note newTied = new Note(noteGroup, 69, false, NoteName.A);
         tieEnd.tieWith(newTied);
 
-        tm.commit(workcopy.rootEntity);
+        tm.commit(repository.rootEntity);
         read.pull();
 
         Note oldTieEndInRead = getNoteInFullScoreAt(read, Fraction.getFraction(16, 1));

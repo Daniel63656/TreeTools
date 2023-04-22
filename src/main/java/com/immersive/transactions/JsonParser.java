@@ -42,9 +42,9 @@ public final class JsonParser {
     private static class Serialization {
 
         /**
-         * cache created {@link DataModelEntity} with their ID to be able to use ID placeholders for objects
+         * cache created {@link MutableObject} with their ID to be able to use ID placeholders for objects
          */
-        private final Map<DataModelEntity, Integer> createdIDs = new HashMap<>();
+        private final Map<MutableObject, Integer> createdIDs = new HashMap<>();
 
         /**
          * adds line breaks and indentations if set to true
@@ -65,13 +65,13 @@ public final class JsonParser {
                 newIndentedLine(strb, indentation);
             strb.append("{");
             indentation++;
-            DataModelEntity dme = null;
+            MutableObject dme = null;
             if(prettyPrinting) newIndentedLine(strb, indentation);
             strb.append("'class':").append(object.getClass().getSimpleName()).append(",");
 
             //check if object is a DataModelEntity and equip with uid and other functional fields if so
-            if (object instanceof DataModelEntity) {
-                dme = (DataModelEntity) object;
+            if (object instanceof MutableObject) {
+                dme = (MutableObject) object;
                 if (!createdIDs.containsKey(dme))
                     createdIDs.put(dme, createdIDs.size());
 
@@ -91,7 +91,7 @@ public final class JsonParser {
             //get content fields
             Field[] contentFields;
             if (dme != null)
-                contentFields = DataModelInfo.getContentFields((DataModelEntity) object);
+                contentFields = DataModelInfo.getContentFields((MutableObject) object);
             else
                 contentFields = getAllFieldsIncludingInheritedOnes(object.getClass());
 
@@ -117,7 +117,7 @@ public final class JsonParser {
 
                 //field is a non-null cross-reference
                 if (field.getAnnotation(CrossReference.class) != null) {
-                    DataModelEntity cr = (DataModelEntity) fieldValue;
+                    MutableObject cr = (MutableObject) fieldValue;
                     if (!createdIDs.containsKey(cr))
                         createdIDs.put(cr, createdIDs.size());
                     if(prettyPrinting) newIndentedLine(strb, indentation);
@@ -151,12 +151,12 @@ public final class JsonParser {
 
                         //field is an array or collection
                         else if (field.getType().isArray()) {
-                            printArray(field, (DataModelEntity[]) field.get(dme), indentation);
+                            printArray(field, (MutableObject[]) field.get(dme), indentation);
                         }
 
                         //field is a collection
                         else if (Collection.class.isAssignableFrom(field.getType())) {
-                            printArray(field, ((Collection<DataModelEntity>)field.get(dme)).toArray(), indentation);
+                            printArray(field, ((Collection<MutableObject>)field.get(dme)).toArray(), indentation);
                         }
 
                         //field is a map
@@ -165,7 +165,7 @@ public final class JsonParser {
                             if (collection.size() > 0) {
                                 if(prettyPrinting) newIndentedLine(strb, indentation);
                                 strb.append("\"").append(field.getName()).append("\":[");
-                                for (DataModelEntity dm : collection) {
+                                for (MutableObject dm : collection) {
                                     printObject(dm, indentation+1, true);
                                     strb.append(",");
                                 }
@@ -198,9 +198,9 @@ public final class JsonParser {
 
         private void printKey(Object key, String fieldName, int indentation) {
             strb.append("'").append(fieldName).append("':");
-            if (key instanceof DataModelEntity) {
+            if (key instanceof MutableObject) {
                 if (!createdIDs.containsKey(key))
-                    createdIDs.put((DataModelEntity) key, createdIDs.size());
+                    createdIDs.put((MutableObject) key, createdIDs.size());
                 strb.append("|").append(createdIDs.get(key)).append("|");
             }
             else if (!isComplexObject(key.getClass())) {
@@ -384,7 +384,7 @@ public final class JsonParser {
                 Object[] params = new Object[info.constructionParams.size()];
                 for (int i = 0; i < info.constructionParams.size(); i++) {
                     KeyValuePair<Class<?>, Object> kvp = info.constructionParams.get(i);
-                    if (DataModelEntity.class.isAssignableFrom(kvp.key)) {
+                    if (MutableObject.class.isAssignableFrom(kvp.key)) {
                         int uniqueID = (int) kvp.value;
                         if (creationChores.containsKey(uniqueID)) {
                             createDataModelEntity(creationChores, creationChores.get(uniqueID));
@@ -395,7 +395,7 @@ public final class JsonParser {
                         params[i] = kvp.value;
                     }
                 }
-                info.dme = DataModelInfo.construct((Class<? extends DataModelEntity>) info.clazz, params);
+                info.dme = DataModelInfo.construct((Class<? extends MutableObject>) info.clazz, params);
             }
 
             //unwrap content fields
@@ -455,7 +455,7 @@ public final class JsonParser {
         int ownerID;
         List<KeyValuePair<Class<?>, Object>> constructionParams = new ArrayList<>();
         Map<String, String> fields = new HashMap<>();
-        DataModelEntity dme;
+        MutableObject dme;
         //for complex non-DME objects
         Map<String, ObjectInfo> complexObjFields = new HashMap<>();
 
@@ -466,10 +466,10 @@ public final class JsonParser {
     }
 
     private static class CrossReferenceToDo {
-        DataModelEntity dme;
+        MutableObject dme;
         int crossReferenceID;
         Field ObjectField;
-        CrossReferenceToDo(DataModelEntity dme, int crossReferenceID, Field ObjectField) {
+        CrossReferenceToDo(MutableObject dme, int crossReferenceID, Field ObjectField) {
             this.dme = dme;
             this.crossReferenceID = crossReferenceID;
             this.ObjectField = ObjectField;

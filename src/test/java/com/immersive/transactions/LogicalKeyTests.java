@@ -1,7 +1,7 @@
 package com.immersive.transactions;
 
 import com.immersive.test_model.*;
-import com.immersive.transactions.LogicalObjectTree.LogicalObjectKey;
+import com.immersive.transactions.Remote.ObjectState;
 
 
 import org.junit.jupiter.api.Assertions;
@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 
 public class LogicalKeyTests {
-    LogicalObjectTree LOT = new LogicalObjectTree();
+    Remote LOT = new Remote();
     FullScore fullScore;
     Track track;
     Voice voice;
@@ -41,14 +41,14 @@ public class LogicalKeyTests {
 
     @Test
     public void testLogicalKeysBeingImmutable() throws NoSuchFieldException {
-        LogicalObjectKey lok = LOT.createLogicalObjectKey(staff);
+        ObjectState lok = LOT.createObjectState(staff);
         //content in lok must be same as in staff itself
         Assertions.assertSame(lok.get(staff.getClass().getDeclaredField("treble")), staff.isTreble());
         //now change the field -> LOK stays the same
         staff.setTreble(false);
         Assertions.assertNotSame(lok.get(staff.getClass().getDeclaredField("treble")), staff.isTreble());
 
-        LogicalObjectKey lok2 = LOT.createLogicalObjectKey(note);
+        ObjectState lok2 = LOT.createObjectState(note);
         //content in lok must be same as in note itself
         Assertions.assertSame(lok2.get(note.getClass().getDeclaredField("pitch")), note.getPitch());
         //now change the field -> LOK stays the same
@@ -59,14 +59,14 @@ public class LogicalKeyTests {
     @Test
     public void testLogicalKeyContainingInheritedFields() throws NoSuchFieldException {
         NoteGroup noteGroup = ((NoteGroup) fullScore.getTrack(0).getNTT(Fraction.ZERO).getNGOT(voice));
-        LogicalObjectKey lok = LOT.createLogicalObjectKey(noteGroup);
+        ObjectState lok = LOT.createObjectState(noteGroup);
         Assertions.assertTrue(lok.containsKey(NoteGroupOrTuplet.class.getDeclaredField("duration")));
     }
 
     @Test
     public void testCrossReferencesInKeys() throws NoSuchFieldException {
-        LogicalObjectKey lok_tieStart = LOT.createLogicalObjectKey(tieStart);
-        LogicalObjectKey lok_tieEnd   = LOT.createLogicalObjectKey(tieEnd);
+        ObjectState lok_tieStart = LOT.createObjectState(tieStart);
+        ObjectState lok_tieEnd   = LOT.createObjectState(tieEnd);
 
         Assertions.assertSame(lok_tieStart.crossReferences.get(note.getClass().getDeclaredField("nextTied")), lok_tieEnd);
         Assertions.assertSame(lok_tieStart.crossReferences.get(note.getClass().getDeclaredField("previousTied")), null);

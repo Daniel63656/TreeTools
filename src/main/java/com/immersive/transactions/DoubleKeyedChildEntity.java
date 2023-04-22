@@ -6,7 +6,7 @@ package com.immersive.transactions;
  * @param <O> class-type of the owner class
  * @param <K> class-type of the keys used to own this class
  */
-public abstract class DoubleKeyedChildEntity<O extends DataModelEntity, K> extends KeyedChildEntity<O, K> {
+public abstract class DoubleKeyedChildEntity<O extends MutableObject, K> extends KeyedChildEntity<O, K> {
 
     /**
      * reference to the second key the object is associated with
@@ -27,17 +27,17 @@ public abstract class DoubleKeyedChildEntity<O extends DataModelEntity, K> exten
         return new Class<?>[]{owner.getClass(), key.getClass(), key.getClass()};
     }
     @Override
-    public Object[] constructorParameterLOKs(LogicalObjectTree LOT) {
-        if (key instanceof DataModelEntity)
-            return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), LOT.getKey(key), LOT.getKey(endKey)};
-        else    //the key instance can be directly used for construction in other workcopy, because primitive wrapper classes are IMMUTABLE in Java
-            return new Object[]{LOT.getLogicalObjectKeyOfOwner(this), key, endKey};
+    public Object[] constructorParameterStates(Remote remote) {
+        if (key instanceof MutableObject)
+            return new Object[]{remote.getLogicalObjectKeyOfOwner(this), remote.getKey(key), remote.getKey(endKey)};
+        else    //any immutable object act as their own state in the transactional system
+            return new Object[]{remote.getLogicalObjectKeyOfOwner(this), key, endKey};
     }
     @Override
-    public DataModelEntity[] constructorParameterDMEs() {
-        if (key instanceof DataModelEntity)
-            return new DataModelEntity[]{owner, (DataModelEntity) key, (DataModelEntity) endKey};
+    public MutableObject[] constructorParameterMutables() {
+        if (key instanceof MutableObject)
+            return new MutableObject[]{owner, (MutableObject) key, (MutableObject) endKey};
         else
-            return new DataModelEntity[]{owner};
+            return new MutableObject[]{owner};
     }
 }
