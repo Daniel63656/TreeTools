@@ -87,7 +87,7 @@ public class TransactionManager {
     public RootEntity clone(RootEntity rootEntity) {
         if (!repositories.containsKey(rootEntity))
             throw new NoTransactionsEnabledException();
-        Commit initializationCommit = new Commit(null);  //since this is only a temporary commit the commitId doesn't really matter!
+        Commit initializationCommit = new Commit(new CommitId(0));
         //this is necessary to get a DataModel SPECIFIC class!
         RootEntity newRootEntity = DataModelInfo.constructRootEntity(rootEntity.getClass());
         Remote LOT = repositories.get(rootEntity).remote;
@@ -144,19 +144,6 @@ public class TransactionManager {
         }
     }
 
-    //only used by Pull  //TODO same as JSON-parser?
-    private static class CrossReferenceToDo {
-        MutableObject dme;
-        ObjectState objectKey, crossReferenceKey;
-        Field ObjectField;
-        CrossReferenceToDo(MutableObject dme, ObjectState objectKey, ObjectState crossReferenceKey, Field ObjectField) {
-            this.dme = dme;
-            this.objectKey = objectKey;
-            this.crossReferenceKey = crossReferenceKey;
-            this.ObjectField = ObjectField;
-        }
-    }
-
 
     //=============these methods are called synchronized per RootEntity and therefore package-private=================//
 
@@ -179,30 +166,7 @@ public class TransactionManager {
         List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
         ChildEntity<?> te = repository.getOneDeletion();
         while (te != null) {
-            ObjectState state = remote.getKey(te);
-            /*//cross-reference-states point at states in the remote that were up-to-date when this state was constructed.
-            //underlying objects and their states may have changed by now, so we need to trace their changes through
-            //the commits
-            for (Map.Entry<Field, ObjectState> entry : state.crossReferences.entrySet()) {
-                ObjectState crossReferenceState = entry.getValue();
-                if (crossReferenceState == null)
-                    continue;
-                Field field = entry.getKey();
-                field.setAccessible(true);
-                //go through all commits that happened after states' construction
-                for (Commit c : commits.tailMap(crossReferenceState.creationId, false).values()) {
-                    *//*if (c.deletionRecords.containsKey(crossReferenceState)) {
-                        //throw;
-                    }*//*
-                    if (c.changeRecords.containsKey(crossReferenceState)) {
-                        crossReferenceState = c.changeRecords.get(crossReferenceState);
-                    }
-                }
-                state.crossReferences.put(field, crossReferenceState);
-            }*/
-
-
-            commit.deletionRecords.put(state, te.constructorParameterStates(remote));
+            commit.deletionRecords.put(remote.getKey(te), te.constructorParameterStates(remote));
             //don't remove from remote yet, because this destroys owner information for possible deletion of children
             removeFromLOT.add(te);
             repository.removeDeletion(te);
@@ -304,6 +268,18 @@ public class TransactionManager {
 
 
     //---------------PULL---------------//
+
+    private static class CrossReferenceToDo {
+        MutableObject dme;
+        ObjectState state, crossReferencedState;
+        Field objectField;
+        CrossReferenceToDo(MutableObject dme, ObjectState state, ObjectState crossReferencedState, Field objectField) {
+            this.dme = dme;
+            this.state = state;
+            this.crossReferencedState = crossReferencedState;
+            this.objectField = objectField;
+        }
+    }
 
     boolean pull(RootEntity rootEntity) {
         return new Pull(rootEntity).pulledSomething;
@@ -414,12 +390,22 @@ public class TransactionManager {
 
             //at last link the open cross-reference dependencies
             for (CrossReferenceToDo cr : crossReferences) {
-                cr.ObjectField.setAccessible(true);
+
+                //cross-referenced-states only point at valid states in the remote when this state was constructed.
+                //underlying objects and their states may have changed by now, so we need to trace their changes through
+                //all commits that happened after states' construction up to this commit
+                for (Commit c : commits.subMap(cr.state.creationId, false, commit.commitId, true).values()) {
+                    while (c.chRecords.containsKey(cr.crossReferencedState)) {
+                        cr.crossReferencedState = c.chRecords.get(cr.crossReferencedState);
+                    }
+                }
+
+                MutableObject referencedObject = remote.get(cr.crossReferencedState);
+                if (referencedObject == null)
+                    throw new TransactionException("can't find "+cr.crossReferencedState.clazz.getSimpleName()+"["+cr.crossReferencedState.hashCode()+"] in remote, cross referenced by "+remote.getKey(cr.dme).clazz.getSimpleName(), remote.getKey(cr.dme).hashCode());
+                cr.objectField.setAccessible(true);
                 try {
-                    if (remote.get(cr.crossReferenceKey) == null)
-                        throw new TransactionException("can't find "+cr.crossReferenceKey.clazz.getSimpleName()+"["+cr.crossReferenceKey.hashCode()
-                                +"] in remote, cross referenced by "+remote.getKey(cr.dme).clazz.getSimpleName(), remote.getKey(cr.dme).hashCode());
-                    cr.ObjectField.set(cr.dme, remote.get(cr.crossReferenceKey));
+                    cr.objectField.set(cr.dme, referencedObject);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
@@ -499,17 +485,17 @@ public class TransactionManager {
             changeChores.remove(after);
         }
 
-        private void imprintLogicalContentOntoObject(ObjectState after, MutableObject dme) throws IllegalAccessException {
+        private void imprintLogicalContentOntoObject(ObjectState state, MutableObject dme) throws IllegalAccessException {
             for (Field field : DataModelInfo.getContentFields(dme)) {
-                if (after.containsKey(field)) {
+                if (state.containsKey(field)) {
                     field.setAccessible(true);
-                    field.set(dme, after.get(field));
+                    field.set(dme, state.get(field));
                 }
                 //field is a cross-reference
-                else if (after.crossReferences.containsKey(field)) {
-                    if (after.crossReferences.get(field) != null) {
+                else if (state.crossReferences.containsKey(field)) {
+                    if (state.crossReferences.get(field) != null) {
                         //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
-                        crossReferences.add(new CrossReferenceToDo(dme, after, after.crossReferences.get(field), field));
+                        crossReferences.add(new CrossReferenceToDo(dme, state, state.crossReferences.get(field), field));
                     }
                     else {
                         field.setAccessible(true);
@@ -525,30 +511,27 @@ public class TransactionManager {
         if (history == null)
             throw new RuntimeException("Undos/Redos were not enabled!");
         if (history.undosAvailable()) {
-            Commit commit = history.head.self;
-            commit.commitId = currentCommitId;
+            Commit undoCommit = history.head.self;
             history.head = history.head.previous;
-
-            //create a reverted commit
-            Commit revertedCommit = new Commit(commit.commitId);
-            currentCommitId = CommitId.increment(currentCommitId);
-
-            //deletions
-
-            revertedCommit.creationRecords = commit.deletionRecords;
-            revertedCommit.deletionRecords = commit.creationRecords;
+            //create a reverted commit:
+            //invert changeRecords
             DualHashBidiMap<ObjectState, ObjectState> changes = new DualHashBidiMap<>();
-            for (Map.Entry<ObjectState, ObjectState> entry : commit.changeRecords.entrySet()) {
+            for (Map.Entry<ObjectState, ObjectState> entry : undoCommit.changeRecords.entrySet()) {
                 changes.put(entry.getValue(), entry.getKey());
             }
-            revertedCommit.changeRecords = changes;
-
-            if (verbose) System.out.println("\n========== UNDO "+ revertedCommit);
-            new Pull(rootEntity, revertedCommit);
+            DualHashBidiMap<ObjectState, ObjectState> ch = new DualHashBidiMap<>();
+            for (Map.Entry<ObjectState, ObjectState> entry : undoCommit.chRecords.entrySet()) {
+                ch.put(entry.getValue(), entry.getKey());
+            }
+            //deletions become creations and vice versa
+            Commit revertedCommit = new Commit(currentCommitId, undoCommit.deletionRecords, undoCommit.creationRecords, changes, ch);
+            currentCommitId = CommitId.increment(currentCommitId);
 
             synchronized (commits) {
                 commits.put(revertedCommit.commitId, revertedCommit);
             }
+            if (verbose) System.out.println("\n========== UNDO "+ revertedCommit);
+            new Pull(rootEntity, revertedCommit);
             return revertedCommit;
         }
         return null;
@@ -559,14 +542,15 @@ public class TransactionManager {
             throw new RuntimeException("Undos/Redos were not enabled!");
         if (history.redosAvailable()) {
             history.head = history.head.next;
-            Commit commit = history.head.self;
-            commit.commitId = currentCommitId;
+            Commit redoCommit = history.head.self;
+            //copy the commit to give it a proper id
+            Commit commit = new Commit(currentCommitId, redoCommit.creationRecords, redoCommit.deletionRecords, redoCommit.changeRecords, redoCommit.chRecords);
             currentCommitId = CommitId.increment(currentCommitId);
-            if (verbose) System.out.println("\n========== REDO "+ commit);
-            new Pull(rootEntity, commit);
             synchronized (commits) {
                 commits.put(commit.commitId, commit);
             }
+            if (verbose) System.out.println("\n========== REDO "+ commit);
+            new Pull(rootEntity, commit);
             return commit;
         }
         return null;

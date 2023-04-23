@@ -319,6 +319,8 @@ public class TransactionTests {
             Assertions.assertEquals(tieStartBeforeChange, entry.getKey().crossReferences.get(Note.class.getDeclaredField("previousTied")));
             Assertions.assertEquals(tieEndNoteGroupBeforeChange, entry.getValue()[0]);
         }
+
+        read.pull();
     }
 
     /*@Test

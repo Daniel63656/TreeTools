@@ -1,11 +1,13 @@
 package com.immersive.transactions;
 
+import java.util.HashMap;
 import java.util.Map;
 import com.immersive.transactions.Remote.ObjectState;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 class History {
     private final int capacity;     //TODO respect capacity
-    Commit ongoingCommit = new Commit(null);
+    Commit ongoingCommit = new Commit(new DualHashBidiMap<>());
     Node initialNode;  //node without commit to mark the start
     Node head;
 
@@ -22,7 +24,9 @@ class History {
         head.next = node;
         node.previous = head;
         head = node;
-        ongoingCommit = new Commit(null);
+        //these commits are not inserted into transactionManagers commit list. They get copied, at which time they
+        //get their proper id
+        ongoingCommit = new Commit(new DualHashBidiMap<>());
     }
 
     public void addToOngoingCommit(Commit commit) {
@@ -58,6 +62,8 @@ class History {
         for (Map.Entry<ObjectState, ObjectState> entry : commit.changeRecords.entrySet()) {
             ObjectState before = entry.getKey();
             ObjectState after = entry.getValue();
+            //add to detailed change list
+            ongoingCommit.chRecords.put(before, after);
             //change was considered a creation so far - update creation record
             if (ongoingCommit.creationRecords.containsKey(before)) {
                 ongoingCommit.creationRecords.put(after, ongoingCommit.creationRecords.get(before));
