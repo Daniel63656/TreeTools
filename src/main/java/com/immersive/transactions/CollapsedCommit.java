@@ -14,7 +14,7 @@ public class CollapsedCommit extends Commit {
     }
 
     CollapsedCommit(CommitId commitId, CollapsedCommit commit) {
-        super(commitId, commit.creationRecords, commit.deletionRecords, commit.changeRecords);
+        super(commitId, commit.deletionRecords, commit.creationRecords, commit.changeRecords);
         uncutChanges = commit.uncutChanges;
     }
 
@@ -27,11 +27,11 @@ public class CollapsedCommit extends Commit {
         for (Map.Entry<ObjectState, ObjectState> entry : commit.uncutChanges.entrySet()) {
             uncutChanges.put(entry.getValue(), entry.getKey());
         }
-        return new CollapsedCommit(commitId, commit.deletionRecords, commit.creationRecords, changes, uncutChanges);
+        return new CollapsedCommit(commitId, commit.creationRecords, commit.deletionRecords, changes, uncutChanges);
     }
     private CollapsedCommit(CommitId commitId, Map<ObjectState, Object[]> deletionRecords, Map<ObjectState, Object[]> creationRecords,
                             DualHashBidiMap<ObjectState, ObjectState> changeRecords, DualHashBidiMap<ObjectState, ObjectState> uncutChanges) {
-        super(commitId, creationRecords, deletionRecords, changeRecords);
+        super(commitId, deletionRecords, creationRecords, changeRecords);
         this.uncutChanges = uncutChanges;
     }
 
