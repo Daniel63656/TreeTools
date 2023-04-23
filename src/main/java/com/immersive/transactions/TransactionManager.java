@@ -197,7 +197,7 @@ public class TransactionManager {
         synchronized (commits) {
             commits.put(commit.commitId, commit);
             if (history != null)
-                history.addToOngoingCommit(commit);
+                history.ongoingCommit.add(commit);
         }
         if (verbose) System.out.println("\n========== COMMITTED "+ commit);
         return commit;
@@ -395,9 +395,7 @@ public class TransactionManager {
                 //underlying objects and their states may have changed by now, so we need to trace their changes through
                 //all commits that happened after states' construction up to this commit
                 for (Commit c : commits.subMap(cr.state.creationId, false, commit.commitId, true).values()) {
-                    while (c.chRecords.containsKey(cr.crossReferencedState)) {
-                        cr.crossReferencedState = c.chRecords.get(cr.crossReferencedState);
-                    }
+                    cr.crossReferencedState = c.traceForward(cr.crossReferencedState);
                 }
 
                 MutableObject referencedObject = remote.get(cr.crossReferencedState);
@@ -511,28 +509,18 @@ public class TransactionManager {
         if (history == null)
             throw new RuntimeException("Undos/Redos were not enabled!");
         if (history.undosAvailable()) {
-            Commit undoCommit = history.head.self;
+            CollapsedCommit undoCommit = history.head.self;
             history.head = history.head.previous;
-            //create a reverted commit:
-            //invert changeRecords
-            DualHashBidiMap<ObjectState, ObjectState> changes = new DualHashBidiMap<>();
-            for (Map.Entry<ObjectState, ObjectState> entry : undoCommit.changeRecords.entrySet()) {
-                changes.put(entry.getValue(), entry.getKey());
-            }
-            DualHashBidiMap<ObjectState, ObjectState> ch = new DualHashBidiMap<>();
-            for (Map.Entry<ObjectState, ObjectState> entry : undoCommit.chRecords.entrySet()) {
-                ch.put(entry.getValue(), entry.getKey());
-            }
-            //deletions become creations and vice versa
-            Commit revertedCommit = new Commit(currentCommitId, undoCommit.deletionRecords, undoCommit.creationRecords, changes, ch);
+            //create an inverted commit
+            CollapsedCommit invertedCommit = CollapsedCommit.buildInvertedCommit(currentCommitId, undoCommit);
             currentCommitId = CommitId.increment(currentCommitId);
 
             synchronized (commits) {
-                commits.put(revertedCommit.commitId, revertedCommit);
+                commits.put(invertedCommit.commitId, invertedCommit);
             }
-            if (verbose) System.out.println("\n========== UNDO "+ revertedCommit);
-            new Pull(rootEntity, revertedCommit);
-            return revertedCommit;
+            if (verbose) System.out.println("\n========== UNDO "+ invertedCommit);
+            new Pull(rootEntity, invertedCommit);
+            return invertedCommit;
         }
         return null;
     }
@@ -542,9 +530,8 @@ public class TransactionManager {
             throw new RuntimeException("Undos/Redos were not enabled!");
         if (history.redosAvailable()) {
             history.head = history.head.next;
-            Commit redoCommit = history.head.self;
-            //copy the commit to give it a proper id
-            Commit commit = new Commit(currentCommitId, redoCommit.creationRecords, redoCommit.deletionRecords, redoCommit.changeRecords, redoCommit.chRecords);
+            //copy the commit and give it a proper id
+            CollapsedCommit commit = new CollapsedCommit(currentCommitId, history.head.self);
             currentCommitId = CommitId.increment(currentCommitId);
             synchronized (commits) {
                 commits.put(commit.commitId, commit);

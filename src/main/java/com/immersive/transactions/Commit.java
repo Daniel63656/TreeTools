@@ -37,38 +37,34 @@ class Commit {
      */
     final DualHashBidiMap<ObjectState, ObjectState> changeRecords;
 
-    final DualHashBidiMap<ObjectState, ObjectState> chRecords;
-
-
-    Commit(CommitId commitId, Map<ObjectState, Object[]> creationRecords, Map<ObjectState, Object[]> deletionRecords,
-           DualHashBidiMap<ObjectState, ObjectState> changeRecords, DualHashBidiMap<ObjectState, ObjectState> chRecords) {
-        this.commitId = commitId;
-        this.creationRecords = creationRecords;
-        this.deletionRecords = deletionRecords;
-        this.changeRecords = changeRecords;
-        this.chRecords = chRecords;
-    }
-
     Commit(CommitId commitId) {
         this.commitId = commitId;
         this.creationRecords = new HashMap<>();
         this.deletionRecords = new HashMap<>();
         this.changeRecords = new DualHashBidiMap<>();
-        chRecords = changeRecords;
     }
 
-    //ongoing commits
-    Commit(DualHashBidiMap<ObjectState, ObjectState> chRecords) {
-        this.commitId = null;
-        this.creationRecords = new HashMap<>();
-        this.deletionRecords = new HashMap<>();
-        this.changeRecords = new DualHashBidiMap<>();
-        this.chRecords = chRecords;
+    protected Commit(CommitId commitId, Map<ObjectState, Object[]> deletionRecords, Map<ObjectState, Object[]> creationRecords, DualHashBidiMap<ObjectState, ObjectState> changeRecords) {
+        this.commitId = commitId;
+        this.deletionRecords = deletionRecords;
+        this.creationRecords = creationRecords;
+        this.changeRecords = changeRecords;
     }
-
 
     boolean isEmpty() {
         return (deletionRecords.isEmpty() && creationRecords.isEmpty() && changeRecords.isEmpty());
+    }
+
+    ObjectState traceBack(ObjectState state) {
+        if (changeRecords.containsValue(state))
+            state = changeRecords.getKey(state);
+        return state;
+    }
+
+    ObjectState traceForward(ObjectState state) {
+        if (changeRecords.containsKey(state))
+            state = changeRecords.get(state);
+        return state;
     }
 
     @Override
@@ -78,14 +74,14 @@ class Commit {
             strb.append("commit number ").append(commitId.id).append(":\n");
         else strb.append("initialization commit:\n");
         for (Map.Entry<ObjectState, Object[]> entry : deletionRecords.entrySet()) {
-            strb.append(">Delete ").append(entry.getKey().toStringWithUpdatedCrossReferences(commitId)).append("\n");
+            strb.append(">Delete ").append(entry.getKey().toString(commitId)).append("\n");
         }
         for (Map.Entry<ObjectState, Object[]> entry : creationRecords.entrySet()) {
-            strb.append(">Create ").append(entry.getKey().toStringWithUpdatedCrossReferences(commitId)).append("\n");
+            strb.append(">Create ").append(entry.getKey().toString(commitId)).append("\n");
         }
         for (Map.Entry<ObjectState, ObjectState> entry : changeRecords.entrySet()) {
-            strb.append(">Change ").append(entry.getKey().toStringWithUpdatedCrossReferences(commitId)).append("\n     to ")
-                    .append(entry.getValue().toStringWithUpdatedCrossReferences(commitId)).append("\n");
+            strb.append(">Change ").append(entry.getKey().toString(commitId)).append("\n     to ")
+                    .append(entry.getValue().toString(commitId)).append("\n");
         }
         return strb.append("====================================").toString();
     }

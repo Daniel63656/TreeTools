@@ -138,13 +138,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             StringBuilder strb = new StringBuilder();
             strb.append(clazz.getSimpleName()).append("[").append(uniqueID).append("]");
             if (!isEmpty()) {
-                strb.append(" = {");
-                for (Entry<Field, Object> entry : entrySet()) {
-                    if (entry.getValue() instanceof ObjectState)
-                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
-                    else
-                        strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
-                }
+                printImmutableFields(strb);
                 for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
                     if (entry.getValue() == null)
                         strb.append(entry.getKey().getName()).append("=[null] ");
@@ -157,29 +151,23 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             return strb.toString();
         }
 
-        public String toStringWithUpdatedCrossReferences(CommitId currentCommitId) {
+        public String toString(CommitId currentCommitId) {
             StringBuilder strb = new StringBuilder();
             strb.append(clazz.getSimpleName()).append("[").append(uniqueID).append("]");
             if (!isEmpty()) {
-                strb.append(" = {");
-                for (Entry<Field, Object> entry : entrySet()) {
-                    if (entry.getValue() instanceof ObjectState)
-                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
-                    else
-                        strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
-                }
+                printImmutableFields(strb);
                 for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
                     ObjectState crossReferencedState = entry.getValue();
                     if (crossReferencedState == null)
                         strb.append(entry.getKey().getName()).append("=[null] ");
                     else {
                         strb.append(entry.getKey().getName()).append("=[").append(crossReferencedState.uniqueID);
+                        ObjectState traced = crossReferencedState;
                         for (Commit c : TransactionManager.getInstance().commits.subMap(creationId, false, currentCommitId, true).values()) {
-                            while (c.chRecords.containsKey(crossReferencedState)) {
-                                crossReferencedState = c.chRecords.get(crossReferencedState);
-                                strb.append("->").append(crossReferencedState.uniqueID);
-                            }
+                            traced = c.traceForward(traced);
                         }
+                        if (!traced.equals(crossReferencedState))
+                            strb.append("->").append(traced.uniqueID);
                         strb.append("] ");
                     }
                 }
@@ -187,6 +175,16 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
                 strb.append("}");
             }
             return strb.toString();
+        }
+
+        private void printImmutableFields(StringBuilder strb) {
+            strb.append(" = {");
+            for (Entry<Field, Object> entry : entrySet()) {
+                if (entry.getValue() instanceof ObjectState)
+                    strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
+                else
+                    strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
+            }
         }
     }
 }
