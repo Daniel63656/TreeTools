@@ -26,13 +26,13 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * nasty stuff like cross-references are properly handled
      * @param dme object to create the logical key for
      */
-    ObjectState createObjectState(MutableObject dme) {
+    ObjectState createObjectState(MutableObject dme, CommitId currentId) {
         //avoid creating duplicate LOKs for same object within a tree. This also avoids infinite recursion when
         //two cross-references point at each other!
         if (containsValue(dme)) {
             return getKey(dme);
         }
-        ObjectState objectState = new ObjectState(dme.getClass());
+        ObjectState objectState = new ObjectState(dme.getClass(), currentId);
         put(objectState, dme);
 
         //start iterating over fields using reflections
@@ -49,7 +49,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
                 if (fieldValue == null)
                     objectState.crossReferences.put(field, null);
                 else {
-                    ObjectState crossReference = createObjectState((MutableObject) fieldValue);
+                    ObjectState crossReference = createObjectState((MutableObject) fieldValue, currentId);
                     objectState.crossReferences.put(field, crossReference);
                 }
             }
@@ -81,6 +81,8 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          */
         final Class<? extends MutableObject> clazz;
 
+        final CommitId creationId;
+
         /**
          * save logical content of an object, mapped by field
          */
@@ -104,8 +106,9 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          * constructor is private so that logical keys are only instantiated via the {@link Remote} that
          * they are held in
          */
-        private ObjectState(Class<? extends MutableObject> clazz) {
+        private ObjectState(Class<? extends MutableObject> clazz, CommitId creationId) {
             this.clazz = clazz;
+            this.creationId = creationId;
             this.uniqueID = globalID;
             globalID++;
         }

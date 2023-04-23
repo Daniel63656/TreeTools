@@ -303,18 +303,36 @@ public class TransactionTests {
 
     //==========test cross-references combined with undos==========
     @Test
-    public void testCrossReferencedObjectStatesAreCorrectInDeletionRecords() {
-        tm.enableUndoRedos(12);
+    public void testDeletionRecordsHoldStateBeforeTheCommit() throws NoSuchFieldException {
         tieStart.setPitch(30);
         tieEnd.clear();
+        ObjectState tieStartBeforeChange = repository.remote.getKey(tieStart);
+        Commit commit = fullScore.commit();
+
+        //check that the deletion records "previous tied" points at the unchanged state
+        for (ObjectState deletion : commit.deletionRecords.keySet()) {
+            Assertions.assertEquals(tieStartBeforeChange, deletion.crossReferences.get(Note.class.getDeclaredField("previousTied")));
+        }
+    }
+
+    @Test
+    public void testDeletionRecordsHoldStateBeforeTheCommitTracingCrossReferences() throws NoSuchFieldException {
+        tieStart.setPitch(30);
+        ObjectState tieStartBeforeChange = repository.remote.getKey(tieStart);
         fullScore.commit();
-        tm.createUndoState();
-        read.pull();
-        fullScore.undo();
-        read.pull();
+        ObjectState tieStartAfterChange = repository.remote.getKey(tieStart);
 
-        System.out.println("eewewe");
+        //at this point the cross-referenced state of tie start is no longer in the remote because tie start changed
+        Assertions.assertEquals(tieStartBeforeChange, repository.remote.getKey(tieEnd).crossReferences.get(Note.class.getDeclaredField("previousTied")));
 
+        //now remove tieEnd and check if cross-referenced state was updated
+        tieEnd.clear();
+        Commit commit = fullScore.commit();
+
+        //check that the deletion records "previous tied" points at the unchanged state
+        for (ObjectState deletion : commit.deletionRecords.keySet()) {
+            Assertions.assertEquals(tieStartAfterChange, deletion.crossReferences.get(Note.class.getDeclaredField("previousTied")));
+        }
     }
     
     

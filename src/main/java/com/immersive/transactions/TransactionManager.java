@@ -69,8 +69,9 @@ public class TransactionManager {
         //first repo for the given rootEntity
         if (repositories.isEmpty()) {
             Remote LOT = new Remote();
-            Repository repository = new Repository(rootEntity, LOT, new CommitId(0));
-            buildLogicalObjectTree(LOT, rootEntity);
+            CommitId  initializationId = new CommitId(0);
+            Repository repository = new Repository(rootEntity, LOT, initializationId);
+            buildLogicalObjectTree(LOT, rootEntity, initializationId);
             repositories.put(rootEntity, repository);
         }
     }
@@ -122,11 +123,11 @@ public class TransactionManager {
     /**
      * build {@link Remote} of a given {@link MutableObject} recursively
      */
-    private void buildLogicalObjectTree(Remote LOT, MutableObject dme) {
-        LOT.createObjectState(dme);
+    private void buildLogicalObjectTree(Remote LOT, MutableObject dme, CommitId commitId) {
+        LOT.createObjectState(dme, commitId);
         ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
         for (ChildEntity<?> child : children) {
-            buildLogicalObjectTree(LOT, child);
+            buildLogicalObjectTree(LOT, child, commitId);
         }
     }
 
@@ -172,21 +173,32 @@ public class TransactionManager {
         Remote remote = repository.remote;
 
         //create ModificationRecords for DELETED objects
+        //this becomes tricky because commits can be reverted in which case deletionRecords become creationRecords.
+        //therefore, a deletionRecord's objectState must contain the state BEFORE this commit. In order to achieve this,
+        //deletions are handled first (to not include changes in owner/key) and cross-references need extra attention
         List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
         ChildEntity<?> te = repository.getOneDeletion();
         while (te != null) {
-
-            //make sure cross-references are up-to-date
             ObjectState state = remote.getKey(te);
+            //cross-reference-states point at states in the remote that were up-to-date when this state was constructed.
+            //underlying objects and their states may have changed by now, so we need to trace their changes through
+            //the commits
             for (Map.Entry<Field, ObjectState> entry : state.crossReferences.entrySet()) {
+                ObjectState crossReferenceState = entry.getValue();
+                if (crossReferenceState == null)
+                    continue;
                 Field field = entry.getKey();
                 field.setAccessible(true);
-
-                try {
-                    state.crossReferences.put(field, remote.getKey(field.get(te)));
-                } catch (IllegalAccessException e) {
-                    throw new RuntimeException(e);
+                //go through all commits that happened after states' construction
+                for (Commit c : commits.tailMap(crossReferenceState.creationId, false).values()) {
+                    /*if (c.deletionRecords.containsKey(crossReferenceState)) {
+                        //throw;
+                    }*/
+                    if (c.changeRecords.containsKey(crossReferenceState)) {
+                        crossReferenceState = c.changeRecords.get(crossReferenceState);
+                    }
                 }
+                state.crossReferences.put(field, crossReferenceState);
             }
 
 
@@ -244,7 +256,7 @@ public class TransactionManager {
                 commitChange(repository, commit, dme);
         }
         //te is not currently present in remote, so generates a NEW state and put it in remote
-        ObjectState newKey = repository.remote.createObjectState(te);
+        ObjectState newKey = repository.remote.createObjectState(te, commit.commitId);
         //now its save to get the states of owner/keys from the remote and create the creation record with them
         commit.creationRecords.put(newKey, te.constructorParameterStates(repository.remote));
         //log of from creation tasks
@@ -265,7 +277,7 @@ public class TransactionManager {
         ObjectState before = repository.remote.getKey(dme);
         //remove old state from remote first to enable the creation of a new state for this object
         repository.remote.removeValue(dme);
-        ObjectState after = repository.remote.createObjectState(dme);
+        ObjectState after = repository.remote.createObjectState(dme, commit.commitId);
         commit.changeRecords.put(before, after);
         //log of from change tasks
         repository.removeChange(dme);
