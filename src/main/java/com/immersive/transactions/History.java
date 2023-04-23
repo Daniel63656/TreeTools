@@ -46,6 +46,17 @@ class History {
                 ObjectState beforeState = ongoingCommit.changeRecords.getKey(deleteState);
                 ongoingCommit.deletionRecords.put(beforeState, entry.getValue());
                 ongoingCommit.changeRecords.removeValue(deleteState);
+
+                //trace back
+                Object[] objects = ongoingCommit.deletionRecords.get(beforeState);
+                for (int i=0; i<objects.length; i++) {
+                    if (entry.getValue()[i] instanceof ObjectState) {
+                        ObjectState state = (ObjectState) entry.getValue()[i];
+                        while (ongoingCommit.chRecords.containsValue(state))
+                            objects[i] = ongoingCommit.chRecords.getKey(state);
+                        entry.getValue()[i] = state;
+                    }
+                }
             }
             //deletion is in creationRecords
             else if (ongoingCommit.creationRecords.containsKey(deleteState)) {
@@ -56,6 +67,17 @@ class History {
             //not contained so far
             else {
                 ongoingCommit.deletionRecords.put(deleteState, entry.getValue());
+
+                //trace back
+                Object[] objects = ongoingCommit.deletionRecords.get(deleteState);
+                for (int i=0; i<objects.length; i++) {
+                    if (entry.getValue()[i] instanceof ObjectState) {
+                        ObjectState state = (ObjectState) entry.getValue()[i];
+                        while (ongoingCommit.chRecords.containsValue(state))
+                            state = ongoingCommit.chRecords.getKey(state);
+                        entry.getValue()[i] = state;
+                    }
+                }
             }
         }
         
@@ -84,14 +106,14 @@ class History {
         for (Object[] objects : ongoingCommit.creationRecords.values()) {
             for (int i=0; i<objects.length; i++) {
                 if (objects[i] instanceof ObjectState) {
-                    ObjectState LOK = (ObjectState) objects[i];
-                    if (commit.changeRecords.containsKey((ObjectState) objects[i]))
-                        objects[i] = commit.changeRecords.get(LOK);
+                    ObjectState state = (ObjectState) objects[i];
+                    if (commit.changeRecords.containsKey(state))
+                        objects[i] = commit.changeRecords.get(state);
                 }
             }
         }
         //handle key was referenced in params of deletion records
-        for (Object[] objects : ongoingCommit.deletionRecords.values()) {
+        /*for (Object[] objects : ongoingCommit.deletionRecords.values()) {
             for (int i=0; i<objects.length; i++) {
                 if (objects[i] instanceof ObjectState) {
                     ObjectState LOK = (ObjectState) objects[i];
@@ -99,7 +121,7 @@ class History {
                         objects[i] = commit.changeRecords.get(LOK);
                 }
             }
-        }
+        }*/
     }
 
     public boolean undosAvailable() {

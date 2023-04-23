@@ -454,7 +454,7 @@ public class TransactionManager {
                     //now object can be safely accessed via LOT
                     params[i] = remote.get(key);
                     if (params[i] == null)
-                        throw new TransactionException("remote didn't contain construction parameter "+i+" which is a "+state.clazz.getSimpleName(), key.hashCode());
+                        throw new TransactionException("remote didn't contain "+state.clazz.getSimpleName()+" with id["+key.hashCode()+"] needed during creation of "+objKey.clazz.getSimpleName(), objKey.hashCode());
                 }
                 //object is an immutable, no parsing needed
                 else {
