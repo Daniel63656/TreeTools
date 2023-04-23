@@ -99,19 +99,19 @@ public abstract class RootEntity implements MutableObject {
     synchronized MutableObject getObjectSynchronizedIn(MutableObject dme, RootEntity dstRootEntity) {
         CommitId srcCommitId = getCurrentCommitId();
         CommitId dstCommitId = dstRootEntity.getCurrentCommitId();
-        ObjectState LOK = tm.repositories.get(this).remote.getKey(dme);
+        ObjectState state = tm.repositories.get(this).remote.getKey(dme);
         for (Commit commit : tm.commits.subMap(srcCommitId, false, dstCommitId, true).values()) {
-            if (commit.deletionRecords.containsKey(LOK)) {
+            if (commit.deletionRecords.containsKey(state)) {
                 return null;
             }
             //check if BEFORE exists in changeRecords
-            if (commit.changeRecords.containsKey(LOK)) {
-                LOK = commit.changeRecords.get(LOK);
+            if (commit.changeRecords.containsKey(state)) {
+                state = commit.changeRecords.get(state);
             }
         }
-        MutableObject result = tm.repositories.get(dstRootEntity).remote.get(LOK);
+        MutableObject result = tm.repositories.get(dstRootEntity).remote.get(state);
         if (result == null)
-            throw new TransactionException("object mapping FAILED: couldn't find object in source RootEntity", LOK.hashCode());
+            throw new TransactionException("no matching object found in destination root entity for object", state.hashCode());
         return result;
     }
 

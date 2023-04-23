@@ -18,4 +18,9 @@ public class CommitId implements Comparable<CommitId> {
     public int compareTo(@NotNull CommitId right) {
         return Integer.compare(id, right.id);
     }
+
+    @Override
+    public String toString() {
+        return Integer.toString(id);
+    }
 }

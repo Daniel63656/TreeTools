@@ -10,6 +10,13 @@ public abstract class NoteGroupOrTuplet extends KeyedChildEntity<NoteTimeTick, V
     Staff staff;
     int duration;
 
+    public void setStaff(Staff staff) {
+        this.staff = staff;
+    }
+    public Staff getStaff() {
+        return staff;
+    }
+
     //this constructor the transactional logic is looking for
     protected NoteGroupOrTuplet(NoteTimeTick noteTimeTick, Voice voice) {
         super(noteTimeTick, voice);

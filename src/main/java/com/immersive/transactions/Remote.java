@@ -63,7 +63,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
 
     public ObjectState getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
         if (!this.containsValue(te.getOwner())) {
-            throw new TransactionException("Owner not found in LOT!", getKey(te).hashCode());
+            throw new TransactionException("remote didn't contain owner of object", getKey(te).hashCode());
         }
         return this.getKey(te.getOwner());
     }
@@ -134,15 +134,20 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         @Override
         public String toString() {
             StringBuilder strb = new StringBuilder();
-            strb.append(clazz.getSimpleName()).append("(").append(uniqueID).append(")");
+            strb.append(clazz.getSimpleName()).append("[").append(uniqueID).append("]");
             if (!isEmpty()) {
                 strb.append(" = {");
                 for (Entry<Field, Object> entry : entrySet()) {
                     if (entry.getValue() instanceof ObjectState)
-                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("]");
+                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
                     else
-                        strb.append(entry.getKey().getName()).append("=").append(entry.getValue());
-                    strb.append(" ");
+                        strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
+                }
+                for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
+                    if (entry.getValue() == null)
+                        strb.append(entry.getKey().getName()).append("=[null] ");
+                    else
+                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().uniqueID).append("] ");
                 }
                 strb.setLength(strb.length() - 1);  //remove last space
                 strb.append("}");

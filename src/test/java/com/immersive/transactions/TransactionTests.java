@@ -215,6 +215,17 @@ public class TransactionTests {
     //==========test cross-references==========
 
     @Test
+    public void testOneWayCrossReferenceChangeGetsLogged() {
+        NoteGroup group = note.getOwner();
+        group.setStaff(null);
+        repository.locallyChangedContains(note.getOwner());
+
+        fullScore.commit();
+        read.pull();
+        Assertions.assertNull(getNoteInFullScoreAt(read, Fraction.ZERO).getOwner().getStaff());
+    }
+
+    @Test
     public void testTiedNotesChangingOneAtATime() throws NoSuchFieldException {
         tieStart.setPitch(30);
         Assertions.assertTrue(repository.locallyChangedContains(tieStart));
@@ -269,5 +280,24 @@ public class TransactionTests {
         Note newTiedInRead = getNoteInFullScoreAt(read, Fraction.getFraction(24, 1));
         Assertions.assertEquals(oldTieEndInRead, newTiedInRead.getPreviousTied());
         Assertions.assertEquals(newTiedInRead, oldTieEndInRead.getNextTied());
+    }
+
+    @Test
+    public void testCrossReferenceChange() {
+        NoteTimeTick ntt = new NoteTimeTick(track, Fraction.getFraction(24, 1));
+        NoteGroup noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
+        Note newTied = new Note(noteGroup, 69, false, NoteName.A);
+        tieStart.tieWith(newTied);
+        Assertions.assertTrue(repository.locallyCreatedContains(newTied));
+        Assertions.assertTrue(repository.locallyChangedContains(tieStart));
+        Assertions.assertFalse(repository.locallyChangedContains(tieEnd));
+
+        tm.commit(repository.rootEntity);
+        read.pull();
+
+        Note tieStart = getNoteInFullScoreAt(read, Fraction.getFraction(8, 1));
+        Note newTiedInRead = getNoteInFullScoreAt(read, Fraction.getFraction(24, 1));
+        Assertions.assertEquals(tieStart, newTiedInRead.getPreviousTied());
+        Assertions.assertEquals(newTiedInRead, tieStart.getNextTied());
     }
 }

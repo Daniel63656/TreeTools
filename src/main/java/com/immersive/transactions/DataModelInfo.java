@@ -7,10 +7,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
 
 import java.lang.reflect.*;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Class to cache for transactions relevant information about a {@link MutableObject} class's fields and methods, so they don't have to
@@ -101,9 +98,8 @@ class DataModelInfo {
         try {
             return (ChildEntity<?>) info.constructor.newInstance(objects);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+" with parameters: "+ Arrays.toString(objects));
         }
-        throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
     }
 
     static Field[] getContentFields(MutableObject dme) {

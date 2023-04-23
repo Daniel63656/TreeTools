@@ -48,7 +48,9 @@ class Commit {
     @Override
     public String toString() {
         StringBuilder strb = new StringBuilder();
-        strb.append("----------Commit number ").append(commitId.id).append(":----------\n");
+        if (commitId != null)
+            strb.append("commit number ").append(commitId.id).append(":\n");
+        else strb.append("initialization commit:\n");
         for (Map.Entry<ObjectState, Object[]> entry : deletionRecords.entrySet()) {
             strb.append(">Deleted ").append(entry.getKey()).append("\n");
         }
@@ -58,6 +60,6 @@ class Commit {
         for (Map.Entry<ObjectState, ObjectState> entry : changeRecords.entrySet()) {
             strb.append(">Changed ").append(entry.getKey()).append("\n      to ").append(entry.getValue()).append("\n");
         }
-        return strb.append("\n").toString();
+        return strb.append("--------------------------------------------------------------------------------------------").toString();
     }
 }
