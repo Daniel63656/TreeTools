@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 public class TransactionTests {
     TransactionManager tm = TransactionManager.getInstance();
     Repository repository;
@@ -305,17 +307,21 @@ public class TransactionTests {
     @Test
     public void testDeletionRecordsHoldStateBeforeTheCommit() throws NoSuchFieldException {
         tieStart.setPitch(30);
+        tieEnd.getOwner().stemUp = false;
         tieEnd.clear();
         ObjectState tieStartBeforeChange = repository.remote.getKey(tieStart);
+        ObjectState tieEndNoteGroupBeforeChange = repository.remote.getKey(tieEnd.getOwner());
+
         Commit commit = fullScore.commit();
 
-        //check that the deletion records "previous tied" points at the unchanged state
-        for (ObjectState deletion : commit.deletionRecords.keySet()) {
-            Assertions.assertEquals(tieStartBeforeChange, deletion.crossReferences.get(Note.class.getDeclaredField("previousTied")));
+        //check that the deletion records "previous tied" and "owner" points at the unchanged states
+        for (Map.Entry<ObjectState, Object[]> entry : commit.deletionRecords.entrySet()) { //only one deletionRecord
+            Assertions.assertEquals(tieStartBeforeChange, entry.getKey().crossReferences.get(Note.class.getDeclaredField("previousTied")));
+            Assertions.assertEquals(tieEndNoteGroupBeforeChange, entry.getValue()[0]);
         }
     }
 
-    @Test
+    /*@Test
     public void testDeletionRecordsHoldStateBeforeTheCommitTracingCrossReferences() throws NoSuchFieldException {
         tieStart.setPitch(30);
         ObjectState tieStartBeforeChange = repository.remote.getKey(tieStart);
@@ -333,7 +339,7 @@ public class TransactionTests {
         for (ObjectState deletion : commit.deletionRecords.keySet()) {
             Assertions.assertEquals(tieStartAfterChange, deletion.crossReferences.get(Note.class.getDeclaredField("previousTied")));
         }
-    }
+    }*/
     
     
 }

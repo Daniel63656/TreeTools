@@ -174,13 +174,13 @@ public class TransactionManager {
 
         //create ModificationRecords for DELETED objects
         //this becomes tricky because commits can be reverted in which case deletionRecords become creationRecords.
-        //therefore, a deletionRecord's objectState must contain the state BEFORE this commit. In order to achieve this,
-        //deletions are handled first (to not include changes in owner/key) and cross-references need extra attention
+        //therefore, a deletionRecords objectState must contain the state BEFORE this commit. In order to achieve this,
+        //deletions are handled first (to not include changes in owner/key)
         List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
         ChildEntity<?> te = repository.getOneDeletion();
         while (te != null) {
             ObjectState state = remote.getKey(te);
-            //cross-reference-states point at states in the remote that were up-to-date when this state was constructed.
+            /*//cross-reference-states point at states in the remote that were up-to-date when this state was constructed.
             //underlying objects and their states may have changed by now, so we need to trace their changes through
             //the commits
             for (Map.Entry<Field, ObjectState> entry : state.crossReferences.entrySet()) {
@@ -191,15 +191,15 @@ public class TransactionManager {
                 field.setAccessible(true);
                 //go through all commits that happened after states' construction
                 for (Commit c : commits.tailMap(crossReferenceState.creationId, false).values()) {
-                    /*if (c.deletionRecords.containsKey(crossReferenceState)) {
+                    *//*if (c.deletionRecords.containsKey(crossReferenceState)) {
                         //throw;
-                    }*/
+                    }*//*
                     if (c.changeRecords.containsKey(crossReferenceState)) {
                         crossReferenceState = c.changeRecords.get(crossReferenceState);
                     }
                 }
                 state.crossReferences.put(field, crossReferenceState);
-            }
+            }*/
 
 
             commit.deletionRecords.put(state, te.constructorParameterStates(remote));
@@ -501,9 +501,9 @@ public class TransactionManager {
 
         private void imprintLogicalContentOntoObject(ObjectState after, MutableObject dme) throws IllegalAccessException {
             for (Field field : DataModelInfo.getContentFields(dme)) {
-                if (after.content.containsKey(field)) {
+                if (after.containsKey(field)) {
                     field.setAccessible(true);
-                    field.set(dme, after.content.get(field));
+                    field.set(dme, after.get(field));
                 }
                 //field is a cross-reference
                 else if (after.crossReferences.containsKey(field)) {

@@ -55,7 +55,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             }
             //field is of primitive data type
             else {
-                objectState.content.put(field, fieldValue);
+                objectState.put(field, fieldValue);
             }
         }
         return objectState;
@@ -74,7 +74,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * and children. Is designed as a IMMUTABLE class, meaning that all saved values stay constant. If a value requires
      * a change, this is expressed by creating a new key entirely.
      */
-    static class ObjectState {
+    static class ObjectState extends HashMap<Field, Object> {
 
         /**
          * corresponding class-type whose content is saved by this logical key
@@ -84,14 +84,8 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         final CommitId creationId;
 
         /**
-         * save logical content of an object, mapped by field
-         */
-        final HashMap<Field, Object> content = new HashMap<>();
-
-        /**
          * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
-         * the {@link Remote} in the commit that this key was created. These cross-referenced objects may
-         * get new keys in later commits, which is fine because the cross-reference itself is unmodified
+         * the {@link Remote} in the commit that this key was created. 
          */
         final HashMap<Field, ObjectState> crossReferences = new HashMap<>();
 
@@ -114,11 +108,11 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         }
 
         boolean logicallySameWith(ObjectState other) {
-            for(Field f:content.keySet()) {
-                if(!other.content.containsKey(f)) {
+            for(Field f:keySet()) {
+                if(!other.containsKey(f)) {
                     return false;
                 }
-                if(!Objects.equals(content.get(f), other.content.get(f))) {
+                if(!Objects.equals(get(f), other.get(f))) {
                     return false;
                 }
             }
@@ -143,9 +137,9 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         public String toString() {
             StringBuilder strb = new StringBuilder();
             strb.append(clazz.getSimpleName()).append("[").append(uniqueID).append("]");
-            if (!content.isEmpty()) {
+            if (!isEmpty()) {
                 strb.append(" = {");
-                for (Entry<Field, Object> entry : content.entrySet()) {
+                for (Entry<Field, Object> entry : entrySet()) {
                     if (entry.getValue() instanceof ObjectState)
                         strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
                     else
