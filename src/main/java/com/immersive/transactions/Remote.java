@@ -55,7 +55,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             }
             //field is of primitive data type
             else {
-                objectState.put(field, fieldValue);
+                objectState.content.put(field, fieldValue);
             }
         }
         return objectState;
@@ -74,12 +74,17 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * and children. Is designed as a IMMUTABLE class, meaning that all saved values stay constant. If a value requires
      * a change, this is expressed by creating a new key entirely.
      */
-    static class ObjectState extends HashMap<Field, Object> {
+    static class ObjectState {
 
         /**
          * corresponding class-type whose content is saved by this logical key
          */
         final Class<? extends MutableObject> clazz;
+
+        /**
+         * save logical content of an object, mapped by field
+         */
+        final HashMap<Field, Object> content = new HashMap<>();
 
         /**
          * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
@@ -105,12 +110,12 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             globalID++;
         }
 
-        boolean logicallySameWith(ObjectState lok) {
-            for(Field f:keySet()) {
-                if(!lok.containsKey(f)) {
+        boolean logicallySameWith(ObjectState other) {
+            for(Field f:content.keySet()) {
+                if(!other.content.containsKey(f)) {
                     return false;
                 }
-                if(!Objects.equals(this.get(f), lok.get(f))) {
+                if(!Objects.equals(content.get(f), other.content.get(f))) {
                     return false;
                 }
             }
@@ -135,9 +140,9 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         public String toString() {
             StringBuilder strb = new StringBuilder();
             strb.append(clazz.getSimpleName()).append("[").append(uniqueID).append("]");
-            if (!isEmpty()) {
+            if (!content.isEmpty()) {
                 strb.append(" = {");
-                for (Entry<Field, Object> entry : entrySet()) {
+                for (Entry<Field, Object> entry : content.entrySet()) {
                     if (entry.getValue() instanceof ObjectState)
                         strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
                     else

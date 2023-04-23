@@ -171,23 +171,9 @@ public class TransactionManager {
         currentCommitId = CommitId.increment(currentCommitId);
         Remote remote = repository.remote;
 
-        //create ModificationRecords for CREATED objects. This may cause other creation or changes to be handled first
-        ChildEntity<?> te = repository.getOneCreation();
-        while (te != null) {
-            commitCreation(repository, commit, te);
-            te = repository.getOneCreation();
-        }
-
-        //create ModificationRecords for remaining CHANGED objects
-        MutableObject dme = repository.getOneChange();
-        while (dme != null) {
-            commitChange(repository, commit, dme);
-            dme = repository.getOneChange();
-        }
-
         //create ModificationRecords for DELETED objects
         List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
-        te = repository.getOneDeletion();
+        ChildEntity<?> te = repository.getOneDeletion();
         while (te != null) {
 
             //make sure cross-references are up-to-date
@@ -204,13 +190,27 @@ public class TransactionManager {
             }
 
 
-
-            commit.deletionRecords.put(remote.getKey(te), te.constructorParameterStates(remote));
+            commit.deletionRecords.put(state, te.constructorParameterStates(remote));
             //don't remove from remote yet, because this destroys owner information for possible deletion of children
             removeFromLOT.add(te);
             repository.removeDeletion(te);
             te = repository.getOneDeletion();
         }
+
+        //create ModificationRecords for CREATED objects. This may cause other creation or changes to be handled first
+        te = repository.getOneCreation();
+        while (te != null) {
+            commitCreation(repository, commit, te);
+            te = repository.getOneCreation();
+        }
+
+        //create ModificationRecords for remaining CHANGED objects
+        MutableObject dme = repository.getOneChange();
+        while (dme != null) {
+            commitChange(repository, commit, dme);
+            dme = repository.getOneChange();
+        }
+
         //now it is safe to remove all entries from remote
         for (ChildEntity<?> t : removeFromLOT) {
             remote.removeValue(t);
@@ -219,12 +219,11 @@ public class TransactionManager {
         repository.clearUncommittedChanges();
         repository.currentCommitId = commit.commitId;
         synchronized (commits) {
-            if (verbose) System.out.println("\n\nINSERTING COMMIT No "+ commit.commitId);
             commits.put(commit.commitId, commit);
             if (history != null)
                 history.addToOngoingCommit(commit);
         }
-        if (verbose) System.out.println("COMMITTED "+ commit);
+        if (verbose) System.out.println("\n========== COMMITTED "+ commit);
         return commit;
     }
 
@@ -334,7 +333,7 @@ public class TransactionManager {
                 commitsToPull = new ArrayList<>(commits.tailMap(repository.currentCommitId, false).values());
             }
             for (Commit commit : commitsToPull) {
-                if (verbose) System.out.println("PULLING "+ commit);
+                if (verbose) System.out.println("\n========== PULLING "+ commit);
                 pullOneCommit(commit);
             }
             if (!commitsToPull.isEmpty())
@@ -490,9 +489,9 @@ public class TransactionManager {
 
         private void imprintLogicalContentOntoObject(ObjectState after, MutableObject dme) throws IllegalAccessException {
             for (Field field : DataModelInfo.getContentFields(dme)) {
-                if (after.containsKey(field)) {
+                if (after.content.containsKey(field)) {
                     field.setAccessible(true);
-                    field.set(dme, after.get(field));
+                    field.set(dme, after.content.get(field));
                 }
                 //field is a cross-reference
                 else if (after.crossReferences.containsKey(field)) {
@@ -532,11 +531,10 @@ public class TransactionManager {
             }
             revertedCommit.changeRecords = changes;
 
-            if (verbose) System.out.println("UNDO "+ revertedCommit);
+            if (verbose) System.out.println("\n========== UNDO "+ revertedCommit);
             new Pull(rootEntity, revertedCommit);
 
             synchronized (commits) {
-                if (verbose) System.out.println("\n\nINSERTING COMMIT No "+ commit.commitId);
                 commits.put(revertedCommit.commitId, revertedCommit);
             }
             return revertedCommit;
@@ -552,10 +550,9 @@ public class TransactionManager {
             Commit commit = history.head.self;
             commit.commitId = currentCommitId;
             currentCommitId = CommitId.increment(currentCommitId);
-            if (verbose) System.out.println("REDO "+ commit);
+            if (verbose) System.out.println("\n========== REDO "+ commit);
             new Pull(rootEntity, commit);
             synchronized (commits) {
-                if (verbose) System.out.println("\n\nINSERTING commit number "+ commit.commitId);
                 commits.put(commit.commitId, commit);
             }
             return commit;

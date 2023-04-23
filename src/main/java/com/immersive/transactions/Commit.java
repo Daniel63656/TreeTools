@@ -52,14 +52,14 @@ class Commit {
             strb.append("commit number ").append(commitId.id).append(":\n");
         else strb.append("initialization commit:\n");
         for (Map.Entry<ObjectState, Object[]> entry : deletionRecords.entrySet()) {
-            strb.append(">Deleted ").append(entry.getKey()).append("\n");
+            strb.append(">Delete ").append(entry.getKey()).append("\n");
         }
         for (Map.Entry<ObjectState, Object[]> entry : creationRecords.entrySet()) {
-            strb.append(">Created ").append(entry.getKey()).append("\n");
+            strb.append(">Create ").append(entry.getKey()).append("\n");
         }
         for (Map.Entry<ObjectState, ObjectState> entry : changeRecords.entrySet()) {
-            strb.append(">Changed ").append(entry.getKey()).append("\n      to ").append(entry.getValue()).append("\n");
+            strb.append(">Change ").append(entry.getKey()).append("\n     to ").append(entry.getValue()).append("\n");
         }
-        return strb.append("--------------------------------------------------------------------------------------------").toString();
+        return strb.append("====================================").toString();
     }
 }

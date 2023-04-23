@@ -47,7 +47,7 @@ public class TransactionTests {
 
         ntt = new NoteTimeTick(track, Fraction.getFraction(16, 1));
         noteGroup = new NoteGroup(ntt, staff, voice, 8, true);
-        tieEnd = new Note(noteGroup, 69, false, NoteName.A);
+        tieEnd = new Note(noteGroup, 69, false, NoteName.B);
         tieStart.tieWith(tieEnd);
 
         tm.enableTransactionsForRootEntity(fullScore);
@@ -260,7 +260,7 @@ public class TransactionTests {
         Assertions.assertFalse(repository.locallyChangedContains(tieStart));
         Assertions.assertTrue(repository.locallyDeletedContains(tieStart));
 
-        tm.commit(repository.rootEntity);
+        fullScore.commit();
         read.pull();
         Assertions.assertNull(getNoteInFullScoreAt(fullScore, Fraction.getFraction(16, 1)).getPreviousTied());
     }
@@ -273,7 +273,7 @@ public class TransactionTests {
         Note newTied = new Note(noteGroup, 69, false, NoteName.A);
         tieEnd.tieWith(newTied);
 
-        tm.commit(repository.rootEntity);
+        fullScore.commit();
         read.pull();
 
         Note oldTieEndInRead = getNoteInFullScoreAt(read, Fraction.getFraction(16, 1));
@@ -292,7 +292,7 @@ public class TransactionTests {
         Assertions.assertTrue(repository.locallyChangedContains(tieStart));
         Assertions.assertFalse(repository.locallyChangedContains(tieEnd));
 
-        tm.commit(repository.rootEntity);
+        fullScore.commit();
         read.pull();
 
         Note tieStart = getNoteInFullScoreAt(read, Fraction.getFraction(8, 1));
@@ -300,4 +300,22 @@ public class TransactionTests {
         Assertions.assertEquals(tieStart, newTiedInRead.getPreviousTied());
         Assertions.assertEquals(newTiedInRead, tieStart.getNextTied());
     }
+
+    //==========test cross-references combined with undos==========
+    @Test
+    public void testCrossReferencedObjectStatesAreCorrectInDeletionRecords() {
+        tm.enableUndoRedos(12);
+        tieStart.setPitch(30);
+        tieEnd.clear();
+        fullScore.commit();
+        tm.createUndoState();
+        read.pull();
+        fullScore.undo();
+        read.pull();
+
+        System.out.println("eewewe");
+
+    }
+    
+    
 }
