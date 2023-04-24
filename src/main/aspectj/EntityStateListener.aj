@@ -11,11 +11,11 @@ private static TransactionManager tm = TransactionManager.getInstance();
         && target(dme)
         && args(newValue);
 
-    //this will not be called when pulling changes cause reflections do not trigger set but redos!
+
     before(MutableObject dme, Object newValue) : contentFieldSetter(dme, newValue) {
-        Repository repo = tm.repositories.get(dme.getRootEntity());
-        if (repo != null && !repo.ongoingPull) {
-            repo.logLocalChange(dme);
+        Repository repository = tm.repositories.get(dme.getRootEntity());
+        if (repository != null) {
+            repository.logLocalChange(dme);
         }
     }
 }

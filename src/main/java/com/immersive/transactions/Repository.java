@@ -48,10 +48,16 @@ public class Repository {
     }
 
     public void logLocalCreation(ChildEntity<?> te) {
+        //pulls are not allowed to create deltas!
+        if (ongoingPull)
+            return;
         locallyCreated.add(te);
     }
 
     public void logLocalDeletion(ChildEntity<?> te) {
+        //pulls are not allowed to create deltas!
+        if (ongoingPull)
+            return;
         if (locallyCreated.contains(te)) {
             locallyCreated.remove(te);
         }
@@ -66,6 +72,9 @@ public class Repository {
 
     //used by aspect
     public void logLocalChange(MutableObject dme) {
+        //pulls are not allowed to create deltas!
+        if (ongoingPull)
+            return;
         if (dme instanceof ChildEntity) {
             if (!locallyCreated.contains(dme) && !locallyDeleted.contains(dme)) {
                 locallyChanged.add(dme);

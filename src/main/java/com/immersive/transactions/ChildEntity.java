@@ -34,9 +34,9 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
         }
         root = (RootEntity) it;
 
-        //log as creation if not in an ongoing pull
+        //log as creation (isn't done by repository when in ongoing pull)
         Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
-        if (repository != null && !repository.ongoingPull) {
+        if (repository != null) {
             repository.logLocalCreation(this);
         }
     }

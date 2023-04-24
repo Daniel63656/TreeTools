@@ -76,6 +76,9 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
     }
 
     public ObjectState getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
+        if (getKey(te) == null) {
+            throw new TransactionException("remote didn't contain owner of object", getKey(te).hashCode());
+        }
         if (!this.containsValue(te.getOwner())) {
             throw new TransactionException("remote didn't contain owner of object", getKey(te).hashCode());
         }
