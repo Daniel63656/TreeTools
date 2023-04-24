@@ -18,7 +18,7 @@ import java.util.Map;
 public class Commit {
 
     /**
-     * key used to identify the commit
+     * key used to identify the commit. Null when this is an untracked commit
      */
     private final CommitId commitId;
 
@@ -44,15 +44,16 @@ public class Commit {
      */
     protected final DualHashBidiMap<ObjectState, ObjectState> changeRecords;
 
-    protected Commit(CommitId commitId) {
-        this.commitId = commitId;
+
+    protected Commit() {
+        commitId = null;
         this.creationRecords = new HashMap<>();
         this.deletionRecords = new HashMap<>();
         this.changeRecords = new DualHashBidiMap<>();
     }
 
-    protected Commit(CommitId commitId, Map<ObjectState, Object[]> deletionRecords, Map<ObjectState, Object[]> creationRecords, DualHashBidiMap<ObjectState, ObjectState> changeRecords) {
-        this.commitId = commitId;
+    protected Commit(Map<ObjectState, Object[]> deletionRecords, Map<ObjectState, Object[]> creationRecords, DualHashBidiMap<ObjectState, ObjectState> changeRecords) {
+        commitId = new CommitId();
         this.deletionRecords = deletionRecords;
         this.creationRecords = creationRecords;
         this.changeRecords = changeRecords;
@@ -60,11 +61,13 @@ public class Commit {
 
     /**
      * this is the main constructor used to build a commit from the current uncommitted changes of a {@link Repository}
-     * @param commitId current commitId to assign to this commit
      * @param repository repository to fetch local changes from
      */
-    public Commit(CommitId commitId, Repository repository) {
-        this(commitId);
+    public Commit(Repository repository) {
+        commitId = new CommitId();
+        this.creationRecords = new HashMap<>();
+        this.deletionRecords = new HashMap<>();
+        this.changeRecords = new DualHashBidiMap<>();
         Remote remote = repository.getRemote();
 
         //create ModificationRecords for DELETED objects
@@ -165,11 +168,11 @@ public class Commit {
     }
 
     /**
-     * build a commit used for initialization by parsing the content of a given {@link RootEntity} recursively
+     * build an untracked commit used for initialization by parsing the content of a given {@link RootEntity} recursively
      * into a {@link Remote} and adding the object to the commits' {@link Commit#creationRecords}
      */
     public static Commit buildInitializationCommit(Remote remote, RootEntity rootEntity) {
-        Commit commit = new Commit(new CommitId(0));
+        Commit commit = new Commit();
         parseMutableObject(remote, commit, rootEntity);
         return commit;
     }
@@ -185,6 +188,7 @@ public class Commit {
     public CommitId getCommitId() {
         return commitId;
     }
+
     public Map<ObjectState, Object[]> getDeletionRecords() {
         return MapUtils.unmodifiableMap(deletionRecords);
     }
@@ -198,11 +202,9 @@ public class Commit {
         return MapUtils.unmodifiableMap(changeRecords.inverseBidiMap());
     }
 
-
     public boolean isEmpty() {
         return (deletionRecords.isEmpty() && creationRecords.isEmpty() && changeRecords.isEmpty());
     }
-
 
     /**
      * @return an {@link ObjectState} that is valid before this commit.
@@ -226,7 +228,7 @@ public class Commit {
     public String toString() {
         StringBuilder strb = new StringBuilder();
         if (commitId != null)
-            strb.append("commit number ").append(commitId.id).append(":\n");
+            strb.append("commit number ").append(commitId).append(":\n");
         else strb.append("initialization commit:\n");
         for (Map.Entry<ObjectState, Object[]> entry : deletionRecords.entrySet()) {
             strb.append(">Delete ").append(entry.getKey().toString(commitId)).append("\n");

@@ -1,5 +1,6 @@
 package com.immersive.transactions.commits;
 
+import com.immersive.transactions.CommitId;
 import com.immersive.transactions.Remote;
 import org.apache.commons.collections4.MapUtils;
 
@@ -11,8 +12,8 @@ import java.util.Map;
  */
 public class InvertedCommit extends CollapsedCommit {
 
-    public InvertedCommit(CommitId commitId, CollapsedCommit commit) {
-        super(commitId, commit);
+    public InvertedCommit(CollapsedCommit commit) {
+        super(commit);
     }
 
     public Map<Remote.ObjectState, Object[]> getDeletionRecords() {

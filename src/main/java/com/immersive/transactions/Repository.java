@@ -1,7 +1,5 @@
 package com.immersive.transactions;
 
-import com.immersive.transactions.commits.CommitId;
-
 import java.util.HashSet;
 import java.util.Set;
 
@@ -35,9 +33,9 @@ public class Repository {
     private final Set<MutableObject> locallyChanged = new HashSet<>();
 
 
-    Repository(RootEntity rootEntity, Remote remote, CommitId currentCommitId) {
+    Repository(RootEntity rootEntity, CommitId currentCommitId) {
         this.rootEntity = rootEntity;
-        this.remote = remote;
+        this.remote = new Remote(rootEntity, currentCommitId);
         this.currentCommitId = currentCommitId;
     }
 

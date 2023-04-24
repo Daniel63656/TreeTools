@@ -1,17 +1,21 @@
-package com.immersive.transactions.commits;
+package com.immersive.transactions;
 
 import org.jetbrains.annotations.NotNull;
 
 
+/**
+ * Acts like a timestamp. Each instantiation increments the id
+ */
 public class CommitId implements Comparable<CommitId> {
-    int id;
-
-    public CommitId(int id) {
-        this.id = id;
+    private static int currentCommitId;
+    static void reset() {
+        currentCommitId = 0;
     }
+    private final int id;
 
-    public static CommitId increment(CommitId commitId) {
-        return new CommitId(commitId.id+1);
+    public CommitId() {
+        this.id = currentCommitId;
+        currentCommitId++;
     }
 
     @Override

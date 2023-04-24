@@ -2,7 +2,6 @@ package com.immersive.transactions;
 
 import com.immersive.transactions.Remote.ObjectState;
 import com.immersive.transactions.commits.Commit;
-import com.immersive.transactions.commits.CommitId;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
 

@@ -2,11 +2,11 @@ package com.immersive.transactions;
 
 import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.commits.Commit;
-import com.immersive.transactions.commits.CommitId;
 import com.immersive.transactions.exceptions.TransactionException;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
 
@@ -22,6 +22,18 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * make sure each {@link ObjectState} gets assigned a unique ID
      */
     private static int globalID;
+
+
+    Remote(RootEntity rootEntity, CommitId commitId) {
+        buildRemote(this, rootEntity, commitId);
+    }
+    private void buildRemote(Remote remote, MutableObject dme, CommitId commitId) {
+        remote.createObjectState(dme, commitId);
+        ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
+        for (ChildEntity<?> child : children) {
+            buildRemote(remote, child, commitId);
+        }
+    }
 
     /**
      * create an object state. Instantiating a state via the {@link Remote} makes sure, they are only created once per object and
@@ -83,7 +95,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          */
         final Class<? extends MutableObject> clazz;
 
-        final CommitId creationId;
+        private final CommitId creationId;
 
         /**
          * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
@@ -107,6 +119,10 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             this.creationId = creationId;
             this.uniqueID = globalID;
             globalID++;
+        }
+
+        public CommitId getCreationId() {
+            return creationId;
         }
 
         boolean logicallySameWith(ObjectState other) {

@@ -3,10 +3,8 @@ package com.immersive.transactions;
 import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.commits.CollapsedCommit;
 import com.immersive.transactions.commits.Commit;
-import com.immersive.transactions.commits.CommitId;
 import com.immersive.transactions.commits.InvertedCommit;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
-import com.immersive.transactions.exceptions.TransactionException;
 import com.immersive.transactions.Remote.ObjectState;
 
 import java.lang.reflect.Field;
@@ -47,11 +45,6 @@ public class TransactionManager {
      * and {@link TransactionManager#redo(RootEntity)} */
     History history;
 
-    /**
-     * {@link CommitId} for the next commit to come. Each {@link TransactionManager#commit(RootEntity)} will increment this value
-     */
-    private CommitId currentCommitId = new CommitId(1);
-
     /** print messages for debug purposes */
     static boolean verbose;
     public void setVerbose(boolean verbose) {
@@ -70,10 +63,7 @@ public class TransactionManager {
         //transactions are enabled, if there exists at least one repository. If repositories is empty, create the
         //first repo for the given rootEntity
         if (repositories.isEmpty()) {
-            Remote remote = new Remote();
-            CommitId  initializationId = new CommitId(0);
-            Repository repository = new Repository(rootEntity, remote, initializationId);
-            buildRemote(remote, rootEntity, initializationId);
+            Repository repository = new Repository(rootEntity, new CommitId());
             repositories.put(rootEntity, repository);
         }
     }
@@ -92,11 +82,13 @@ public class TransactionManager {
 
         //get a new data model-specific rootEntity
         RootEntity newRootEntity = DataModelInfo.constructRootEntity(rootEntity.getClass());
-        Remote remote = repositories.get(rootEntity).remote;
-        Remote newRemote = new Remote();
-        Commit initializationCommit = Commit.buildInitializationCommit(remote, rootEntity);
+        Remote remoteToClone = repositories.get(rootEntity).remote;
+        //build an untracked initialization commit on the repository that is to be cloned
+        Commit initializationCommit = Commit.buildInitializationCommit(remoteToClone, rootEntity);
+        //create new repository
+        Repository newRepository = new Repository(newRootEntity, repositories.get(rootEntity).currentCommitId);
 
-        //copy content of root entity and put it in remote as well
+        //copy content of root entity and put it in emerging remote as well
         for (Field field : DataModelInfo.getContentFields(newRootEntity)) {
             if (field.getAnnotation(CrossReference.class) != null)
                 throw new RuntimeException("Cross-references not allowed in Root Entity!");
@@ -107,12 +99,11 @@ public class TransactionManager {
                 e.printStackTrace();
             }
         }
-        newRemote.put(remote.getKey(rootEntity), newRootEntity);
+        newRepository.remote.put(remoteToClone.getKey(rootEntity), newRootEntity);
 
-        //create a new repository and populate the data model from the initializationCommit
-        Repository repository = new Repository(newRootEntity, newRemote, initializationCommit.getCommitId());
-        new Pull(repository, initializationCommit);
-        repositories.put(newRootEntity, repository);
+        //populate the data model from the initializationCommit
+        new Pull(newRepository, initializationCommit);
+        repositories.put(newRootEntity, newRepository);
         return newRootEntity;
     }
 
@@ -120,21 +111,29 @@ public class TransactionManager {
      * disable transactions and clean up
      */
     public void shutdown() {
-        repositories.clear(); //effectively disabling transactions
+        CommitId.reset();       //reset id counter
+        repositories.clear();   //effectively disabling transactions
         commits.clear();
         history = null;
     }
 
+    public void createUndoState() {
+        if (history == null)
+            throw new RuntimeException("Undos/Redos are not enabled!");
+        history.createUndoState();
+    }
 
     /**
-     * build {@link Remote} of a given {@link MutableObject} recursively
+     * removes obsolete commits that are no longer used by any {@link Repository}
      */
-    //TODO put as remote constructor?
-    private void buildRemote(Remote remote, MutableObject dme, CommitId commitId) {
-        remote.createObjectState(dme, commitId);
-        ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
-        for (ChildEntity<?> child : children) {
-            buildRemote(remote, child, commitId);
+    private void cleanUpUnnecessaryCommits() {
+        synchronized(commits) {
+            CommitId earliestCommitInUse = commits.lastKey();
+            for (Repository repository : repositories.values()) {
+                if (repository.currentCommitId.compareTo(earliestCommitInUse) < 0)
+                    earliestCommitInUse = repository.currentCommitId;
+            }
+            commits.headMap(earliestCommitInUse, true).clear();
         }
     }
 
@@ -150,8 +149,7 @@ public class TransactionManager {
         if (repository.hasNoLocalChanges())
             return null;
         //create the commit
-        Commit commit = new Commit(currentCommitId, repository);
-        currentCommitId = CommitId.increment(currentCommitId);
+        Commit commit = new Commit(repository);
         //clear deltas of the repository
         repository.clearUncommittedChanges();
         repository.currentCommitId = commit.getCommitId();
@@ -187,7 +185,6 @@ public class TransactionManager {
         return true;
     }
 
-
     /**
      * take the current commit at {@link History#head}, invert it and insert it with a proper {@link CommitId} in
      * {@link TransactionManager#commits}
@@ -202,8 +199,7 @@ public class TransactionManager {
             CollapsedCommit undoCommit = history.head.self;
             history.head = history.head.previous;
             //create an inverted commit
-            CollapsedCommit invertedCommit = new InvertedCommit(currentCommitId, undoCommit);
-            currentCommitId = CommitId.increment(currentCommitId);
+            CollapsedCommit invertedCommit = new InvertedCommit(undoCommit);
 
             synchronized (commits) {
                 commits.put(invertedCommit.getCommitId(), invertedCommit);
@@ -229,8 +225,7 @@ public class TransactionManager {
         if (history.redosAvailable()) {
             history.head = history.head.next;
             //copy the commit and give it a proper id
-            CollapsedCommit commit = new CollapsedCommit(currentCommitId, history.head.self);
-            currentCommitId = CommitId.increment(currentCommitId);
+            CollapsedCommit commit = new CollapsedCommit(history.head.self);
             synchronized (commits) {
                 commits.put(commit.getCommitId(), commit);
             }
@@ -240,25 +235,5 @@ public class TransactionManager {
             return commit;
         }
         return null;
-    }
-
-    public void createUndoState() {
-        if (history == null)
-            throw new RuntimeException("Undos/Redos are not enabled!");
-        history.createUndoState();
-    }
-
-    /**
-     * removes obsolete commits that are no longer used by any {@link Repository}
-     */
-    private void cleanUpUnnecessaryCommits() {
-        synchronized(commits) {
-            CommitId earliestCommitInUse = commits.lastKey();
-            for (Repository repository : repositories.values()) {
-                if (repository.currentCommitId.compareTo(earliestCommitInUse) < 0)
-                    earliestCommitInUse = repository.currentCommitId;
-            }
-            commits.headMap(earliestCommitInUse, true).clear();
-        }
     }
 }

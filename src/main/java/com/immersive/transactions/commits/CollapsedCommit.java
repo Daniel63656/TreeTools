@@ -1,5 +1,6 @@
 package com.immersive.transactions.commits;
 
+import com.immersive.transactions.CommitId;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import com.immersive.transactions.Remote.ObjectState;
 
@@ -10,15 +11,16 @@ public class CollapsedCommit extends Commit {
 
 
     /**
-     * create an empty commit that collapses commits added with {@link CollapsedCommit#add(Commit)} into one commit
+     * create an empty commit that collapses commits added with {@link CollapsedCommit#add(Commit)} into one commit.
+     * Creation of this commit does not increment the {@link CommitId}
      */
     public CollapsedCommit() {
-        super(null);
+        super();
         uncutChanges = new DualHashBidiMap<>();
     }
 
-    public CollapsedCommit(CommitId commitId, CollapsedCommit commit) {
-        super(commitId, commit.deletionRecords, commit.creationRecords, commit.changeRecords);
+    public CollapsedCommit(CollapsedCommit commit) {
+        super(commit.deletionRecords, commit.creationRecords, commit.changeRecords);
         uncutChanges = commit.uncutChanges;
     }
 

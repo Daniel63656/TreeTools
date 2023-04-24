@@ -81,17 +81,17 @@ public class TransactionTests {
 
     @Test
     public void testLOTCreation() throws NoSuchFieldException {
-        Remote LOT = repository.remote;
+        Remote remote = repository.remote;
         //test if LOT contains all classes of JOT and nothing more
-        Assertions.assertEquals(LOT.size(), 13);
-        Assertions.assertTrue(LOT.containsValue(fullScore));
-        Assertions.assertTrue(LOT.containsValue(track));
-        Assertions.assertTrue(LOT.containsValue(staff));
-        Assertions.assertTrue(LOT.containsValue(voice));
-        Assertions.assertTrue(LOT.containsValue(note));
-        Assertions.assertTrue(LOT.containsValue(tieStart));
-        Assertions.assertTrue(LOT.containsValue(tieEnd));
-        verifyTying(LOT);
+        Assertions.assertEquals(remote.size(), 13);
+        Assertions.assertTrue(remote.containsValue(fullScore));
+        Assertions.assertTrue(remote.containsValue(track));
+        Assertions.assertTrue(remote.containsValue(staff));
+        Assertions.assertTrue(remote.containsValue(voice));
+        Assertions.assertTrue(remote.containsValue(note));
+        Assertions.assertTrue(remote.containsValue(tieStart));
+        Assertions.assertTrue(remote.containsValue(tieEnd));
+        verifyTying(remote);
 
         //test if fields of RootEntity were copied as well
         Assertions.assertSame("unique field value", read.name);

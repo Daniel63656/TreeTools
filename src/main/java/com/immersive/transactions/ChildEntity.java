@@ -37,8 +37,6 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
         //log as creation if not in an ongoing pull
         Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
         if (repository != null && !repository.ongoingPull) {
-            /*if (!workcopy.locallyChangedOrCreated.contains(this))
-                System.out.println(getClass().getSimpleName()+" got created");*/
             repository.logLocalCreation(this);
         }
     }
@@ -65,7 +63,6 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
         Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
         if (repository != null) {
             repository.logLocalDeletion(this);
-            //if (root.tm.verbose) System.out.println(getClass().getSimpleName() + " got deleted");
         }
         onCleared();
         return false;

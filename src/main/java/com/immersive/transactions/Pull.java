@@ -24,18 +24,19 @@ public class Pull {
      */
     public Pull(Repository repository, Commit commit) {
         repository.ongoingPull = true;
-        //copy modificationRecords to safely cross things off without changing commit itself!
+        //copy modification- and changeRecords to safely cross things off without changing the commit itself
         creationChores = new HashMap<>(commit.getCreationRecords());
-        Map<Remote.ObjectState, Object[]> deletionChores = commit.getDeletionRecords();  //no removing
         changeChores = new HashMap<>(commit.getInvertedChangeRecords()); //map changeChores with AFTER as key!
+        //no removing here
+        Map<Remote.ObjectState, Object[]> deletionChores = commit.getDeletionRecords();
         remote = repository.remote;
 
         //DELETION - Assumes Deletion Records are created for all subsequent children!!!
         for (Map.Entry<Remote.ObjectState, Object[]> entry : deletionChores.entrySet()) {
             if (verbose) System.out.println(">deleting "+entry.getKey().clazz.getSimpleName()+"["+entry.getKey().hashCode()+"]");
             ChildEntity<?> objectToDelete = (ChildEntity<?>) remote.get(entry.getKey());
-            objectToDelete.onCleared();
-            objectToDelete.getOwner().onChanged();
+            objectToDelete.onCleared();             //notify own wrapper about deletion
+            objectToDelete.getOwner().onChanged();  //notify owners' wrapper
             objectToDelete.destruct();
             remote.removeValue(objectToDelete);
         }
@@ -64,13 +65,15 @@ public class Pull {
 
         //at last link the open cross-reference dependencies
         for (CrossReferenceToDo cr : crossReferences) {
-
             //cross-referenced-states only point at valid states in the remote when this state was constructed.
             //underlying objects and their states may have changed by now, so we need to trace their changes through
             //all commits that happened after states' construction up to this commit
-            //TODO is this access thread safe???
-            for (Commit c : TransactionManager.getInstance().commits.subMap(cr.state.creationId, false, commit.getCommitId(), true).values()) {
-                cr.crossReferencedState = c.traceForward(cr.crossReferencedState);
+            //because commits only up to the pull-commit are retrieved from the commits list, this is unaffected by
+            //commits that are added after pull is called
+            if (commit.getCommitId() != null) { //null for untracked commits like initialization
+                for (Commit c : TransactionManager.getInstance().commits.subMap(cr.state.getCreationId(), false, commit.getCommitId(), true).values()) {
+                    cr.crossReferencedState = c.traceForward(cr.crossReferencedState);
+                }
             }
 
             MutableObject referencedObject = remote.get(cr.crossReferencedState);
@@ -84,7 +87,8 @@ public class Pull {
             }
         }
         crossReferences.clear();
-        repository.currentCommitId = commit.getCommitId();
+        if (commit.getCommitId() != null)
+            repository.currentCommitId = commit.getCommitId();
         repository.ongoingPull = false;
     }
 
