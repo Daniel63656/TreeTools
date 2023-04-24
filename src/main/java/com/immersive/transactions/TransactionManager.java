@@ -4,6 +4,7 @@ import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.commits.CollapsedCommit;
 import com.immersive.transactions.commits.Commit;
 import com.immersive.transactions.commits.CommitId;
+import com.immersive.transactions.commits.InvertedCommit;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
 import com.immersive.transactions.Remote.ObjectState;
@@ -408,7 +409,7 @@ public class TransactionManager {
             CollapsedCommit undoCommit = history.head.self;
             history.head = history.head.previous;
             //create an inverted commit
-            CollapsedCommit invertedCommit = CollapsedCommit.buildInvertedCommit(currentCommitId, undoCommit);
+            CollapsedCommit invertedCommit = new InvertedCommit(currentCommitId, undoCommit);
             currentCommitId = CommitId.increment(currentCommitId);
 
             synchronized (commits) {

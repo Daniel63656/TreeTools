@@ -7,7 +7,9 @@ import java.util.Map;
 
 public class CollapsedCommit extends Commit {
     final DualHashBidiMap<ObjectState, ObjectState> uncutChanges;
-    
+
+
+    //TODO remove???
     public CollapsedCommit() {
         super(null);
         uncutChanges = new DualHashBidiMap<>();
@@ -16,23 +18,6 @@ public class CollapsedCommit extends Commit {
     public CollapsedCommit(CommitId commitId, CollapsedCommit commit) {
         super(commitId, commit.deletionRecords, commit.creationRecords, commit.changeRecords);
         uncutChanges = commit.uncutChanges;
-    }
-
-    public static CollapsedCommit buildInvertedCommit(CommitId commitId, CollapsedCommit commit) {
-        DualHashBidiMap<ObjectState, ObjectState> changes = new DualHashBidiMap<>();
-        for (Map.Entry<ObjectState, ObjectState> entry : commit.changeRecords.entrySet()) {
-            changes.put(entry.getValue(), entry.getKey());
-        }
-        DualHashBidiMap<ObjectState, ObjectState> uncutChanges = new DualHashBidiMap<>();
-        for (Map.Entry<ObjectState, ObjectState> entry : commit.uncutChanges.entrySet()) {
-            uncutChanges.put(entry.getValue(), entry.getKey());
-        }
-        return new CollapsedCommit(commitId, commit.creationRecords, commit.deletionRecords, changes, uncutChanges);
-    }
-    private CollapsedCommit(CommitId commitId, Map<ObjectState, Object[]> deletionRecords, Map<ObjectState, Object[]> creationRecords,
-                            DualHashBidiMap<ObjectState, ObjectState> changeRecords, DualHashBidiMap<ObjectState, ObjectState> uncutChanges) {
-        super(commitId, deletionRecords, creationRecords, changeRecords);
-        this.uncutChanges = uncutChanges;
     }
 
     public ObjectState traceBack(ObjectState state) {
