@@ -1,5 +1,7 @@
 package com.immersive.transactions;
 
+import com.immersive.transactions.commits.CommitId;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -39,15 +41,19 @@ public class Repository {
         this.currentCommitId = currentCommitId;
     }
 
-    boolean hasNoLocalChanges() {
+    public Remote getRemote() {
+        return remote;
+    }
+
+    public boolean hasNoLocalChanges() {
         return locallyCreated.isEmpty() && locallyChanged.isEmpty() && locallyDeleted.isEmpty();
     }
 
-    void logLocalCreation(ChildEntity<?> te) {
+    public void logLocalCreation(ChildEntity<?> te) {
         locallyCreated.add(te);
     }
 
-    void logLocalDeletion(ChildEntity<?> te) {
+    public void logLocalDeletion(ChildEntity<?> te) {
         if (locallyCreated.contains(te)) {
             locallyCreated.remove(te);
         }
@@ -61,7 +67,7 @@ public class Repository {
     }
 
     //used by aspect
-    void logLocalChange(MutableObject dme) {
+    public void logLocalChange(MutableObject dme) {
         if (dme instanceof ChildEntity) {
             if (!locallyCreated.contains(dme) && !locallyDeleted.contains(dme)) {
                 locallyChanged.add(dme);
@@ -70,7 +76,7 @@ public class Repository {
         else locallyChanged.add(dme);
     }
 
-    boolean locallyCreatedContains(ChildEntity<?> te) {
+    public boolean locallyCreatedContains(ChildEntity<?> te) {
         return locallyCreated.contains(te);
     }
 
@@ -78,38 +84,38 @@ public class Repository {
         return locallyDeleted.contains(te);
     }
 
-    boolean locallyChangedContains(MutableObject dme) {
+    public boolean locallyChangedContains(MutableObject dme) {
         return locallyChanged.contains(dme);
     }
 
 
-    ChildEntity<?> getOneCreation() {
+    public ChildEntity<?> getOneCreation() {
         if (locallyCreated.isEmpty())
             return null;
         return locallyCreated.iterator().next();
     }
 
-    ChildEntity<?> getOneDeletion() {
+    public ChildEntity<?> getOneDeletion() {
         if (locallyDeleted.isEmpty())
             return null;
         return locallyDeleted.iterator().next();
     }
 
-    MutableObject getOneChange() {
+    public MutableObject getOneChange() {
         if (locallyChanged.isEmpty())
             return null;
         return locallyChanged.iterator().next();
     }
 
-    void removeCreation(ChildEntity<?> te) {
+    public void removeCreation(ChildEntity<?> te) {
         locallyCreated.remove(te);
     }
 
-    void removeDeletion(ChildEntity<?> te) {
+    public void removeDeletion(ChildEntity<?> te) {
         locallyDeleted.remove(te);
     }
 
-    void removeChange(MutableObject dme) {
+    public void removeChange(MutableObject dme) {
         locallyChanged.remove(dme);
     }
 

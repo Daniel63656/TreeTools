@@ -1,6 +1,8 @@
 package com.immersive.transactions;
 
 import com.immersive.transactions.annotations.CrossReference;
+import com.immersive.transactions.commits.Commit;
+import com.immersive.transactions.commits.CommitId;
 import com.immersive.transactions.exceptions.TransactionException;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
@@ -26,7 +28,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * nasty stuff like cross-references are properly handled
      * @param dme object to create the logical key for
      */
-    ObjectState createObjectState(MutableObject dme, CommitId currentId) {
+    public ObjectState createObjectState(MutableObject dme, CommitId currentId) {
         //avoid creating duplicate LOKs for same object within a tree. This also avoids infinite recursion when
         //two cross-references point at each other!
         if (containsValue(dme)) {
@@ -74,7 +76,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * and children. Is designed as a IMMUTABLE class, meaning that all saved values stay constant. If a value requires
      * a change, this is expressed by creating a new key entirely.
      */
-    static class ObjectState extends HashMap<Field, Object> {
+    public static class ObjectState extends HashMap<Field, Object> {
 
         /**
          * corresponding class-type whose content is saved by this logical key
@@ -87,11 +89,11 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
          * the {@link Remote} in the commit that this key was created. 
          */
-        final HashMap<Field, ObjectState> crossReferences = new HashMap<>();
+        public final HashMap<Field, ObjectState> crossReferences = new HashMap<>();
 
         /**
          * A unique {@link Remote} wide ID to identify the logical key. Necessary because all fields can be the same
-         * for differnet objects in the tree
+         * for differnet objects in the tree. Needs to be int to be used as hash directly
          */
         private final int uniqueID;
 

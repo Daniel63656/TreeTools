@@ -1,6 +1,8 @@
 package com.immersive.transactions;
 
 
+import com.immersive.transactions.commits.CollapsedCommit;
+
 class History {
     private final int capacity;     //TODO respect capacity
     CollapsedCommit ongoingCommit = new CollapsedCommit();

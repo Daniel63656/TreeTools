@@ -1,4 +1,4 @@
-package com.immersive.transactions;
+package com.immersive.transactions.commits;
 
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import com.immersive.transactions.Remote.ObjectState;
@@ -8,17 +8,17 @@ import java.util.Map;
 public class CollapsedCommit extends Commit {
     final DualHashBidiMap<ObjectState, ObjectState> uncutChanges;
     
-    CollapsedCommit() {
+    public CollapsedCommit() {
         super(null);
         uncutChanges = new DualHashBidiMap<>();
     }
 
-    CollapsedCommit(CommitId commitId, CollapsedCommit commit) {
+    public CollapsedCommit(CommitId commitId, CollapsedCommit commit) {
         super(commitId, commit.deletionRecords, commit.creationRecords, commit.changeRecords);
         uncutChanges = commit.uncutChanges;
     }
 
-    static CollapsedCommit buildInvertedCommit(CommitId commitId, CollapsedCommit commit) {
+    public static CollapsedCommit buildInvertedCommit(CommitId commitId, CollapsedCommit commit) {
         DualHashBidiMap<ObjectState, ObjectState> changes = new DualHashBidiMap<>();
         for (Map.Entry<ObjectState, ObjectState> entry : commit.changeRecords.entrySet()) {
             changes.put(entry.getValue(), entry.getKey());
@@ -35,19 +35,19 @@ public class CollapsedCommit extends Commit {
         this.uncutChanges = uncutChanges;
     }
 
-    ObjectState traceBack(ObjectState state) {
+    public ObjectState traceBack(ObjectState state) {
         while (uncutChanges.containsValue(state))
             state = uncutChanges.getKey(state);
         return state;
     }
 
-    ObjectState traceForward(ObjectState state) {
+    public ObjectState traceForward(ObjectState state) {
         while (uncutChanges.containsKey(state))
             state = uncutChanges.get(state);
         return state;
     }
 
-    void add(Commit commit) {
+    public void add(Commit commit) {
         for (Map.Entry<ObjectState, Object[]> entry : commit.creationRecords.entrySet()) {
             ObjectState creationState = entry.getKey();
             if (creationRecords.containsKey(creationState) ||

@@ -1,11 +1,12 @@
 package com.immersive.transactions;
 
 import com.immersive.transactions.annotations.CrossReference;
+import com.immersive.transactions.commits.CollapsedCommit;
+import com.immersive.transactions.commits.Commit;
+import com.immersive.transactions.commits.CommitId;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
 import com.immersive.transactions.Remote.ObjectState;
-
-import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -68,10 +69,10 @@ public class TransactionManager {
         //transactions are enabled, if there exists at least one repository. If repositories is empty, create the
         //first repo for the given rootEntity
         if (repositories.isEmpty()) {
-            Remote LOT = new Remote();
+            Remote remote = new Remote();
             CommitId  initializationId = new CommitId(0);
-            Repository repository = new Repository(rootEntity, LOT, initializationId);
-            buildLogicalObjectTree(LOT, rootEntity, initializationId);
+            Repository repository = new Repository(rootEntity, remote, initializationId);
+            buildRemote(remote, rootEntity, initializationId);
             repositories.put(rootEntity, repository);
         }
     }
@@ -87,13 +88,14 @@ public class TransactionManager {
     public RootEntity clone(RootEntity rootEntity) {
         if (!repositories.containsKey(rootEntity))
             throw new NoTransactionsEnabledException();
-        Commit initializationCommit = new Commit(new CommitId(0));
-        //this is necessary to get a DataModel SPECIFIC class!
+
+        //get a new data model-specific rootEntity
         RootEntity newRootEntity = DataModelInfo.constructRootEntity(rootEntity.getClass());
-        Remote LOT = repositories.get(rootEntity).remote;
-        Remote newLOT = new Remote();
-        buildInitializationCommit(LOT, initializationCommit, rootEntity);
-        //copy content of root entity
+        Remote remote = repositories.get(rootEntity).remote;
+        Remote newRemote = new Remote();
+        Commit initializationCommit = Commit.buildInitializationCommit(remote, rootEntity);
+
+        //copy content of root entity and put it in remote as well
         for (Field field : DataModelInfo.getContentFields(newRootEntity)) {
             if (field.getAnnotation(CrossReference.class) != null)
                 throw new RuntimeException("Cross-references not allowed in Root Entity!");
@@ -104,8 +106,10 @@ public class TransactionManager {
                 e.printStackTrace();
             }
         }
-        newLOT.put(LOT.getKey(rootEntity), newRootEntity);
-        Repository repository = new Repository(newRootEntity, newLOT, new CommitId(0));
+        newRemote.put(remote.getKey(rootEntity), newRootEntity);
+
+        //create a new repository and populate the data model from the initializationCommit
+        Repository repository = new Repository(newRootEntity, newRemote, initializationCommit.getCommitId());
         new Pull(repository, initializationCommit);
         repositories.put(newRootEntity, repository);
         return newRootEntity;
@@ -117,30 +121,19 @@ public class TransactionManager {
     public void shutdown() {
         repositories.clear(); //effectively disabling transactions
         commits.clear();
+        history = null;
     }
 
 
     /**
      * build {@link Remote} of a given {@link MutableObject} recursively
      */
-    private void buildLogicalObjectTree(Remote LOT, MutableObject dme, CommitId commitId) {
-        LOT.createObjectState(dme, commitId);
+    //TODO put as remote constructor?
+    private void buildRemote(Remote remote, MutableObject dme, CommitId commitId) {
+        remote.createObjectState(dme, commitId);
         ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
         for (ChildEntity<?> child : children) {
-            buildLogicalObjectTree(LOT, child, commitId);
-        }
-    }
-
-    /**
-     * build a commit used for initialization by parsing the content of a given {@link MutableObject} recursively
-     * into a {@link Remote} and adding the object to the commits' {@link Commit#creationRecords}
-     */
-    private void buildInitializationCommit(Remote LOT, Commit commit, MutableObject dme) {
-        if (!(dme instanceof RootEntity))
-            commit.creationRecords.put(LOT.getKey(dme), dme.constructorParameterStates(LOT));
-        ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
-        for (ChildEntity<?> child : children) {
-            buildInitializationCommit(LOT, commit, child);
+            buildRemote(remote, child, commitId);
         }
     }
 
@@ -155,115 +148,19 @@ public class TransactionManager {
         //skip "empty" commits
         if (repository.hasNoLocalChanges())
             return null;
-        Commit commit = new Commit(currentCommitId);
+        //create the commit
+        Commit commit = new Commit(currentCommitId, repository);
         currentCommitId = CommitId.increment(currentCommitId);
-        Remote remote = repository.remote;
-
-        //create ModificationRecords for DELETED objects
-        //this becomes tricky because commits can be reverted in which case deletionRecords become creationRecords.
-        //therefore, a deletionRecords objectState must contain the state BEFORE this commit. In order to achieve this,
-        //deletions are handled first (to not include changes in owner/key)
-        List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
-        ChildEntity<?> te = repository.getOneDeletion();
-        while (te != null) {
-            commit.deletionRecords.put(remote.getKey(te), te.constructorParameterStates(remote));
-            //don't remove from remote yet, because this destroys owner information for possible deletion of children
-            removeFromLOT.add(te);
-            repository.removeDeletion(te);
-            te = repository.getOneDeletion();
-        }
-
-        //create ModificationRecords for CREATED objects. This may cause other creation or changes to be handled first
-        te = repository.getOneCreation();
-        while (te != null) {
-            commitCreation(repository, commit, te);
-            te = repository.getOneCreation();
-        }
-
-        //create ModificationRecords for remaining CHANGED objects
-        MutableObject dme = repository.getOneChange();
-        while (dme != null) {
-            commitChange(repository, commit, dme);
-            dme = repository.getOneChange();
-        }
-
-        //now it is safe to remove all entries from remote
-        for (ChildEntity<?> t : removeFromLOT) {
-            remote.removeValue(t);
-        }
         //clear deltas of the repository
         repository.clearUncommittedChanges();
-        repository.currentCommitId = commit.commitId;
+        repository.currentCommitId = commit.getCommitId();
         synchronized (commits) {
-            commits.put(commit.commitId, commit);
+            commits.put(commit.getCommitId(), commit);
             if (history != null)
                 history.ongoingCommit.add(commit);
         }
         if (verbose) System.out.println("\n========== COMMITTED "+ commit);
         return commit;
-    }
-
-
-    /**
-     * process a local creation into a creationRecord. Makes sure that all {@link ObjectState}s used either
-     * for construction parameters or cross-references, are up-to-date
-     */
-    private ObjectState commitCreation(Repository repository, Commit commit, ChildEntity<?> te) {
-        //creationRecord contains states needed to construct this object. These states have to be present in the
-        //remote. The method makes sure this is the case by recursively processing these creation or changes first
-
-        //loop over all objects needed for construction. Non MutableObjects are not included
-        for (MutableObject dme : te.constructorParameterMutables()) {
-            if (dme instanceof ChildEntity<?> && repository.locallyCreatedContains((ChildEntity<?>) dme))
-                commitCreation(repository, commit, (ChildEntity<?>) dme);
-            else if (repository.locallyChangedContains(dme))
-                commitChange(repository, commit, dme);
-        }
-        //te is not currently present in remote, so generates a NEW state and put it in remote
-        ObjectState newKey = repository.remote.createObjectState(te, commit.commitId);
-        //now its save to get the states of owner/keys from the remote and create the creation record with them
-        commit.creationRecords.put(newKey, te.constructorParameterStates(repository.remote));
-        //log of from creation tasks
-        repository.removeCreation(te);
-
-        //the newly created state may reference other states in cross-references, that may become outdated with this commit
-        //avoid this by deploying the same strategy as above
-        makeSureCrossReferencedStatesAreInRemote(repository, commit, newKey.crossReferences);
-        return newKey;
-    }
-
-
-    /**
-     * process a local change into a changeRecord. Makes sure that all {@link ObjectState}s used in
-     * cross-references, are up-to-date
-     */
-    private ObjectState commitChange(Repository repository, Commit commit, MutableObject dme) {
-        ObjectState before = repository.remote.getKey(dme);
-        //remove old state from remote first to enable the creation of a new state for this object
-        repository.remote.removeValue(dme);
-        ObjectState after = repository.remote.createObjectState(dme, commit.commitId);
-        commit.changeRecords.put(before, after);
-        //log of from change tasks
-        repository.removeChange(dme);
-
-        //the newly created state may reference other states in cross-references, that may become outdated with this commit
-        makeSureCrossReferencedStatesAreInRemote(repository, commit, after.crossReferences);
-        return after;
-    }
-
-    private void makeSureCrossReferencedStatesAreInRemote(Repository repository, Commit commit, Map<Field, ObjectState> crossReferences) {
-        for (Map.Entry<Field, ObjectState> crossReference : crossReferences.entrySet()) {
-            //get the object the cross-reference is pointing at
-            MutableObject dme = repository.remote.get(crossReference.getValue());
-            if (dme != null) {
-                //update or create object first. If the object points back at this due to the cross-reference being
-                //circular, this is already logged of from local creations
-                if (dme instanceof ChildEntity<?> && repository.locallyCreatedContains((ChildEntity<?>) dme))
-                    crossReference.setValue(commitCreation(repository, commit, (ChildEntity<?>) dme));
-                else if (repository.locallyChangedContains(dme))
-                    crossReference.setValue(commitChange(repository, commit, dme));
-            }
-        }
     }
 
 
@@ -338,7 +235,7 @@ public class TransactionManager {
             repository.ongoingPull = true;
             pullOneCommit(commit);
             repository.ongoingPull = false;
-            repository.currentCommitId = commit.commitId;
+            repository.currentCommitId = commit.getCommitId();
             cleanUpUnnecessaryCommits();
         }
 
@@ -349,11 +246,10 @@ public class TransactionManager {
          */
         private void pullOneCommit(Commit commit) {
             //copy modificationRecords to safely cross things off without changing commit itself!
-            creationChores = new HashMap<>(commit.creationRecords);
-            deletionChores = commit.deletionRecords;  //no removing
-            changeChores = new HashMap<>();           //map changeChores with AFTER as key!
-            for (Map.Entry<ObjectState, ObjectState> entry : commit.changeRecords.entrySet())
-                changeChores.put(entry.getValue(), entry.getKey());
+            creationChores = new HashMap<>(commit.getCreationRecords());
+            deletionChores = commit.getDeletionRecords();  //no removing
+            changeChores = new HashMap<>(commit.getInvertedChanges()); //map changeChores with AFTER as key!
+
             remote = repository.remote;
 
             //DELETION - Assumes Deletion Records are created for all subsequent children!!!
@@ -394,7 +290,7 @@ public class TransactionManager {
                 //cross-referenced-states only point at valid states in the remote when this state was constructed.
                 //underlying objects and their states may have changed by now, so we need to trace their changes through
                 //all commits that happened after states' construction up to this commit
-                for (Commit c : commits.subMap(cr.state.creationId, false, commit.commitId, true).values()) {
+                for (Commit c : commits.subMap(cr.state.creationId, false, commit.getCommitId(), true).values()) {
                     cr.crossReferencedState = c.traceForward(cr.crossReferencedState);
                 }
 
@@ -409,7 +305,7 @@ public class TransactionManager {
                 }
             }
             crossReferences.clear();
-            repository.currentCommitId = commit.commitId;
+            repository.currentCommitId = commit.getCommitId();
         }
 
         /**
@@ -516,7 +412,7 @@ public class TransactionManager {
             currentCommitId = CommitId.increment(currentCommitId);
 
             synchronized (commits) {
-                commits.put(invertedCommit.commitId, invertedCommit);
+                commits.put(invertedCommit.getCommitId(), invertedCommit);
             }
             if (verbose) System.out.println("\n========== UNDO "+ invertedCommit);
             new Pull(rootEntity, invertedCommit);
@@ -534,7 +430,7 @@ public class TransactionManager {
             CollapsedCommit commit = new CollapsedCommit(currentCommitId, history.head.self);
             currentCommitId = CommitId.increment(currentCommitId);
             synchronized (commits) {
-                commits.put(commit.commitId, commit);
+                commits.put(commit.getCommitId(), commit);
             }
             if (verbose) System.out.println("\n========== REDO "+ commit);
             new Pull(rootEntity, commit);

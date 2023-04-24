@@ -13,7 +13,7 @@ import java.util.*;
  * Class to cache for transactions relevant information about a {@link MutableObject} class's fields and methods, so they don't have to
  * be obtained for each class each time with reflections
  */
-class DataModelInfo {
+public class DataModelInfo {
 
     /** store class information of analyzed classes for quick access */
     private static final Map<Class<? extends MutableObject>, DataModelInfo> dataModelInfo = new HashMap<>();
@@ -119,7 +119,7 @@ class DataModelInfo {
      * @param dme object to get children from
      */
     @SuppressWarnings("unchecked")
-    static ArrayList<ChildEntity<?>> getChildren(MutableObject dme) {
+    public static ArrayList<ChildEntity<?>> getChildren(MutableObject dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
             dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
         DataModelInfo info = dataModelInfo.get(dme.getClass());

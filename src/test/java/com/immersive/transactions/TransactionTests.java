@@ -5,6 +5,7 @@ import com.immersive.test_model.*;
 import com.immersive.transactions.Remote.ObjectState;
 
 
+import com.immersive.transactions.commits.Commit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -177,8 +178,8 @@ public class TransactionTests {
 
         fullScore.commit();
         Commit commit = tm.commits.get(tm.commits.firstKey());
-        Assertions.assertEquals(0, commit.changeRecords.size());    //no change
-        Assertions.assertEquals(2, commit.creationRecords.size());  //only two creations
+        Assertions.assertEquals(0, commit.getChanges().size());    //no change
+        Assertions.assertEquals(2, commit.getCreationRecords().size());  //only two creations
 
         read.pull();
     }
@@ -315,33 +316,13 @@ public class TransactionTests {
         Commit commit = fullScore.commit();
 
         //check that the deletion records "previous tied" and "owner" points at the unchanged states
-        for (Map.Entry<ObjectState, Object[]> entry : commit.deletionRecords.entrySet()) { //only one deletionRecord
+        for (Map.Entry<ObjectState, Object[]> entry : commit.getDeletionRecords().entrySet()) { //only one deletionRecord
             Assertions.assertEquals(tieStartBeforeChange, entry.getKey().crossReferences.get(Note.class.getDeclaredField("previousTied")));
             Assertions.assertEquals(tieEndNoteGroupBeforeChange, entry.getValue()[0]);
         }
 
         read.pull();
     }
-
-    /*@Test
-    public void testDeletionRecordsHoldStateBeforeTheCommitTracingCrossReferences() throws NoSuchFieldException {
-        tieStart.setPitch(30);
-        ObjectState tieStartBeforeChange = repository.remote.getKey(tieStart);
-        fullScore.commit();
-        ObjectState tieStartAfterChange = repository.remote.getKey(tieStart);
-
-        //at this point the cross-referenced state of tie start is no longer in the remote because tie start changed
-        Assertions.assertEquals(tieStartBeforeChange, repository.remote.getKey(tieEnd).crossReferences.get(Note.class.getDeclaredField("previousTied")));
-
-        //now remove tieEnd and check if cross-referenced state was updated
-        tieEnd.clear();
-        Commit commit = fullScore.commit();
-
-        //check that the deletion records "previous tied" points at the unchanged state
-        for (ObjectState deletion : commit.deletionRecords.keySet()) {
-            Assertions.assertEquals(tieStartAfterChange, deletion.crossReferences.get(Note.class.getDeclaredField("previousTied")));
-        }
-    }*/
     
     
 }

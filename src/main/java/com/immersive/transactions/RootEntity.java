@@ -1,6 +1,8 @@
 package com.immersive.transactions;
 
 import com.immersive.transactions.Remote.ObjectState;
+import com.immersive.transactions.commits.Commit;
+import com.immersive.transactions.commits.CommitId;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
 
@@ -101,12 +103,12 @@ public abstract class RootEntity implements MutableObject {
         CommitId dstCommitId = dstRootEntity.getCurrentCommitId();
         ObjectState state = tm.repositories.get(this).remote.getKey(dme);
         for (Commit commit : tm.commits.subMap(srcCommitId, false, dstCommitId, true).values()) {
-            if (commit.deletionRecords.containsKey(state)) {
+            if (commit.getDeletionRecords().containsKey(state)) {
                 return null;
             }
             //check if BEFORE exists in changeRecords
-            if (commit.changeRecords.containsKey(state)) {
-                state = commit.changeRecords.get(state);
+            if (commit.getChanges().containsKey(state)) {
+                state = commit.getChanges().get(state);
             }
         }
         MutableObject result = tm.repositories.get(dstRootEntity).remote.get(state);

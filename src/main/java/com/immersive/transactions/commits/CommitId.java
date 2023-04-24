@@ -1,4 +1,4 @@
-package com.immersive.transactions;
+package com.immersive.transactions.commits;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -6,11 +6,11 @@ import org.jetbrains.annotations.NotNull;
 public class CommitId implements Comparable<CommitId> {
     int id;
 
-    CommitId(int id) {
+    public CommitId(int id) {
         this.id = id;
     }
 
-    static CommitId increment(CommitId commitId) {
+    public static CommitId increment(CommitId commitId) {
         return new CommitId(commitId.id+1);
     }
 
