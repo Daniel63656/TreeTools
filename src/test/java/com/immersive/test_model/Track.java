@@ -34,9 +34,4 @@ public class Track extends ChildEntity<FullScore> {
     public NoteTimeTick getNTT(Fraction idx) {
         return noteTimeTicks.get(idx);
     }
-
-    @Override
-    public boolean clear() {
-        return super.clear();
-    }
 }

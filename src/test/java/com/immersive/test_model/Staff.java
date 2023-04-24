@@ -29,9 +29,4 @@ public class Staff extends ChildEntity<Track> {
     public void setTreble(boolean treble) {
         this.treble = treble;
     }
-
-    @Override
-    public boolean clear() {
-        return super.clear();
-    }
 }

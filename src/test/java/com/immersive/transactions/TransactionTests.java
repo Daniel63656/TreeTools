@@ -145,7 +145,7 @@ public class TransactionTests {
     public void testPullingDeletions() {
         NoteGroup noteGroup = ((NoteGroup) ((FullScore) repository.rootEntity).getTrack(0).getNTT(Fraction.ZERO).getNGOT(voice));
         Note note = noteGroup.getNote(0);
-        noteGroup.clear();
+        noteGroup.remove();
         Assertions.assertTrue(repository.locallyDeletedContains(noteGroup));
         Assertions.assertTrue(repository.locallyDeletedContains(note));
 
@@ -163,7 +163,7 @@ public class TransactionTests {
         note.setAccidental(true);
         Assertions.assertTrue(repository.locallyChangedContains(note)); //aspects automatically listed changed object
         //delete same note and its owner -> change should not be appearing in commit but its gets in local deletion list at first
-        noteGroup.clear();
+        noteGroup.remove();
         Assertions.assertTrue(repository.locallyDeletedContains(noteGroup));     //aspects automatically listed deleted noteGroup
         Assertions.assertTrue(repository.locallyDeletedContains(note));          //and its child due to how clear must work
         //create new NoteGroup and 2 notes at its place
@@ -174,7 +174,7 @@ public class TransactionTests {
         Assertions.assertTrue(repository.locallyCreatedContains(newNote));
         Assertions.assertTrue(repository.locallyCreatedContains(newNote2));
         //delete one of the created notes -> this notes creation should not be appearing in commit
-        newNote2.clear();
+        newNote2.remove();
 
         fullScore.commit();
         Commit commit = tm.commits.get(tm.commits.firstKey());
@@ -194,7 +194,7 @@ public class TransactionTests {
         note.setAccidental(true);
         fullScore.commit();
         //now delete same note and its owner
-        noteGroup.clear();
+        noteGroup.remove();
         fullScore.commit();
         Assertions.assertSame(2, tm.commits.size());
         System.out.println("pulling...");
@@ -206,7 +206,7 @@ public class TransactionTests {
         Note newNote2= new Note(newNoteGroup, 34, true, NoteName.B);
         fullScore.commit();
         //delete one of the created notes -> this notes creation should not be appearing in commit
-        newNote2.clear();
+        newNote2.remove();
 
         fullScore.commit();
         read.pull();
@@ -257,7 +257,7 @@ public class TransactionTests {
     @Test
     public void testTiedNoteGetsDeleted() {
         //this causes to untie and therefore changes tieEnd
-        tieStart.clear();
+        tieStart.remove();
         Assertions.assertTrue(repository.locallyChangedContains(tieEnd));
         //but tieStart itself should not appear in the local changes despite the untying, because it gets deleted
         Assertions.assertFalse(repository.locallyChangedContains(tieStart));
@@ -309,7 +309,7 @@ public class TransactionTests {
     public void testDeletionRecordsHoldStateBeforeTheCommit() throws NoSuchFieldException {
         tieStart.setPitch(30);
         tieEnd.getOwner().stemUp = false;
-        tieEnd.clear();
+        tieEnd.remove();
         ObjectState tieStartBeforeChange = repository.remote.getKey(tieStart);
         ObjectState tieEndNoteGroupBeforeChange = repository.remote.getKey(tieEnd.getOwner());
 

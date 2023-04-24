@@ -23,9 +23,4 @@ public class Voice extends ChildEntity<Track> {
         this.voiceId = voiceId;
         track.voices.add(this);
     }
-
-    @Override
-    public boolean clear() {
-        return super.clear();
-    }
 }

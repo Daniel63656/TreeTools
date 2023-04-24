@@ -23,9 +23,4 @@ public class NoteTimeTick extends KeyedChildEntity<Track, Fraction> {
     public NoteGroupOrTuplet getNGOT(Voice voice) {
         return noteGroupOrTuplets.get(voice);
     }
-
-    @Override
-    public boolean clear() {
-        return super.clear();
-    }
 }

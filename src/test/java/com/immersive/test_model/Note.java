@@ -20,6 +20,12 @@ public class Note extends ChildEntity<NoteGroup> {
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void destruct() {
         getOwner().notes.remove(this);
+        if (nextTied != null) {
+            nextTied.previousTied = null;
+        }
+        if (previousTied != null) {
+            previousTied.nextTied = null;
+        }
     }
 
     public Note(NoteGroup noteGroup, int pitch, boolean accidental, NoteName noteName) {
@@ -57,21 +63,5 @@ public class Note extends ChildEntity<NoteGroup> {
 
     public Note getNextTied() {
         return nextTied;
-    }
-
-    @Override
-    public boolean clear() {
-        if (!super.clear()) {
-            getOwner().notes.remove(this);
-            if (nextTied != null) {
-                nextTied.previousTied = null;
-                nextTied = null;
-            }
-            if (previousTied != null) {
-                previousTied.nextTied = null;
-                previousTied = null;
-            }
-        }
-        return true;
     }
 }

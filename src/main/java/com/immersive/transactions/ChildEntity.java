@@ -52,20 +52,31 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
     protected abstract void destruct();
 
     /**
-     * remove this object from the data model. Not triggered by {@link TransactionManager#pull(RootEntity)} because
+     * remove this object and all subsequent children from the data model. Not triggered by
+     * {@link TransactionManager#pull(RootEntity)} because
      * pulling uses only the {@link ChildEntity#destruct()} method
      */
-    public boolean clear() {
+    public final void remove() {
         if (clearingInProgress)
-            return true;
+            return;
         clearingInProgress = true;
-        destruct();
         Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
-        if (repository != null) {
-            repository.logLocalDeletion(this);
+        if (repository != null)
+            recursivelyDestruct(this, repository);
+        else recursivelyDestruct(this);
+    }
+    private void recursivelyDestruct(ChildEntity<?> te) {
+        destruct();
+        for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
+            recursivelyDestruct(t);
         }
-        onCleared();
-        return false;
+    }
+    private void recursivelyDestruct(ChildEntity<?> te, Repository repository) {
+        repository.logLocalDeletion(te);    //log object as it was before possible modifications in destruct()
+        destruct();
+        for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
+            recursivelyDestruct(t, repository);
+        }
     }
 
     @Override
