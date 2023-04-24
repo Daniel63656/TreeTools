@@ -66,14 +66,14 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
         else recursivelyDestruct(this);
     }
     private void recursivelyDestruct(ChildEntity<?> te) {
-        destruct();
+        te.destruct();
         for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
             recursivelyDestruct(t);
         }
     }
     private void recursivelyDestruct(ChildEntity<?> te, Repository repository) {
         repository.logLocalDeletion(te);    //log object as it was before possible modifications in destruct()
-        destruct();
+        te.destruct();
         for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
             recursivelyDestruct(t, repository);
         }
