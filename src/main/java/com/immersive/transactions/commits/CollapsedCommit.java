@@ -9,7 +9,9 @@ public class CollapsedCommit extends Commit {
     final DualHashBidiMap<ObjectState, ObjectState> uncutChanges;
 
 
-    //TODO remove???
+    /**
+     * create an empty commit that collapses commits added with {@link CollapsedCommit#add(Commit)} into one commit
+     */
     public CollapsedCommit() {
         super(null);
         uncutChanges = new DualHashBidiMap<>();

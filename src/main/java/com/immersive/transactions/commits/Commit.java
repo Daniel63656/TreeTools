@@ -51,9 +51,6 @@ public class Commit {
         this.changeRecords = new DualHashBidiMap<>();
     }
 
-    /**
-     * this constructor is used by subclasses to initialize a commit with specified records
-     */
     protected Commit(CommitId commitId, Map<ObjectState, Object[]> deletionRecords, Map<ObjectState, Object[]> creationRecords, DualHashBidiMap<ObjectState, ObjectState> changeRecords) {
         this.commitId = commitId;
         this.deletionRecords = deletionRecords;
