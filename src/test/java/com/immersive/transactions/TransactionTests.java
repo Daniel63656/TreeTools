@@ -178,7 +178,7 @@ public class TransactionTests {
 
         fullScore.commit();
         Commit commit = tm.commits.get(tm.commits.firstKey());
-        Assertions.assertEquals(0, commit.getChanges().size());    //no change
+        Assertions.assertEquals(0, commit.getChangeRecords().size());    //no change
         Assertions.assertEquals(2, commit.getCreationRecords().size());  //only two creations
 
         read.pull();

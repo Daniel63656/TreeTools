@@ -13,8 +13,7 @@ import java.util.Map;
 
 
 /**
- * A class that resembles a specific commit. Holds corresponding deltas since the last commit. Supposed to be
- * completely IMMUTABLE
+ * An immutable class that resembles a specific commit. Holds corresponding deltas since the last commit
  */
 public class Commit {
 
@@ -195,10 +194,10 @@ public class Commit {
     public Map<ObjectState, Object[]> getCreationRecords() {
         return MapUtils.unmodifiableMap(creationRecords);
     }
-    public Map<ObjectState, ObjectState> getChanges() {
+    public Map<ObjectState, ObjectState> getChangeRecords() {
         return MapUtils.unmodifiableMap(changeRecords);
     }
-    public Map<ObjectState, ObjectState> getInvertedChanges() {
+    public Map<ObjectState, ObjectState> getInvertedChangeRecords() {
         return MapUtils.unmodifiableMap(changeRecords.inverseBidiMap());
     }
 

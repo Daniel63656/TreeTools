@@ -248,7 +248,7 @@ public class TransactionManager {
             //copy modificationRecords to safely cross things off without changing commit itself!
             creationChores = new HashMap<>(commit.getCreationRecords());
             deletionChores = commit.getDeletionRecords();  //no removing
-            changeChores = new HashMap<>(commit.getInvertedChanges()); //map changeChores with AFTER as key!
+            changeChores = new HashMap<>(commit.getInvertedChangeRecords()); //map changeChores with AFTER as key!
 
             remote = repository.remote;
 

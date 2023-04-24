@@ -107,8 +107,8 @@ public abstract class RootEntity implements MutableObject {
                 return null;
             }
             //check if BEFORE exists in changeRecords
-            if (commit.getChanges().containsKey(state)) {
-                state = commit.getChanges().get(state);
+            if (commit.getChangeRecords().containsKey(state)) {
+                state = commit.getChangeRecords().get(state);
             }
         }
         MutableObject result = tm.repositories.get(dstRootEntity).remote.get(state);
