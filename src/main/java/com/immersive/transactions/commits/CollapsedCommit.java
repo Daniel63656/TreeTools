@@ -6,9 +6,18 @@ import com.immersive.transactions.Remote.ObjectState;
 
 import java.util.Map;
 
-public class CollapsedCommit extends Commit {
-    final DualHashBidiMap<ObjectState, ObjectState> uncutChanges;
 
+/**
+ * A {@link Commit} that summarizes the effects of several commits into one.
+ */
+public class CollapsedCommit extends Commit {
+
+    /**
+     * collapsing commits can destroy change information (by overriding with deletion or creation), but these changeRecords
+     * may be needed to trace cross-referenced states to the start/end of the {@link CollapsedCommit}. This field makes
+     * this possible by providing an uncut record of all encountered changes
+     */
+    final DualHashBidiMap<ObjectState, ObjectState> uncutChanges;
 
     /**
      * create an empty commit that collapses commits added with {@link CollapsedCommit#add(Commit)} into one commit.
@@ -51,16 +60,8 @@ public class CollapsedCommit extends Commit {
             //deletion is contained as after key in a change
             if (changeRecords.containsValue(deleteState)) {
                 ObjectState beforeState = changeRecords.getKey(deleteState);
-                deletionRecords.put(beforeState, entry.getValue());
+                putInDeletionRecord(beforeState, entry.getValue());
                 changeRecords.removeValue(deleteState);
-
-                //trace back
-                Object[] objects = deletionRecords.get(beforeState);
-                for (int i=0; i<objects.length; i++) {
-                    if (entry.getValue()[i] instanceof ObjectState) {
-                        entry.getValue()[i] = traceBack((ObjectState) entry.getValue()[i]);
-                    }
-                }
             }
             //deletion is in creationRecords
             else if (creationRecords.containsKey(deleteState)) {
@@ -68,18 +69,8 @@ public class CollapsedCommit extends Commit {
             }
             else if (deletionRecords.containsKey(deleteState))
                 throw new RuntimeException("Tried to delete an object that is already deleted!");
-                //not contained so far
-            else {
-                deletionRecords.put(deleteState, entry.getValue());
-
-                //trace back
-                Object[] objects = deletionRecords.get(deleteState);
-                for (int i=0; i<objects.length; i++) {
-                    if (entry.getValue()[i] instanceof ObjectState) {
-                        entry.getValue()[i] = traceBack((ObjectState) entry.getValue()[i]);
-                    }
-                }
-            }
+            //not contained so far
+            else putInDeletionRecord(deleteState, entry.getValue());
         }
 
         for (Map.Entry<ObjectState, ObjectState> entry : commit.changeRecords.entrySet()) {
@@ -101,9 +92,7 @@ public class CollapsedCommit extends Commit {
             else
                 changeRecords.put(before, entry.getValue());
         }
-
-
-        //handle key was referenced in params of creation records
+        //if change affects a construction parameter of a changeRecord, make sure they point to the state after the change
         for (Object[] objects : creationRecords.values()) {
             for (int i=0; i<objects.length; i++) {
                 if (objects[i] instanceof ObjectState) {
@@ -111,6 +100,17 @@ public class CollapsedCommit extends Commit {
                     if (commit.changeRecords.containsKey(state))
                         objects[i] = commit.changeRecords.get(state);
                 }
+            }
+        }
+    }
+    
+    private void putInDeletionRecord(ObjectState deleteState, Object[] constructionParams) {
+        deletionRecords.put(deleteState, constructionParams);
+        //trace deletionRecords construction parameters back to the start of the commit
+        Object[] objects = deletionRecords.get(deleteState);
+        for (int i=0; i<objects.length; i++) {
+            if (constructionParams[i] instanceof ObjectState) {
+                constructionParams[i] = traceBack((ObjectState) constructionParams[i]);
             }
         }
     }

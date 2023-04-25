@@ -8,20 +8,21 @@ import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 
 /**
- * A data structure providing a two-way-link between {@link MutableObject} and corresponding
- * logical content of the object (represented by a {@link ObjectState}). These keys are immutable, therefore this
+ * A data structure providing a two-way-link between a {@link MutableObject} and its corresponding
+ * {@link ObjectState} (at a particular {@link CommitId}). Because {@link ObjectState}s are immutable, this
  * acts as a remote state the data model can revert to while uncommitted changes exist.
  */
 public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
 
     /**
-     * make sure each {@link ObjectState} gets assigned a unique ID
+     * make sure each created {@link ObjectState} gets assigned a unique ID within the {@link Remote}
      */
-    private static int globalID;
+    private static int remoteWideId;
 
 
     Remote(RootEntity rootEntity, CommitId commitId) {
@@ -36,7 +37,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
     }
 
     /**
-     * create an object state. Instantiating a state via the {@link Remote} makes sure, they are only created once per object and
+     * create an {@link ObjectState}. Instantiating a state via the {@link Remote} makes sure, they are only created once per object and
      * nasty stuff like cross-references are properly handled
      * @param dme object to create the logical key for
      */
@@ -86,46 +87,54 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
     }
 
     /**
-     * Class containing the logical content of an object as field-object pairs. Logical content is considered to be all
-     * {@link com.immersive.transactions.DataModelInfo#contentFields} and therefore excludes the owner, keys
-     * and children. Is designed as a IMMUTABLE class, meaning that all saved values stay constant. If a value requires
-     * a change, this is expressed by creating a new key entirely.
+     * Class that acts as a key for a given objects state at a given {@link CommitId}. Primarily saves the immutable
+     * {@link com.immersive.transactions.DataModelInfo#contentFields} of an object (that excludes the owner, keys
+     * and children). This state is linked up with the corresponding object within the {@link Remote}.
+     * This object must be immutable after its full construction within a commit.
      */
     public static class ObjectState extends HashMap<Field, Object> {
 
         /**
-         * corresponding class-type whose content is saved by this logical key
+         * corresponding class-type whose content is saved by this state
          */
         final Class<? extends MutableObject> clazz;
 
+        /**
+         * can't use the values of the fields as hash because they can be the same for several objects of the data model.
+         * Use a {@link Remote}-wide unique id instead
+         */
+        private final int hashCode;
+
+        /**
+         * the {@link CommitId} at which this state was created. Together with the {@link ObjectState#hashCode} this object
+         * becomes uniquely identifiable across different {@link Remote}s and {@link Commit}s
+         */
         private final CommitId creationId;
 
         /**
          * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
-         * the {@link Remote} in the commit that this key was created. 
+         * the {@link Remote} in the commit that this state was created. This map gets modified in the commit creation but
+         * is supposed to be immutable afterwards
          */
-        public final HashMap<Field, ObjectState> crossReferences = new HashMap<>();
+        final HashMap<Field, ObjectState> crossReferences = new HashMap<>();
 
         /**
-         * A unique {@link Remote} wide ID to identify the logical key. Necessary because all fields can be the same
-         * for differnet objects in the tree. Needs to be int to be used as hash directly
-         */
-        private final int uniqueID;
-
-
-        /**
-         * constructor is private so that logical keys are only instantiated via the {@link Remote} that
+         * constructor is private so that states are only instantiated via the {@link Remote} that
          * they are held in
          */
         private ObjectState(Class<? extends MutableObject> clazz, CommitId creationId) {
             this.clazz = clazz;
             this.creationId = creationId;
-            this.uniqueID = globalID;
-            globalID++;
+            this.hashCode = remoteWideId;
+            remoteWideId++;
         }
 
         public CommitId getCreationId() {
             return creationId;
+        }
+
+        public Map<Field, ObjectState> getCrossReferences() {
+            return crossReferences;
         }
 
         boolean logicallySameWith(ObjectState other) {
@@ -145,26 +154,28 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             if (!(o instanceof ObjectState)) {
                 return false;
             }
-            ObjectState right = (ObjectState) o;
-            return this.uniqueID == right.uniqueID;
+            ObjectState other = (ObjectState) o;
+            //different states from different remotes (or even the same remote if hashCode overflows) may have the
+            //same hasCode but not the same creationId as well
+            return this.hashCode == other.hashCode && this.creationId == other.creationId;
         }
 
         @Override
         public int hashCode() {
-            return uniqueID;
+            return hashCode;
         }
 
         @Override
         public String toString() {
             StringBuilder strb = new StringBuilder();
-            strb.append(clazz.getSimpleName()).append("[").append(uniqueID).append("]");
+            strb.append(clazz.getSimpleName()).append("[").append(hashCode).append("]");
             if (!isEmpty()) {
                 printImmutableFields(strb);
                 for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
                     if (entry.getValue() == null)
                         strb.append(entry.getKey().getName()).append("=[null] ");
                     else
-                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().uniqueID).append("] ");
+                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode).append("] ");
                 }
                 strb.setLength(strb.length() - 1);  //remove last space
                 strb.append("}");
@@ -174,7 +185,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
 
         public String toString(CommitId currentCommitId) {
             StringBuilder strb = new StringBuilder();
-            strb.append(clazz.getSimpleName()).append("[").append(uniqueID).append("]");
+            strb.append(clazz.getSimpleName()).append("[").append(hashCode).append("]");
             if (!isEmpty()) {
                 printImmutableFields(strb);
                 for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
@@ -182,13 +193,13 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
                     if (crossReferencedState == null)
                         strb.append(entry.getKey().getName()).append("=[null] ");
                     else {
-                        strb.append(entry.getKey().getName()).append("=[").append(crossReferencedState.uniqueID);
+                        strb.append(entry.getKey().getName()).append("=[").append(crossReferencedState.hashCode);
                         ObjectState traced = crossReferencedState;
                         for (Commit c : TransactionManager.getInstance().commits.subMap(creationId, false, currentCommitId, true).values()) {
                             traced = c.traceForward(traced);
                         }
                         if (!traced.equals(crossReferencedState))
-                            strb.append("->").append(traced.uniqueID);
+                            strb.append("->").append(traced.hashCode);
                         strb.append("] ");
                     }
                 }

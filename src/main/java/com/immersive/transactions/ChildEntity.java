@@ -46,6 +46,8 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
     }
 
     /**
+     *
+     *
      * removes itself from the specific owner collection it is owned in.
      * This method needs to be implemented by any {@link ChildEntity}
      */

@@ -31,7 +31,7 @@ public class Pull {
         Map<Remote.ObjectState, Object[]> deletionChores = commit.getDeletionRecords();
         remote = repository.remote;
 
-        //DELETION - Assumes Deletion Records are created for all subsequent children!!!
+        //DELETION - assumes deletion records are present in all subsequent children, so their wrappers get also notified
         for (Map.Entry<Remote.ObjectState, Object[]> entry : deletionChores.entrySet()) {
             if (verbose) System.out.println(">deleting "+entry.getKey().clazz.getSimpleName()+"["+entry.getKey().hashCode()+"]");
             ChildEntity<?> objectToDelete = (ChildEntity<?>) remote.get(entry.getKey());
@@ -129,7 +129,6 @@ public class Pull {
         imprintLogicalContentOntoObject(objKey, objectToCreate);
         //notify owner that a new child was created
         objectToCreate.getOwner().onChanged();
-        //System.out.println("PULL: created key "+objKey.hashCode());
         remote.put(objKey, objectToCreate);
         creationChores.remove(objKey);
     }
@@ -143,7 +142,6 @@ public class Pull {
         imprintLogicalContentOntoObject(after, objectToChange);
         //notify potential wrappers about the change
         objectToChange.onChanged();
-        //if (verbose) System.out.println("PULL: changed from "+before.hashCode()+" to "+after.hashCode());
         remote.put(after, objectToChange);
         changeChores.remove(after);
     }

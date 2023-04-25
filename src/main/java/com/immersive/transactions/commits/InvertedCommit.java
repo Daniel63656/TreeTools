@@ -7,7 +7,7 @@ import org.apache.commons.collections4.MapUtils;
 import java.util.Map;
 
 /**
- * A commit that saves records normally but behaves inverted to the outside of the class (creations become changes and
+ * A {@link CollapsedCommit} that saves records normally but behaves inverted to the outside of the class (creations become changes and
  * vice versa, changes are inverted).
  */
 public class InvertedCommit extends CollapsedCommit {

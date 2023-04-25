@@ -74,6 +74,9 @@ public class Commit {
         //this becomes tricky because commits need to invertible in which case deletionRecords become creationRecords.
         //therefore, a deletionRecords objectState must contain the state BEFORE this commit. In order to achieve this,
         //deletions are handled first (to not include changes in owner/key)
+
+        //REMEMBER that invertibility also implies that deletion records are present for all subsequent children so
+        //that this commit can be fully reverted. ChildEntities remove() function takes care of that
         List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
         ChildEntity<?> te = repository.getOneDeletion();
         while (te != null) {
@@ -129,7 +132,7 @@ public class Commit {
 
         //the newly created state may reference other states in cross-references, that may become outdated with this commit
         //avoid this by deploying the same strategy as above
-        makeSureCrossReferencedStatesAreInRemote(repository, newKey.crossReferences);
+        makeSureCrossReferencedStatesAreInRemote(repository, newKey);
         return newKey;
     }
 
@@ -148,12 +151,12 @@ public class Commit {
         repository.removeChange(dme);
 
         //the newly created state may reference other states in cross-references, that may become outdated with this commit
-        makeSureCrossReferencedStatesAreInRemote(repository, after.crossReferences);
+        makeSureCrossReferencedStatesAreInRemote(repository, after);
         return after;
     }
 
-    private void makeSureCrossReferencedStatesAreInRemote(Repository repository, Map<Field, ObjectState> crossReferences) {
-        for (Map.Entry<Field, ObjectState> crossReference : crossReferences.entrySet()) {
+    private void makeSureCrossReferencedStatesAreInRemote(Repository repository, ObjectState state) {
+        for (Map.Entry<Field, ObjectState> crossReference : state.getCrossReferences().entrySet()) {
             //get the object the cross-reference is pointing at
             MutableObject dme = repository.getRemote().get(crossReference.getValue());
             if (dme != null) {
