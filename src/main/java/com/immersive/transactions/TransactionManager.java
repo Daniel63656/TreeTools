@@ -123,20 +123,6 @@ public class TransactionManager {
         history.createUndoState();
     }
 
-    /**
-     * removes obsolete commits that are no longer used by any {@link Repository}
-     */
-    private void cleanUpUnnecessaryCommits() {
-        synchronized(commits) {
-            CommitId earliestCommitInUse = commits.lastKey();
-            for (Repository repository : repositories.values()) {
-                if (repository.currentCommitId.compareTo(earliestCommitInUse) < 0)
-                    earliestCommitInUse = repository.currentCommitId;
-            }
-            commits.headMap(earliestCommitInUse, true).clear();
-        }
-    }
-
 
     //=============these methods are called synchronized per RootEntity and therefore package-private=================//
 
@@ -158,6 +144,7 @@ public class TransactionManager {
             if (history != null)
                 history.ongoingCommit.add(commit);
         }
+        repository.currentCommitId = commit.getCommitId();
         if (verbose) System.out.println("\n========== COMMITTED "+ commit);
         return commit;
     }
@@ -181,7 +168,6 @@ public class TransactionManager {
             if (verbose) System.out.println("\n========== PULLING "+ commit);
             new Pull(repository, commit);
         }
-        cleanUpUnnecessaryCommits();
         return true;
     }
 
@@ -206,7 +192,6 @@ public class TransactionManager {
             }
             if (verbose) System.out.println("\n========== UNDO "+ invertedCommit);
             new Pull(repository, invertedCommit);
-            cleanUpUnnecessaryCommits();
             return invertedCommit;
         }
         return null;
@@ -231,7 +216,6 @@ public class TransactionManager {
             }
             if (verbose) System.out.println("\n========== REDO "+ commit);
             new Pull(repository, commit);
-            cleanUpUnnecessaryCommits();
             return commit;
         }
         return null;

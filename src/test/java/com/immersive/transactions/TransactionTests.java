@@ -109,7 +109,6 @@ public class TransactionTests {
         Assertions.assertSame(69, note.getPitch());
         Assertions.assertSame(false, note.getAccidental());
         //now pull and check if changed made it into the object
-        System.out.println("pulling...");
         read.pull();
         Assertions.assertSame(note.getPitch(), 30);
         Assertions.assertSame(note.getAccidental(), true);
@@ -123,7 +122,6 @@ public class TransactionTests {
         Assertions.assertTrue(repository.locallyChangedContains(ng));
         Assertions.assertTrue(repository.locallyCreatedContains(newNote));
         fullScore.commit();
-        System.out.println("pulling...");
         read.pull();
     }
 
@@ -197,7 +195,6 @@ public class TransactionTests {
         noteGroup.remove();
         fullScore.commit();
         Assertions.assertSame(2, tm.commits.size());
-        System.out.println("pulling...");
         read.pull();
         Assertions.assertSame(0, tm.commits.size());
         //create new NoteGroup and 2 notes at its place
@@ -234,6 +231,7 @@ public class TransactionTests {
         Assertions.assertTrue(repository.locallyChangedContains(tieStart));
         verifyTying(repository.remote);
         fullScore.commit();
+        read.pull();
 
         tieEnd.setPitch(30);
         fullScore.commit();
@@ -304,7 +302,6 @@ public class TransactionTests {
         Assertions.assertEquals(newTiedInRead, tieStart.getNextTied());
     }
 
-    //==========test cross-references combined with undos==========
     @Test
     public void testDeletionRecordsHoldStateBeforeTheCommit() throws NoSuchFieldException {
         tieStart.setPitch(30);
@@ -321,6 +318,24 @@ public class TransactionTests {
             Assertions.assertEquals(tieEndNoteGroupBeforeChange, entry.getValue()[0]);
         }
 
+        read.pull();
+    }
+
+    @Test
+    public void testDeletionRecordsAreCreatedForSubsequentChildren() {
+        new Note(note.getOwner(), 40, false, NoteName.A); //this creation gets erased by the deletion
+        note.getOwner().getOwner().remove();
+        Commit commit = fullScore.commit();
+
+        Assertions.assertEquals(3, commit.getDeletionRecords().size());
+    }
+
+    @Test
+    public void testCleanUpAndPullDeletion() {
+        note.getOwner().remove();
+        voice.remove(); //this causes removal of all NoteGroups
+
+        fullScore.commit();
         read.pull();
     }
     

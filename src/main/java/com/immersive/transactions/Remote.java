@@ -137,7 +137,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             return crossReferences;
         }
 
-        boolean logicallySameWith(ObjectState other) {
+        boolean contentEquals(ObjectState other) {
             for(Field f:keySet()) {
                 if(!other.containsKey(f)) {
                     return false;
@@ -168,55 +168,46 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         @Override
         public String toString() {
             StringBuilder strb = new StringBuilder();
-            strb.append(clazz.getSimpleName()).append("[").append(hashCode).append("]");
-            if (!isEmpty()) {
-                printImmutableFields(strb);
-                for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
-                    if (entry.getValue() == null)
-                        strb.append(entry.getKey().getName()).append("=[null] ");
-                    else
-                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode).append("] ");
-                }
-                strb.setLength(strb.length() - 1);  //remove last space
-                strb.append("}");
-            }
+            printClassAndId(strb).append(" = {");
+            printImmutableFields(strb);
+            printCrossReferences(strb, creationId).setLength(strb.length() - 1);  //remove last space
+            strb.append("}");
             return strb.toString();
         }
 
-        public String toString(CommitId currentCommitId) {
-            StringBuilder strb = new StringBuilder();
-            strb.append(clazz.getSimpleName()).append("[").append(hashCode).append("]");
-            if (!isEmpty()) {
-                printImmutableFields(strb);
-                for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
-                    ObjectState crossReferencedState = entry.getValue();
-                    if (crossReferencedState == null)
-                        strb.append(entry.getKey().getName()).append("=[null] ");
-                    else {
-                        strb.append(entry.getKey().getName()).append("=[").append(crossReferencedState.hashCode);
-                        ObjectState traced = crossReferencedState;
-                        for (Commit c : TransactionManager.getInstance().commits.subMap(creationId, false, currentCommitId, true).values()) {
-                            traced = c.traceForward(traced);
-                        }
-                        if (!traced.equals(crossReferencedState))
-                            strb.append("->").append(traced.hashCode);
-                        strb.append("] ");
-                    }
-                }
-                strb.setLength(strb.length() - 1);  //remove last space
-                strb.append("}");
-            }
-            return strb.toString();
+        public StringBuilder printClassAndId(StringBuilder strb) {
+            strb.append(clazz.getSimpleName()).append("[").append(hashCode).append(",").append(creationId).append("]");
+            return strb;
         }
 
-        private void printImmutableFields(StringBuilder strb) {
-            strb.append(" = {");
+        public StringBuilder printImmutableFields(StringBuilder strb) {
             for (Entry<Field, Object> entry : entrySet()) {
                 if (entry.getValue() instanceof ObjectState)
                     strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
                 else
                     strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
             }
+            return strb;
+        }
+
+        public StringBuilder printCrossReferences(StringBuilder strb, CommitId currentCommitId) {
+            for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
+                ObjectState crossReferencedState = entry.getValue();
+                if (crossReferencedState == null)
+                    strb.append(entry.getKey().getName()).append("=[null] ");
+                else {
+                    strb.append(entry.getKey().getName()).append("=[").append(crossReferencedState.hashCode);
+                    ObjectState traced = crossReferencedState;
+                    TransactionManager tm = TransactionManager.getInstance();
+                    for (Commit c : tm.commits.subMap(creationId, false, currentCommitId, true).values()) {
+                        traced = c.traceForward(traced);
+                    }
+                    if (traced.hashCode != crossReferencedState.hashCode)
+                        strb.append("->").append(traced.hashCode);
+                    strb.append("] ");
+                }
+            }
+            return strb;
         }
     }
 }

@@ -230,19 +230,34 @@ public class Commit {
     @Override
     public String toString() {
         StringBuilder strb = new StringBuilder();
-        if (commitId != null)
+        if (commitId != null) {
             strb.append("commit number ").append(commitId).append(":\n");
-        else strb.append("initialization commit:\n");
-        for (Map.Entry<ObjectState, Object[]> entry : deletionRecords.entrySet()) {
-            strb.append(">Delete ").append(entry.getKey().toString(commitId)).append("\n");
+            //use getter so inverted commit is printed correctly
+            for (Map.Entry<ObjectState, Object[]> entry : getDeletionRecords().entrySet()) {
+                strb.append(">Delete ");
+                printState(strb, entry.getKey(), commitId.getPredecessor());
+            }
+            for (Map.Entry<ObjectState, Object[]> entry : getCreationRecords().entrySet()) {
+                strb.append(">Create ");
+                printState(strb, entry.getKey(), commitId);
+            }
+            for (Map.Entry<ObjectState, ObjectState> entry : getChangeRecords().entrySet()) {
+                strb.append(">Change ");
+                printState(strb, entry.getKey(), commitId.getPredecessor());
+                strb.append("     to ");
+                printState(strb, entry.getValue(), commitId);
+            }
+            return strb.append("====================================").toString();
         }
-        for (Map.Entry<ObjectState, Object[]> entry : creationRecords.entrySet()) {
-            strb.append(">Create ").append(entry.getKey().toString(commitId)).append("\n");
-        }
-        for (Map.Entry<ObjectState, ObjectState> entry : changeRecords.entrySet()) {
-            strb.append(">Change ").append(entry.getKey().toString(commitId)).append("\n     to ")
-                    .append(entry.getValue().toString(commitId)).append("\n");
-        }
-        return strb.append("====================================").toString();
+        return "untracked commit";
+    }
+
+    private void printState(StringBuilder strb, ObjectState state, CommitId commitId) {
+        state.printClassAndId(strb).append(" = {");
+        state.printImmutableFields(strb);
+        state.printCrossReferences(strb, commitId);
+        if (strb.charAt(strb.length()-1) == ' ')
+            strb.setLength(strb.length() - 1);
+        strb.append("}\n");
     }
 }

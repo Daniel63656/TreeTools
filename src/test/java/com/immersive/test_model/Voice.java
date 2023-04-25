@@ -16,6 +16,10 @@ public class Voice extends ChildEntity<Track> {
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void destruct() {
         getOwner().voices.remove(this);
+        //remove all that used voice as key
+        for (NoteTimeTick ntt : getOwner().noteTimeTicks.values()) {
+            ntt.noteGroupOrTuplets.remove(this);
+        }
     }
 
     public Voice(Track track, int voiceId) {
