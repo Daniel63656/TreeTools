@@ -45,24 +45,24 @@ public class RemoteCreationTest {
     public void testLogicalKeysBeingImmutable() throws NoSuchFieldException {
         ObjectState lok = remote.createObjectState(staff);
         //content in lok must be same as in staff itself
-        Assertions.assertSame(lok.get(staff.getClass().getDeclaredField("treble")), staff.isTreble());
+        Assertions.assertSame(lok.getFields().get(staff.getClass().getDeclaredField("treble")), staff.isTreble());
         //now change the field -> LOK stays the same
         staff.setTreble(false);
-        Assertions.assertNotSame(lok.get(staff.getClass().getDeclaredField("treble")), staff.isTreble());
+        Assertions.assertNotSame(lok.getFields().get(staff.getClass().getDeclaredField("treble")), staff.isTreble());
 
         ObjectState lok2 = remote.createObjectState(note);
         //content in lok must be same as in note itself
-        Assertions.assertSame(lok2.get(note.getClass().getDeclaredField("pitch")), note.getPitch());
+        Assertions.assertSame(lok2.getFields().get(note.getClass().getDeclaredField("pitch")), note.getPitch());
         //now change the field -> LOK stays the same
         note.setPitch(30);
-        Assertions.assertNotSame(lok2.get(note.getClass().getDeclaredField("pitch")), note.getPitch());
+        Assertions.assertNotSame(lok2.getFields().get(note.getClass().getDeclaredField("pitch")), note.getPitch());
     }
 
     @Test
     public void testLogicalKeyContainingInheritedFields() throws NoSuchFieldException {
         NoteGroup noteGroup = ((NoteGroup) fullScore.getTrack(0).getNTT(Fraction.ZERO).getNGOT(voice));
         ObjectState lok = remote.createObjectState(noteGroup);
-        Assertions.assertTrue(lok.containsKey(NoteGroupOrTuplet.class.getDeclaredField("duration")));
+        Assertions.assertTrue(lok.getFields().containsKey(NoteGroupOrTuplet.class.getDeclaredField("duration")));
     }
 
     @Test

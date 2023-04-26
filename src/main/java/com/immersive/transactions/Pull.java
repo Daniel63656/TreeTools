@@ -41,7 +41,7 @@ public class Pull {
             remote.removeValue(objectToDelete);
         }
 
-        //CREATION - Recursion possible because of dependency on owner and cross-references
+        //CREATION - Recursion possible because of dependency on owner and keys
         Map.Entry<Remote.ObjectState, Object[]> creationRecord;
         while (!creationChores.isEmpty()) {
             creationRecord = creationChores.entrySet().iterator().next();
@@ -52,7 +52,7 @@ public class Pull {
             }
         }
 
-        //CHANGE - Recursion possible because of dependency on cross-references
+        //CHANGE
         Map.Entry<Remote.ObjectState, Remote.ObjectState> changeRecord;
         while (!changeChores.isEmpty()) {
             changeRecord = changeChores.entrySet().iterator().next();
@@ -148,9 +148,9 @@ public class Pull {
 
     private void imprintLogicalContentOntoObject(Remote.ObjectState state, MutableObject dme) throws IllegalAccessException {
         for (Field field : DataModelInfo.getContentFields(dme)) {
-            if (state.containsKey(field)) {
+            if (state.getFields().containsKey(field)) {
                 field.setAccessible(true);
-                field.set(dme, state.get(field));
+                field.set(dme, state.getFields().get(field));
             }
             //field is a cross-reference
             else if (state.crossReferences.containsKey(field)) {

@@ -3,6 +3,7 @@ package com.immersive.transactions;
 import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.commits.Commit;
 import com.immersive.transactions.exceptions.TransactionException;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
 import java.lang.reflect.Field;
@@ -65,7 +66,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             }
             //field is of primitive data type
             else {
-                objectState.put(field, fieldValue);
+                objectState.fields.put(field, fieldValue);
             }
         }
         return objectState;
@@ -94,7 +95,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             }
             //field is of primitive data type
             else {
-                objectState.put(field, fieldValue);
+                objectState.fields.put(field, fieldValue);
             }
         }
         return objectState;
@@ -116,7 +117,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * and children). This state is linked up with the corresponding object within the {@link Remote}.
      * This object must be immutable after its full construction within a commit.
      */
-    public static class ObjectState extends HashMap<Field, Object> {
+    public static class ObjectState {
 
         /**
          * corresponding class-type whose content is saved by this state
@@ -128,6 +129,8 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          * Use a {@link Remote}-wide unique id instead
          */
         private final int hashCode;
+
+        private final HashMap<Field, Object> fields = new HashMap<>();
 
         /**
          * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
@@ -145,16 +148,20 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             this.hashCode = hashCode;
         }
 
+        public Map<Field, Object> getFields() {
+            return MapUtils.unmodifiableMap(fields);
+        }
+
         public Map<Field, ObjectState> getCrossReferences() {
             return crossReferences;
         }
 
         boolean contentEquals(ObjectState other) {
-            for(Field f:keySet()) {
-                if(!other.containsKey(f)) {
+            for(Field f:fields.keySet()) {
+                if(!other.fields.containsKey(f)) {
                     return false;
                 }
-                if(!Objects.equals(get(f), other.get(f))) {
+                if(!Objects.equals(fields.get(f), other.fields.get(f))) {
                     return false;
                 }
             }
@@ -179,8 +186,8 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         public String toString() {
             StringBuilder strb = new StringBuilder();
             strb.append(clazz.getSimpleName()).append("[").append(hashCode).append("] = {");
-            if (!isEmpty()) {
-                for (Entry<Field, Object> entry : entrySet()) {
+            if (!fields.isEmpty()) {
+                for (Entry<Field, Object> entry : fields.entrySet()) {
                     if (entry.getValue() instanceof ObjectState)
                         strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
                     else

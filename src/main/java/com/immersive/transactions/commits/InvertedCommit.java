@@ -7,12 +7,12 @@ import org.apache.commons.collections4.MapUtils;
 import java.util.Map;
 
 /**
- * A {@link CollapsedCommit} that saves records normally but behaves inverted to the outside of the class (creations become changes and
+ * A {@link Commit} that saves records normally but behaves inverted to the outside of the class (creations become changes and
  * vice versa, changes are inverted).
  */
-public class InvertedCommit extends CollapsedCommit {
+public class InvertedCommit extends Commit {
 
-    public InvertedCommit(CollapsedCommit commit) {
+    public InvertedCommit(Commit commit) {
         super(commit);
     }
 
@@ -27,17 +27,5 @@ public class InvertedCommit extends CollapsedCommit {
     }
     public Map<Remote.ObjectState, Remote.ObjectState> getInvertedChangeRecords() {
         return MapUtils.unmodifiableMap(changeRecords);
-    }
-
-    public Remote.ObjectState traceBack(Remote.ObjectState state) {
-        while (uncutChanges.containsKey(state))
-            state = uncutChanges.get(state);
-        return state;
-    }
-
-    public Remote.ObjectState traceForward(Remote.ObjectState state) {
-        while (uncutChanges.containsValue(state))
-            state = uncutChanges.getKey(state);
-        return state;
     }
 }

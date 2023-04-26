@@ -1,7 +1,6 @@
 package com.immersive.transactions;
 
 import com.immersive.transactions.annotations.CrossReference;
-import com.immersive.transactions.commits.CollapsedCommit;
 import com.immersive.transactions.commits.Commit;
 import com.immersive.transactions.commits.InvertedCommit;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
@@ -200,10 +199,10 @@ public class TransactionManager {
         if (history == null)
             throw new RuntimeException("Undos/Redos were not enabled!");
         if (history.undosAvailable()) {
-            CollapsedCommit undoCommit = history.head.self;
+            Commit undoCommit = history.head.self;
             history.head = history.head.previous;
-            //create an inverted commit
-            CollapsedCommit invertedCommit = new InvertedCommit(undoCommit);
+            //create a traced, inverted commit with
+            Commit invertedCommit = new InvertedCommit(undoCommit);
 
             synchronized (commits) {
                 commits.put(invertedCommit.getCommitId(), invertedCommit);
@@ -229,7 +228,7 @@ public class TransactionManager {
         if (history.redosAvailable()) {
             history.head = history.head.next;
             //copy the commit and give it a proper id
-            CollapsedCommit commit = new CollapsedCommit(history.head.self);
+            Commit commit = new Commit(history.head.self);
             synchronized (commits) {
                 commits.put(commit.getCommitId(), commit);
             }

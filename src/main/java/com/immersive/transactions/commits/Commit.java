@@ -45,11 +45,21 @@ public class Commit {
     protected final DualHashBidiMap<ObjectState, ObjectState> changeRecords;
 
 
-    protected Commit() {
+    public Commit() {
         commitId = null;
         this.creationRecords = new HashMap<>();
         this.deletionRecords = new HashMap<>();
         this.changeRecords = new DualHashBidiMap<>();
+    }
+
+    /**
+     * copy an existing {@link Commit} and give it its own proper id
+     */
+    public Commit(Commit commit) {
+        commitId = new CommitId();
+        this.creationRecords = commit.creationRecords;
+        this.deletionRecords = commit.deletionRecords;
+        this.changeRecords = commit.changeRecords;
     }
 
     protected Commit(Map<ObjectState, Object[]> deletionRecords, Map<ObjectState, Object[]> creationRecords, DualHashBidiMap<ObjectState, ObjectState> changeRecords) {
@@ -207,22 +217,57 @@ public class Commit {
         return (deletionRecords.isEmpty() && creationRecords.isEmpty() && changeRecords.isEmpty());
     }
 
-    /**
-     * @return an {@link ObjectState} that is valid before this commit.
-     */
-    public ObjectState traceBack(ObjectState state) {
-        if (changeRecords.containsValue(state))
-            state = changeRecords.getKey(state);
-        return state;
-    }
+    public void add(Commit commit) {
+        for (Map.Entry<ObjectState, Object[]> entry : commit.creationRecords.entrySet()) {
+            ObjectState creationState = entry.getKey();
+            if (creationRecords.containsKey(creationState) ||
+                    deletionRecords.containsKey(creationState) ||
+                    changeRecords.containsValue(creationState))
+                throw new RuntimeException("Tried to create an object already present in commit!");
+            creationRecords.put(creationState, entry.getValue());
+        }
 
-    /**
-     * @return an {@link ObjectState} that is valid after this commit.
-     */
-    public ObjectState traceForward(ObjectState state) {
-        if (changeRecords.containsKey(state))
-            state = changeRecords.get(state);
-        return state;
+        for (Map.Entry<ObjectState, Object[]> entry : commit.deletionRecords.entrySet()) {
+            ObjectState deleteState = entry.getKey();
+            //deletion is contained as after key in a change
+            if (changeRecords.containsValue(deleteState)) {
+                ObjectState beforeState = changeRecords.getKey(deleteState);
+                deletionRecords.put(beforeState, entry.getValue());
+                changeRecords.removeValue(deleteState);
+            }
+            //deletion is in creationRecords
+            else if (creationRecords.containsKey(deleteState)) {
+                creationRecords.remove(deleteState);
+            }
+            else if (deletionRecords.containsKey(deleteState))
+                throw new RuntimeException("Tried to delete an object that is already deleted!");
+                //not contained so far
+            else deletionRecords.put(deleteState, entry.getValue());
+        }
+
+        for (Map.Entry<ObjectState, ObjectState> entry : commit.changeRecords.entrySet()) {
+            ObjectState before = entry.getKey();
+            ObjectState after = entry.getValue();
+            //change was considered a creation so far - update creation record
+            if (creationRecords.containsKey(before)) {
+                //put overrides existing values but not existing keys which we also want -> remove old entry first
+                Object[] constructionParams = creationRecords.get(before);
+                creationRecords.remove(before);
+                creationRecords.put(after, constructionParams);
+            }
+            else if (deletionRecords.containsKey(before))
+                throw new RuntimeException("Tried to change an object that is already deleted!");
+            //change is contained as after key in existing change - update change record
+            else if (changeRecords.containsValue(before)) {
+                //put overrides existing values but not existing keys which we also want -> remove old entry first
+                ObjectState beforeBefore = changeRecords.getKey(before);
+                changeRecords.remove(beforeBefore);
+                changeRecords.put(beforeBefore, after);
+            }
+            //not contained so far
+            else
+                changeRecords.put(before, entry.getValue());
+        }
     }
 
     @Override

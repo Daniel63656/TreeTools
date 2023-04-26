@@ -1,11 +1,11 @@
 package com.immersive.transactions;
 
 
-import com.immersive.transactions.commits.CollapsedCommit;
+import com.immersive.transactions.commits.Commit;
 
 class History {
     private final int capacity;     //TODO respect capacity
-    CollapsedCommit ongoingCommit = new CollapsedCommit();
+    Commit ongoingCommit = new Commit();
     Node initialNode;  //node without commit to mark the start
     Node head;
 
@@ -24,7 +24,7 @@ class History {
         head = node;
         //these commits are not inserted into transactionManagers commit list. They get copied, at which time they
         //get their proper id
-        ongoingCommit = new CollapsedCommit();
+        ongoingCommit = new Commit();
     }
 
     public boolean undosAvailable() {
@@ -36,10 +36,10 @@ class History {
     }
 
     static class Node {
-        CollapsedCommit self;
+        Commit self;
         Node previous, next;
 
-        public Node(CollapsedCommit self) {
+        public Node(Commit self) {
             this.self = self;
         }
     }
