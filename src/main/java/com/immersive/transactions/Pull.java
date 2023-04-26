@@ -35,9 +35,11 @@ public class Pull {
         for (Map.Entry<Remote.ObjectState, Object[]> entry : deletionChores.entrySet()) {
             if (verbose) System.out.println(">deleting "+entry.getKey().clazz.getSimpleName()+"["+entry.getKey().hashCode()+"]");
             ChildEntity<?> objectToDelete = (ChildEntity<?>) remote.get(entry.getKey());
-            objectToDelete.notifyRegisteredWrappersAboutRemoval();             //notify own wrapper about deletion
-            objectToDelete.getOwner().notifyRegisteredWrappersAboutChange();  //notify owners' wrapper
+            MutableObject owner = objectToDelete.getOwner();
             objectToDelete.onRemove();
+            objectToDelete.notifyRegisteredWrappersAboutRemoval();  //notify own wrapper about deletion
+            owner.notifyRegisteredWrappersAboutChange();            //notify owners' wrapper
+
             remote.removeValue(objectToDelete);
         }
 
@@ -65,17 +67,6 @@ public class Pull {
 
         //at last link the open cross-reference dependencies
         for (CrossReferenceToDo cr : crossReferences) {
-            //cross-referenced-states only point at valid states in the remote when this state was constructed.
-            //underlying objects and their states may have changed by now, so we need to trace their changes through
-            //all commits that happened after states' construction up to this commit
-            //because commits only up to the pull-commit are retrieved from the commits list, this is unaffected by
-            //commits that are added after pull is called
-            /*if (commit.getCommitId() != null) { //null for untracked commits like initialization
-                for (Commit c : TransactionManager.getInstance().commits.subMap(cr.state.getCreationId(), false, commit.getCommitId(), true).values()) {
-                    cr.crossReferencedState = c.traceForward(cr.crossReferencedState);
-                }
-            }*/
-
             MutableObject referencedObject = remote.get(cr.crossReferencedState);
             if (referencedObject == null)
                 throw new TransactionException("can't find "+cr.crossReferencedState.clazz.getSimpleName()+"["+cr.crossReferencedState.hashCode()+"] in remote, cross referenced by "+remote.getKey(cr.dme).clazz.getSimpleName(), remote.getKey(cr.dme).hashCode());
@@ -110,9 +101,9 @@ public class Pull {
                 if (creationChores.containsKey(state)) {
                     pullCreationRecord(state, creationChores.get(state));
                 }
-                //check if state exists in changeRecords (now mapped as <after, before>
-                else if (changeChores.containsKey(state)) {
-                    pullChangeRecord(changeChores.get(state), state);
+                //check if state exists in changeRecords as after
+                else if (changeChores.containsValue(state)) {
+                    pullChangeRecord(state, changeChores.get(state));
                 }
                 //now object can be safely accessed via LOT
                 params[i] = remote.get(key);

@@ -24,6 +24,9 @@ import java.util.TreeMap;
  */
 public class TransactionManager {
 
+    /**
+     * assign a unique ID to each created object that is valid in all repositories
+     */
     static int objectID;
 
     /**
@@ -112,8 +115,8 @@ public class TransactionManager {
      * disable transactions and clean up
      */
     public void shutdown() {
-        CommitId.reset();       //reset id counter
-        objectID = 0;
+        CommitId.reset();       //reset commit id counter
+        objectID = 0;           //reset object id counter
         repositories.clear();   //effectively disabling transactions
         commits.clear();
         history = null;

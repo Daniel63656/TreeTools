@@ -5,7 +5,6 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import com.immersive.transactions.Remote.ObjectState;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -122,7 +121,7 @@ public class Commit {
      * process a local creation into a creationRecord. Makes sure that all {@link ObjectState}s used either
      * for construction parameters or cross-references, are up-to-date
      */
-    private ObjectState commitCreation(Repository repository, ChildEntity<?> te) {
+    private void commitCreation(Repository repository, ChildEntity<?> te) {
         //creationRecord contains states needed to construct this object. These states have to be present in the
         //remote. The method makes sure this is the case by recursively processing these creation or changes first
 
@@ -133,17 +132,14 @@ public class Commit {
             else if (repository.locallyChangedContains(dme))
                 commitChange(repository, dme);
         }
-        //te is not currently present in remote, so generates a NEW state and put it in remote
+        //object is not currently present in remote, so generate a NEW state and put it in remote. This will also create
+        //states for cross-references if needed. If this objects' state already got created through this mechanism,
+        //this state is returned from the remote (and no new one created)
         ObjectState newKey = repository.getRemote().createObjectState(te);
         //now its save to get the states of owner/keys from the remote and create the creation record with them
         creationRecords.put(newKey, te.constructorParameterStates(repository.getRemote()));
         //log of from creation tasks
         repository.removeCreation(te);
-/*
-        //the newly created state may reference other states in cross-references, that may become outdated with this commit
-        //avoid this by deploying the same strategy as above
-        makeSureCrossReferencedStatesAreInRemote(repository, newKey);*/
-        return newKey;
     }
 
 
@@ -151,32 +147,16 @@ public class Commit {
      * process a local change into a changeRecord. Makes sure that all {@link ObjectState}s used in
      * cross-references, are up-to-date
      */
-    private ObjectState commitChange(Repository repository, MutableObject dme) {
+    private void commitChange(Repository repository, MutableObject dme) {
         ObjectState before = repository.getRemote().getKey(dme);
+        //updates the state by creating a new state with the same hashCode, so that other states that point to the
+        //before state will access the new after state automatically
+        //This will also create states for cross-references if needed
         ObjectState after = repository.getRemote().updateObjectState(dme, before);
         changeRecords.put(before, after);
         //log of from change tasks
         repository.removeChange(dme);
-
-        /*//the newly created state may reference other states in cross-references, that may become outdated with this commit
-        makeSureCrossReferencedStatesAreInRemote(repository, after);*/
-        return after;
     }
-
-    /*private void makeSureCrossReferencedStatesAreInRemote(Repository repository, ObjectState state) {
-        for (Map.Entry<Field, ObjectState> crossReference : state.getCrossReferences().entrySet()) {
-            //get the object the cross-reference is pointing at
-            MutableObject dme = repository.getRemote().get(crossReference.getValue());
-            if (dme != null) {
-                //update or create object first. If the object points back at this due to the cross-reference being
-                //circular, this is already logged of from local creations
-                if (dme instanceof ChildEntity<?> && repository.locallyCreatedContains((ChildEntity<?>) dme))
-                    crossReference.setValue(commitCreation(repository, (ChildEntity<?>) dme));
-                else if (repository.locallyChangedContains(dme))
-                    crossReference.setValue(commitChange(repository, dme));
-            }
-        }
-    }*/
 
     /**
      * build an untracked commit used for initialization by parsing the content of a given {@link RootEntity} recursively

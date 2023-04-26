@@ -1,7 +1,5 @@
 package com.immersive.transactions;
 
-import com.immersive.transactions.annotations.CrossReference;
-import com.immersive.transactions.commits.Commit;
 import com.immersive.transactions.exceptions.TransactionException;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
@@ -37,7 +35,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * @param dme object to create the logical key for
      */
     public ObjectState createObjectState(MutableObject dme) {
-        //avoid creating duplicate LOKs for same object within a tree. This also avoids infinite recursion when
+        //avoid creating duplicate states for same object within a remote. This also avoids infinite recursion when
         //two cross-references point at each other!
         if (containsValue(dme)) {
             return getKey(dme);
@@ -45,30 +43,20 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         ObjectState objectState = new ObjectState(dme.getClass(), TransactionManager.objectID);
         TransactionManager.objectID++;
         put(objectState, dme);
-
-        //start iterating over fields using reflections
-        for (Field field : DataModelInfo.getContentFields(dme)) {
-            Object fieldValue = null;
-            try {
-                field.setAccessible(true);
-                fieldValue = field.get(dme);
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            }
-            if (fieldValue instanceof MutableObject) {
-                ObjectState crossReference = createObjectState((MutableObject) fieldValue);
-                objectState.fields.put(field, crossReference);
-            }
-            else objectState.fields.put(field, fieldValue);
-        }
+        assignFieldsToObjectState(objectState, dme);
         return objectState;
     }
 
     public ObjectState updateObjectState(MutableObject dme, ObjectState oldState) {
         ObjectState objectState = new ObjectState(dme.getClass(), oldState.hashCode);
+        //put overrides existing values but not existing keys which we also want -> remove old entry first
+        remove(oldState);
         put(objectState, dme);
+        assignFieldsToObjectState(objectState, dme);
+        return objectState;
+    }
 
-        //start iterating over fields using reflections
+    private void assignFieldsToObjectState(ObjectState objectState, MutableObject dme) {
         for (Field field : DataModelInfo.getContentFields(dme)) {
             Object fieldValue = null;
             try {
@@ -78,11 +66,10 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
                 e.printStackTrace();
             }
             if (fieldValue instanceof MutableObject) {
-                objectState.fields.put(field, getKey(fieldValue));
+                objectState.fields.put(field, createObjectState((MutableObject) fieldValue));
             }
             else objectState.fields.put(field, fieldValue);
         }
-        return objectState;
     }
 
     public ObjectState getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
@@ -109,12 +96,16 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         final Class<? extends MutableObject> clazz;
 
         /**
+         * map fields to their corresponding values. If the field holds another {@link MutableObject}, then the corresponding
+         * {@link ObjectState} is used
+         */
+        private final HashMap<Field, Object> fields = new HashMap<>();
+
+        /**
          * can't use the values of the fields as hash because they can be the same for several objects of the data model.
          * Use a {@link Remote}-wide unique id instead
          */
         private final int hashCode;
-
-        private final HashMap<Field, Object> fields = new HashMap<>();
 
         /**
          * constructor is private so that states are only instantiated via the {@link Remote} that
