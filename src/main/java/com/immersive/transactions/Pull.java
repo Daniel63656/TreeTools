@@ -150,18 +150,12 @@ public class Pull {
         for (Field field : DataModelInfo.getContentFields(dme)) {
             if (state.getFields().containsKey(field)) {
                 field.setAccessible(true);
-                field.set(dme, state.getFields().get(field));
-            }
-            //field is a cross-reference
-            else if (state.crossReferences.containsKey(field)) {
-                if (state.crossReferences.get(field) != null) {
+                Object value = state.getFields().get(field);
+                if (value instanceof Remote.ObjectState) {
                     //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
-                    crossReferences.add(new CrossReferenceToDo(dme, state, state.crossReferences.get(field), field));
+                    crossReferences.add(new CrossReferenceToDo(dme, state, (Remote.ObjectState) value, field));
                 }
-                else {
-                    field.setAccessible(true);
-                    field.set(dme, null);
-                }
+                else field.set(dme, state.getFields().get(field));
             }
         }
     }

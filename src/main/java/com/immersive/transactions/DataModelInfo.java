@@ -220,7 +220,7 @@ public class DataModelInfo {
             }
             //field is other TransactionalEntity
             else if (MutableObject.class.isAssignableFrom(type)) {
-                //cross-referenced DMEs are not considered to be children of the class
+                //cross-referenced DMEs are not considered to be children of the class //TODO remove this differentiation?
                 if (field.getAnnotation(CrossReference.class) != null)
                     contentFieldList.add(field);
                 else //child simply owned by reference

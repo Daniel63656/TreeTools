@@ -139,10 +139,10 @@ public class Commit {
         creationRecords.put(newKey, te.constructorParameterStates(repository.getRemote()));
         //log of from creation tasks
         repository.removeCreation(te);
-
+/*
         //the newly created state may reference other states in cross-references, that may become outdated with this commit
         //avoid this by deploying the same strategy as above
-        makeSureCrossReferencedStatesAreInRemote(repository, newKey);
+        makeSureCrossReferencedStatesAreInRemote(repository, newKey);*/
         return newKey;
     }
 
@@ -158,12 +158,12 @@ public class Commit {
         //log of from change tasks
         repository.removeChange(dme);
 
-        //the newly created state may reference other states in cross-references, that may become outdated with this commit
-        makeSureCrossReferencedStatesAreInRemote(repository, after);
+        /*//the newly created state may reference other states in cross-references, that may become outdated with this commit
+        makeSureCrossReferencedStatesAreInRemote(repository, after);*/
         return after;
     }
 
-    private void makeSureCrossReferencedStatesAreInRemote(Repository repository, ObjectState state) {
+    /*private void makeSureCrossReferencedStatesAreInRemote(Repository repository, ObjectState state) {
         for (Map.Entry<Field, ObjectState> crossReference : state.getCrossReferences().entrySet()) {
             //get the object the cross-reference is pointing at
             MutableObject dme = repository.getRemote().get(crossReference.getValue());
@@ -176,7 +176,7 @@ public class Commit {
                     crossReference.setValue(commitChange(repository, dme));
             }
         }
-    }
+    }*/
 
     /**
      * build an untracked commit used for initialization by parsing the content of a given {@link RootEntity} recursively

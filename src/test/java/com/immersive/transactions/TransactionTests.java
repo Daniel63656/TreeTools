@@ -60,10 +60,10 @@ public class TransactionTests {
     private void verifyTying(Remote LOT) throws NoSuchFieldException {
         ObjectState lok_tieStart = LOT.getKey(tieStart);
         ObjectState lok_tieEnd   = LOT.getKey(tieEnd);
-        Assertions.assertSame(lok_tieEnd, lok_tieStart.crossReferences.get(note.getClass().getDeclaredField("nextTied")));
-        Assertions.assertSame(null, lok_tieStart.crossReferences.get(note.getClass().getDeclaredField("previousTied")));
-        Assertions.assertSame(lok_tieStart, lok_tieEnd.crossReferences.get(note.getClass().getDeclaredField("previousTied")));
-        Assertions.assertSame(null, lok_tieEnd.crossReferences.get(note.getClass().getDeclaredField("nextTied")));
+        Assertions.assertSame(lok_tieEnd, lok_tieStart.getFields().get(note.getClass().getDeclaredField("nextTied")));
+        Assertions.assertSame(null, lok_tieStart.getFields().get(note.getClass().getDeclaredField("previousTied")));
+        Assertions.assertSame(lok_tieStart, lok_tieEnd.getFields().get(note.getClass().getDeclaredField("previousTied")));
+        Assertions.assertSame(null, lok_tieEnd.getFields().get(note.getClass().getDeclaredField("nextTied")));
     }
 
     private Note getNoteInFullScoreAt(FullScore fullScore, Fraction fraction) {
@@ -314,7 +314,7 @@ public class TransactionTests {
 
         //check that the deletion records "previous tied" and "owner" points at the unchanged states
         for (Map.Entry<ObjectState, Object[]> entry : commit.getDeletionRecords().entrySet()) { //only one deletionRecord
-            Assertions.assertEquals(tieStartBeforeChange, entry.getKey().crossReferences.get(Note.class.getDeclaredField("previousTied")));
+            Assertions.assertEquals(tieStartBeforeChange, entry.getKey().getFields().get(Note.class.getDeclaredField("previousTied")));
             Assertions.assertEquals(tieEndNoteGroupBeforeChange, entry.getValue()[0]);
         }
 

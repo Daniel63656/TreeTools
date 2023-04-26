@@ -70,9 +70,9 @@ public class RemoteCreationTest {
         ObjectState lok_tieStart = remote.createObjectState(tieStart);
         ObjectState lok_tieEnd   = remote.createObjectState(tieEnd);
 
-        Assertions.assertSame(lok_tieStart.crossReferences.get(note.getClass().getDeclaredField("nextTied")), lok_tieEnd);
-        Assertions.assertSame(lok_tieStart.crossReferences.get(note.getClass().getDeclaredField("previousTied")), null);
-        Assertions.assertSame(lok_tieEnd.crossReferences.  get(note.getClass().getDeclaredField("previousTied")), lok_tieStart);
-        Assertions.assertSame(lok_tieEnd.crossReferences.  get(note.getClass().getDeclaredField("nextTied")), null);
+        Assertions.assertSame(lok_tieStart.getFields().get(note.getClass().getDeclaredField("nextTied")), lok_tieEnd);
+        Assertions.assertSame(lok_tieStart.getFields().get(note.getClass().getDeclaredField("previousTied")), null);
+        Assertions.assertSame(lok_tieEnd.getFields().  get(note.getClass().getDeclaredField("previousTied")), lok_tieStart);
+        Assertions.assertSame(lok_tieEnd.getFields().  get(note.getClass().getDeclaredField("nextTied")), null);
     }
 }

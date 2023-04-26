@@ -55,19 +55,11 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
-            //field is a cross-reference
-            if (field.getAnnotation(CrossReference.class) != null) {
-                if (fieldValue == null)
-                    objectState.crossReferences.put(field, null);
-                else {
-                    ObjectState crossReference = createObjectState((MutableObject) fieldValue);
-                    objectState.crossReferences.put(field, crossReference);
-                }
+            if (fieldValue instanceof MutableObject) {
+                ObjectState crossReference = createObjectState((MutableObject) fieldValue);
+                objectState.fields.put(field, crossReference);
             }
-            //field is of primitive data type
-            else {
-                objectState.fields.put(field, fieldValue);
-            }
+            else objectState.fields.put(field, fieldValue);
         }
         return objectState;
     }
@@ -85,18 +77,10 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
-            //field is a cross-reference
-            if (field.getAnnotation(CrossReference.class) != null) {
-                if (fieldValue == null)
-                    objectState.crossReferences.put(field, null);
-                else {
-                    objectState.crossReferences.put(field, getKey(fieldValue));
-                }
+            if (fieldValue instanceof MutableObject) {
+                objectState.fields.put(field, getKey(fieldValue));
             }
-            //field is of primitive data type
-            else {
-                objectState.fields.put(field, fieldValue);
-            }
+            else objectState.fields.put(field, fieldValue);
         }
         return objectState;
     }
@@ -133,13 +117,6 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         private final HashMap<Field, Object> fields = new HashMap<>();
 
         /**
-         * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
-         * the {@link Remote} in the commit that this state was created. This map gets modified in the commit creation but
-         * is supposed to be immutable afterwards
-         */
-        final HashMap<Field, ObjectState> crossReferences = new HashMap<>();
-
-        /**
          * constructor is private so that states are only instantiated via the {@link Remote} that
          * they are held in
          */
@@ -150,10 +127,6 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
 
         public Map<Field, Object> getFields() {
             return MapUtils.unmodifiableMap(fields);
-        }
-
-        public Map<Field, ObjectState> getCrossReferences() {
-            return crossReferences;
         }
 
         boolean contentEquals(ObjectState other) {
@@ -188,20 +161,12 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
             strb.append(clazz.getSimpleName()).append("[").append(hashCode).append("] = {");
             if (!fields.isEmpty()) {
                 for (Entry<Field, Object> entry : fields.entrySet()) {
-                    if (entry.getValue() instanceof ObjectState)
+                    if (entry.getValue() == null)
+                        strb.append(entry.getKey().getName()).append("=[null] ");
+                    else if (entry.getValue() instanceof ObjectState)
                         strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
                     else
                         strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
-                }
-            }
-            if (!crossReferences.isEmpty()) {
-                for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
-                    ObjectState crossReferencedState = entry.getValue();
-                    if (crossReferencedState == null)
-                        strb.append(entry.getKey().getName()).append("=[null] ");
-                    else {
-                        strb.append(entry.getKey().getName()).append("=[").append(crossReferencedState.hashCode).append("] ");
-                    }
                 }
             }
             //remove last space if attributes exist
