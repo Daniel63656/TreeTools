@@ -26,7 +26,7 @@ public class Pull {
         repository.ongoingPull = true;
         //copy modification- and changeRecords to safely cross things off without changing the commit itself
         creationChores = new HashMap<>(commit.getCreationRecords());
-        changeChores = new HashMap<>(commit.getInvertedChangeRecords()); //map changeChores with AFTER as key!
+        changeChores = new HashMap<>(commit.getChangeRecords());
         //no removing here
         Map<Remote.ObjectState, Object[]> deletionChores = commit.getDeletionRecords();
         remote = repository.remote;
@@ -57,7 +57,7 @@ public class Pull {
         while (!changeChores.isEmpty()) {
             changeRecord = changeChores.entrySet().iterator().next();
             try {
-                pullChangeRecord(changeRecord.getValue(), changeRecord.getKey());
+                pullChangeRecord(changeRecord.getKey(), changeRecord.getValue());
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
