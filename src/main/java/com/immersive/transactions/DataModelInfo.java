@@ -15,21 +15,22 @@ import java.util.*;
  */
 public class DataModelInfo {
 
-    /** store class information of analyzed classes for quick access */
+    /** store {@link DataModelInfo} of analyzed classes for quick access */
     private static final Map<Class<? extends MutableObject>, DataModelInfo> dataModelInfo = new HashMap<>();
 
     /**
-     * class whose content is described
+     * class-type whose content is described
      */
     Class<? extends MutableObject> clazz;
 
     /**
-     * all fields that contain children of the described class and superclass(es) either in containers or directly
+     * all fields that contain children of the described class and superclass(es) (excluding transactional class fields)
+     * either in containers or directly
      */
     Field[] childFields;
 
     /**
-     * all other fields of the described class and superclass(es) (owner excluded)
+     * all other fields of the described class and superclass(es) (excluding transactional class fields)
      */
     Field[] contentFields;
 
@@ -175,7 +176,7 @@ public class DataModelInfo {
         Class<?> iterator = clazz;
         Package transactionPackage = MutableObject.class.getPackage();
         while(iterator.getSuperclass() != null) {
-            //stop when reaching transaction package so owners and keys won't be considered
+            //stop when reaching transaction package, meaning owners and keys won't be considered
             if (iterator.getPackage() == transactionPackage)
                 break;
             relevantFields = ArrayUtils.addAll(relevantFields, iterator.getDeclaredFields());

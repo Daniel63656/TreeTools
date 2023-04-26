@@ -35,9 +35,9 @@ public class Pull {
         for (Map.Entry<Remote.ObjectState, Object[]> entry : deletionChores.entrySet()) {
             if (verbose) System.out.println(">deleting "+entry.getKey().clazz.getSimpleName()+"["+entry.getKey().hashCode()+"]");
             ChildEntity<?> objectToDelete = (ChildEntity<?>) remote.get(entry.getKey());
-            objectToDelete.onCleared();             //notify own wrapper about deletion
-            objectToDelete.getOwner().onChanged();  //notify owners' wrapper
-            objectToDelete.destruct();
+            objectToDelete.notifyRegisteredWrappersAboutRemoval();             //notify own wrapper about deletion
+            objectToDelete.getOwner().notifyRegisteredWrappersAboutChange();  //notify owners' wrapper
+            objectToDelete.onRemove();
             remote.removeValue(objectToDelete);
         }
 
@@ -128,7 +128,7 @@ public class Pull {
         ChildEntity<?> objectToCreate = DataModelInfo.construct(objKey.clazz, params);
         imprintLogicalContentOntoObject(objKey, objectToCreate);
         //notify owner that a new child was created
-        objectToCreate.getOwner().onChanged();
+        objectToCreate.getOwner().notifyRegisteredWrappersAboutChange();
         remote.put(objKey, objectToCreate);
         creationChores.remove(objKey);
     }
@@ -141,7 +141,7 @@ public class Pull {
 
         imprintLogicalContentOntoObject(after, objectToChange);
         //notify potential wrappers about the change
-        objectToChange.onChanged();
+        objectToChange.notifyRegisteredWrappersAboutChange();
         remote.put(after, objectToChange);
         changeChores.remove(after);
     }

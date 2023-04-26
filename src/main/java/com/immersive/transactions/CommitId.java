@@ -1,6 +1,5 @@
 package com.immersive.transactions;
 
-import com.immersive.transactions.commits.Commit;
 import org.jetbrains.annotations.NotNull;
 
 

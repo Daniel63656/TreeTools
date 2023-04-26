@@ -21,10 +21,10 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
     protected final O owner;
 
     /**
-     * prevent clearing to happen while object is already in the process of clearing. As member of this class, this field
+     * prevent removal to be triggered several times on the same object. As member of this class, this field
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
-    private boolean clearingInProgress;
+    private boolean removalInProcess;
 
     protected ChildEntity(O owner) {
         this.owner = owner;
@@ -46,40 +46,43 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
     }
 
     /**
-     *
-     *
-     * removes itself from the specific owner collection it is owned in.
-     * This method needs to be implemented by any {@link ChildEntity}
-     */
-    protected abstract void destruct();
-
-    /**
-     * remove this object and all subsequent children from the data model. Not triggered by
-     * {@link TransactionManager#pull(RootEntity)} because
-     * pulling uses only the {@link ChildEntity#destruct()} method
+     * remove this object and all subsequent children from the data model.
+     * This method calls {@link ChildEntity#onRemove()} on each removed object to handle object-specific clean-ups,
+     * notifies registered wrappers about the removal and
+     * creates deltas if a local {@link Repository} exists
      */
     public final void remove() {
-        if (clearingInProgress)
+        if (removalInProcess)
             return;
-        clearingInProgress = true;
+        removalInProcess = true;
         Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
         if (repository != null)
-            recursivelyDestruct(this, repository);
-        else recursivelyDestruct(this);
+            recursivelyRemove(this, repository);
+        else recursivelyRemove(this);
     }
-    private void recursivelyDestruct(ChildEntity<?> te) {
-        te.destruct();
+    private void recursivelyRemove(ChildEntity<?> te) {
+        te.onRemove();
+        te.notifyRegisteredWrappersAboutRemoval();
         for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
-            recursivelyDestruct(t);
+            recursivelyRemove(t);
         }
     }
-    private void recursivelyDestruct(ChildEntity<?> te, Repository repository) {
-        repository.logLocalDeletion(te);    //log object as it was before possible modifications in destruct()
-        te.destruct();
+    private void recursivelyRemove(ChildEntity<?> te, Repository repository) {
+        repository.logLocalDeletion(te);
+        te.notifyRegisteredWrappersAboutRemoval();
+        te.onRemove();
         for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
-            recursivelyDestruct(t, repository);
+            recursivelyRemove(t, repository);
         }
     }
+
+    /**
+     * this method needs to be implemented by any {@link ChildEntity}. In it the object must take actions that remove
+     * any references to itself to leave an intact data model behind. This typically includes removing itself from an
+     * owner collection, removing other objects that are mapped with this as key and setting fields pointing to this
+     * object to null
+     */
+    protected abstract void onRemove();
 
     @Override
     public List<Wrapper<?>> getRegisteredWrappers() {
@@ -97,14 +100,14 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
     }
 
     @Override
-    public void onCleared() {
+    public void notifyRegisteredWrappersAboutRemoval() {
         for (WrapperScope scope : root.wrapperScopes) {
             if (scope.registeredWrappers.containsKey(this))
-                scope.registeredWrappers.get(this).onWrappedCleared();
+                scope.registeredWrappers.get(this).onWrappedRemoved();
         }
     }
     @Override
-    public void onChanged() {
+    public void notifyRegisteredWrappersAboutChange() {
         for (WrapperScope scope : root.wrapperScopes) {
             if (scope.registeredWrappers.containsKey(this))
                 scope.registeredWrappers.get(this).onWrappedChanged();

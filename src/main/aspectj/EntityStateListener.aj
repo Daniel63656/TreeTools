@@ -11,11 +11,12 @@ private static TransactionManager tm = TransactionManager.getInstance();
         && target(dme)
         && args(newValue);
 
-
+    //fields set with reflections in a pull do not trigger this aspect
     before(MutableObject dme, Object newValue) : contentFieldSetter(dme, newValue) {
         Repository repository = tm.repositories.get(dme.getRootEntity());
         if (repository != null) {
             repository.logLocalChange(dme);
+            dme.notifyRegisteredWrappersAboutChange();
         }
     }
 }

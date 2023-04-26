@@ -19,7 +19,7 @@ public class Track extends ChildEntity<FullScore> {
         fullScore.tracks.add(this);
     }
     //this method the transactional logic is looking for in order to atomically delete objects
-    protected void destruct() {
+    protected void onRemove() {
         getOwner().tracks.remove(this);
     }
 

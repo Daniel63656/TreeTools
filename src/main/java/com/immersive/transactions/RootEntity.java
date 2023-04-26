@@ -45,13 +45,13 @@ public abstract class RootEntity implements MutableObject {
 
 
     @Override
-    public void onCleared() {
+    public void notifyRegisteredWrappersAboutRemoval() {
         //implement and catch this method here to make sure no specific RootEntity can be cleared
         throw new RuntimeException("Can't remove the root of a data model!");
     }
 
     @Override
-    public void onChanged() {
+    public void notifyRegisteredWrappersAboutChange() {
         for (WrapperScope scope : wrapperScopes) {
             if (scope.registeredWrappers.containsKey(this))
                 scope.registeredWrappers.get(this).onWrappedChanged();

@@ -15,10 +15,10 @@ public interface Wrappable {
     /**
      * Notify registered wrappers about the deletion of itself
      */
-    void onCleared();
+    void notifyRegisteredWrappersAboutRemoval();
 
     /**
      * Notify registered wrappers about a change
      */
-    void onChanged();
+    void notifyRegisteredWrappersAboutChange();
 }
