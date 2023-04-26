@@ -70,11 +70,11 @@ public class Pull {
             //all commits that happened after states' construction up to this commit
             //because commits only up to the pull-commit are retrieved from the commits list, this is unaffected by
             //commits that are added after pull is called
-            if (commit.getCommitId() != null) { //null for untracked commits like initialization
+            /*if (commit.getCommitId() != null) { //null for untracked commits like initialization
                 for (Commit c : TransactionManager.getInstance().commits.subMap(cr.state.getCreationId(), false, commit.getCommitId(), true).values()) {
                     cr.crossReferencedState = c.traceForward(cr.crossReferencedState);
                 }
-            }
+            }*/
 
             MutableObject referencedObject = remote.get(cr.crossReferencedState);
             if (referencedObject == null)

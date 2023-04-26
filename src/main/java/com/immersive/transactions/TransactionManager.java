@@ -25,6 +25,8 @@ import java.util.TreeMap;
  */
 public class TransactionManager {
 
+    static int objectID;
+
     /**
      * this class is a singleton!
      */
@@ -112,6 +114,7 @@ public class TransactionManager {
      */
     public void shutdown() {
         CommitId.reset();       //reset id counter
+        objectID = 0;
         repositories.clear();   //effectively disabling transactions
         commits.clear();
         history = null;
@@ -121,6 +124,20 @@ public class TransactionManager {
         if (history == null)
             throw new RuntimeException("Undos/Redos are not enabled!");
         history.createUndoState();
+    }
+
+    /**
+     * removes obsolete commits that are no longer used by any {@link Repository}
+     */
+    private void cleanUpUnnecessaryCommits() {
+        synchronized(commits) {
+            CommitId earliestCommitInUse = commits.lastKey();
+            for (Repository repository : repositories.values()) {
+                if (repository.currentCommitId.compareTo(earliestCommitInUse) < 0)
+                    earliestCommitInUse = repository.currentCommitId;
+            }
+            commits.headMap(earliestCommitInUse, true).clear();
+        }
     }
 
 
@@ -168,6 +185,7 @@ public class TransactionManager {
             if (verbose) System.out.println("\n========== PULLING "+ commit);
             new Pull(repository, commit);
         }
+        cleanUpUnnecessaryCommits();
         return true;
     }
 
@@ -192,6 +210,7 @@ public class TransactionManager {
             }
             if (verbose) System.out.println("\n========== UNDO "+ invertedCommit);
             new Pull(repository, invertedCommit);
+            cleanUpUnnecessaryCommits();
             return invertedCommit;
         }
         return null;
@@ -216,6 +235,7 @@ public class TransactionManager {
             }
             if (verbose) System.out.println("\n========== REDO "+ commit);
             new Pull(repository, commit);
+            cleanUpUnnecessaryCommits();
             return commit;
         }
         return null;

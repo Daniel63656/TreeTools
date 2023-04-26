@@ -35,7 +35,7 @@ public class Repository {
 
     Repository(RootEntity rootEntity, CommitId currentCommitId) {
         this.rootEntity = rootEntity;
-        this.remote = new Remote(rootEntity, currentCommitId);
+        this.remote = new Remote(rootEntity);
         this.currentCommitId = currentCommitId;
     }
 

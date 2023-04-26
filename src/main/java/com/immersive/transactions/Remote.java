@@ -19,20 +19,14 @@ import java.util.Objects;
  */
 public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
 
-    /**
-     * make sure each created {@link ObjectState} gets assigned a unique ID within the {@link Remote}
-     */
-    private static int remoteWideId;
-
-
-    Remote(RootEntity rootEntity, CommitId commitId) {
-        buildRemote(this, rootEntity, commitId);
+    Remote(RootEntity rootEntity) {
+        buildRemote(this, rootEntity);
     }
-    private void buildRemote(Remote remote, MutableObject dme, CommitId commitId) {
-        remote.createObjectState(dme, commitId);
+    private void buildRemote(Remote remote, MutableObject dme) {
+        remote.createObjectState(dme);
         ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
         for (ChildEntity<?> child : children) {
-            buildRemote(remote, child, commitId);
+            buildRemote(remote, child);
         }
     }
 
@@ -41,13 +35,14 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * nasty stuff like cross-references are properly handled
      * @param dme object to create the logical key for
      */
-    public ObjectState createObjectState(MutableObject dme, CommitId currentId) {
+    public ObjectState createObjectState(MutableObject dme) {
         //avoid creating duplicate LOKs for same object within a tree. This also avoids infinite recursion when
         //two cross-references point at each other!
         if (containsValue(dme)) {
             return getKey(dme);
         }
-        ObjectState objectState = new ObjectState(dme.getClass(), currentId);
+        ObjectState objectState = new ObjectState(dme.getClass(), TransactionManager.objectID);
+        TransactionManager.objectID++;
         put(objectState, dme);
 
         //start iterating over fields using reflections
@@ -64,8 +59,37 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
                 if (fieldValue == null)
                     objectState.crossReferences.put(field, null);
                 else {
-                    ObjectState crossReference = createObjectState((MutableObject) fieldValue, currentId);
+                    ObjectState crossReference = createObjectState((MutableObject) fieldValue);
                     objectState.crossReferences.put(field, crossReference);
+                }
+            }
+            //field is of primitive data type
+            else {
+                objectState.put(field, fieldValue);
+            }
+        }
+        return objectState;
+    }
+
+    public ObjectState updateObjectState(MutableObject dme, ObjectState oldState) {
+        ObjectState objectState = new ObjectState(dme.getClass(), oldState.hashCode);
+        put(objectState, dme);
+
+        //start iterating over fields using reflections
+        for (Field field : DataModelInfo.getContentFields(dme)) {
+            Object fieldValue = null;
+            try {
+                field.setAccessible(true);
+                fieldValue = field.get(dme);
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+            //field is a cross-reference
+            if (field.getAnnotation(CrossReference.class) != null) {
+                if (fieldValue == null)
+                    objectState.crossReferences.put(field, null);
+                else {
+                    objectState.crossReferences.put(field, getKey(fieldValue));
                 }
             }
             //field is of primitive data type
@@ -106,12 +130,6 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         private final int hashCode;
 
         /**
-         * the {@link CommitId} at which this state was created. Together with the {@link ObjectState#hashCode} this object
-         * becomes uniquely identifiable across different {@link Remote}s and {@link Commit}s
-         */
-        private final CommitId creationId;
-
-        /**
          * save cross-references in a separate map. The saved {@link ObjectState}s only point to valid entries in
          * the {@link Remote} in the commit that this state was created. This map gets modified in the commit creation but
          * is supposed to be immutable afterwards
@@ -122,15 +140,9 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          * constructor is private so that states are only instantiated via the {@link Remote} that
          * they are held in
          */
-        private ObjectState(Class<? extends MutableObject> clazz, CommitId creationId) {
+        private ObjectState(Class<? extends MutableObject> clazz, int hashCode) {
             this.clazz = clazz;
-            this.creationId = creationId;
-            this.hashCode = remoteWideId;
-            remoteWideId++;
-        }
-
-        public CommitId getCreationId() {
-            return creationId;
+            this.hashCode = hashCode;
         }
 
         public Map<Field, ObjectState> getCrossReferences() {
@@ -155,9 +167,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
                 return false;
             }
             ObjectState other = (ObjectState) o;
-            //different states from different remotes (or even the same remote if hashCode overflows) may have the
-            //same hasCode but not the same creationId as well
-            return this.hashCode == other.hashCode && this.creationId == other.creationId;
+            return this.hashCode == other.hashCode;
         }
 
         @Override
@@ -168,46 +178,30 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         @Override
         public String toString() {
             StringBuilder strb = new StringBuilder();
-            printClassAndId(strb).append(" = {");
-            printImmutableFields(strb);
-            printCrossReferences(strb, creationId).setLength(strb.length() - 1);  //remove last space
-            strb.append("}");
-            return strb.toString();
-        }
-
-        public StringBuilder printClassAndId(StringBuilder strb) {
-            strb.append(clazz.getSimpleName()).append("[").append(hashCode).append(",").append(creationId).append("]");
-            return strb;
-        }
-
-        public StringBuilder printImmutableFields(StringBuilder strb) {
-            for (Entry<Field, Object> entry : entrySet()) {
-                if (entry.getValue() instanceof ObjectState)
-                    strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
-                else
-                    strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
-            }
-            return strb;
-        }
-
-        public StringBuilder printCrossReferences(StringBuilder strb, CommitId currentCommitId) {
-            for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
-                ObjectState crossReferencedState = entry.getValue();
-                if (crossReferencedState == null)
-                    strb.append(entry.getKey().getName()).append("=[null] ");
-                else {
-                    strb.append(entry.getKey().getName()).append("=[").append(crossReferencedState.hashCode);
-                    ObjectState traced = crossReferencedState;
-                    TransactionManager tm = TransactionManager.getInstance();
-                    for (Commit c : tm.commits.subMap(creationId, false, currentCommitId, true).values()) {
-                        traced = c.traceForward(traced);
-                    }
-                    if (traced.hashCode != crossReferencedState.hashCode)
-                        strb.append("->").append(traced.hashCode);
-                    strb.append("] ");
+            strb.append(clazz.getSimpleName()).append("[").append(hashCode).append("] = {");
+            if (!isEmpty()) {
+                for (Entry<Field, Object> entry : entrySet()) {
+                    if (entry.getValue() instanceof ObjectState)
+                        strb.append(entry.getKey().getName()).append("=[").append(entry.getValue().hashCode()).append("] ");
+                    else
+                        strb.append(entry.getKey().getName()).append("=").append(entry.getValue()).append(" ");
                 }
             }
-            return strb;
+            if (!crossReferences.isEmpty()) {
+                for (Entry<Field, ObjectState> entry : crossReferences.entrySet()) {
+                    ObjectState crossReferencedState = entry.getValue();
+                    if (crossReferencedState == null)
+                        strb.append(entry.getKey().getName()).append("=[null] ");
+                    else {
+                        strb.append(entry.getKey().getName()).append("=[").append(crossReferencedState.hashCode).append("] ");
+                    }
+                }
+            }
+            //remove last space if attributes exist
+            if (strb.charAt(strb.length()-1) == ' ')
+                strb.setLength(strb.length() - 1);
+            strb.append("}");
+            return strb.toString();
         }
     }
 }

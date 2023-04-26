@@ -124,7 +124,7 @@ public class Commit {
                 commitChange(repository, dme);
         }
         //te is not currently present in remote, so generates a NEW state and put it in remote
-        ObjectState newKey = repository.getRemote().createObjectState(te, commitId);
+        ObjectState newKey = repository.getRemote().createObjectState(te);
         //now its save to get the states of owner/keys from the remote and create the creation record with them
         creationRecords.put(newKey, te.constructorParameterStates(repository.getRemote()));
         //log of from creation tasks
@@ -143,9 +143,7 @@ public class Commit {
      */
     private ObjectState commitChange(Repository repository, MutableObject dme) {
         ObjectState before = repository.getRemote().getKey(dme);
-        //remove old state from remote first to enable the creation of a new state for this object
-        repository.getRemote().removeValue(dme);
-        ObjectState after = repository.getRemote().createObjectState(dme, commitId);
+        ObjectState after = repository.getRemote().updateObjectState(dme, before);
         changeRecords.put(before, after);
         //log of from change tasks
         repository.removeChange(dme);
@@ -230,34 +228,16 @@ public class Commit {
     @Override
     public String toString() {
         StringBuilder strb = new StringBuilder();
-        if (commitId != null) {
+        if (commitId != null)
             strb.append("commit number ").append(commitId).append(":\n");
-            //use getter so inverted commit is printed correctly
-            for (Map.Entry<ObjectState, Object[]> entry : getDeletionRecords().entrySet()) {
-                strb.append(">Delete ");
-                printState(strb, entry.getKey(), commitId.getPredecessor());
-            }
-            for (Map.Entry<ObjectState, Object[]> entry : getCreationRecords().entrySet()) {
-                strb.append(">Create ");
-                printState(strb, entry.getKey(), commitId);
-            }
-            for (Map.Entry<ObjectState, ObjectState> entry : getChangeRecords().entrySet()) {
-                strb.append(">Change ");
-                printState(strb, entry.getKey(), commitId.getPredecessor());
-                strb.append("     to ");
-                printState(strb, entry.getValue(), commitId);
-            }
-            return strb.append("====================================").toString();
-        }
-        return "untracked commit";
-    }
-
-    private void printState(StringBuilder strb, ObjectState state, CommitId commitId) {
-        state.printClassAndId(strb).append(" = {");
-        state.printImmutableFields(strb);
-        state.printCrossReferences(strb, commitId);
-        if (strb.charAt(strb.length()-1) == ' ')
-            strb.setLength(strb.length() - 1);
-        strb.append("}\n");
+        else strb.append("untracked commit:\n");
+        //use getter so inverted commit is printed correctly
+        for (Map.Entry<ObjectState, Object[]> entry : getDeletionRecords().entrySet())
+            strb.append(">Delete ").append(entry.getKey()).append("\n");
+        for (Map.Entry<ObjectState, Object[]> entry : getCreationRecords().entrySet())
+            strb.append(">Create ").append(entry.getKey()).append("\n");
+        for (Map.Entry<ObjectState, ObjectState> entry : getChangeRecords().entrySet())
+            strb.append(">Change ").append(entry.getKey()).append("\n     to ").append(entry.getValue()).append("\n");
+        return strb.append("====================================").toString();
     }
 }
