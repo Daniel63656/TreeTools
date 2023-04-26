@@ -27,7 +27,7 @@ public class TransactionManager {
     /**
      * assign a unique ID to each created object that is valid in all repositories
      */
-    static int objectID;
+    static long objectID;
 
     /**
      * this class is a singleton!

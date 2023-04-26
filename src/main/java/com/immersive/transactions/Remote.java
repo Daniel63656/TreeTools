@@ -48,7 +48,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
     }
 
     public ObjectState updateObjectState(MutableObject dme, ObjectState oldState) {
-        ObjectState objectState = new ObjectState(dme.getClass(), oldState.hashCode);
+        ObjectState objectState = new ObjectState(dme.getClass(), oldState.objectId);
         //put overrides existing values but not existing keys which we also want -> remove old entry first
         remove(oldState);
         put(objectState, dme);
@@ -105,15 +105,15 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          * can't use the values of the fields as hash because they can be the same for several objects of the data model.
          * Use a {@link Remote}-wide unique id instead
          */
-        private final int hashCode;
+        private final long objectId;
 
         /**
          * constructor is private so that states are only instantiated via the {@link Remote} that
          * they are held in
          */
-        private ObjectState(Class<? extends MutableObject> clazz, int hashCode) {
+        private ObjectState(Class<? extends MutableObject> clazz, long objectId) {
             this.clazz = clazz;
-            this.hashCode = hashCode;
+            this.objectId = objectId;
         }
 
         public Map<Field, Object> getFields() {
@@ -138,18 +138,18 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
                 return false;
             }
             ObjectState other = (ObjectState) o;
-            return this.hashCode == other.hashCode;
+            return this.objectId == other.objectId;
         }
 
         @Override
         public int hashCode() {
-            return hashCode;
+            return Long.hashCode(objectId);
         }
 
         @Override
         public String toString() {
             StringBuilder strb = new StringBuilder();
-            strb.append(clazz.getSimpleName()).append("[").append(hashCode).append("] = {");
+            strb.append(clazz.getSimpleName()).append("[").append(objectId).append("] = {");
             if (!fields.isEmpty()) {
                 for (Entry<Field, Object> entry : fields.entrySet()) {
                     if (entry.getValue() == null)

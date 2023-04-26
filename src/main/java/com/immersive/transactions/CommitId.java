@@ -11,28 +11,34 @@ public class CommitId implements Comparable<CommitId> {
     static void reset() {
         currentCommitId = 0;
     }
-    private final int id;
+    private final long id;
 
     public CommitId() {
         this.id = currentCommitId;
         currentCommitId++;
     }
 
-    private CommitId(int id) {
-        this.id = id;
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof CommitId)) {
+            return false;
+        }
+        CommitId other = (CommitId) o;
+        return this.id == other.id;
     }
 
-    public CommitId getPredecessor() {
-        return new CommitId(id-1);
+    @Override
+    public int hashCode() {
+        return Long.hashCode(id);
     }
 
     @Override
     public int compareTo(@NotNull CommitId right) {
-        return Integer.compare(id, right.id);
+        return Long.compare(id, right.id);
     }
 
     @Override
     public String toString() {
-        return Integer.toString(id);
+        return Long.toString(id);
     }
 }
