@@ -1,12 +1,10 @@
 package com.immersive.test_model;
 
-import com.immersive.transactions.annotations.CrossReference;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public class Tuplet extends NoteGroupOrTuplet {
-    @CrossReference
+
     List<NoteGroup> noteGroups = new ArrayList<>();
 
     //this constructor the transactional logic is looking for

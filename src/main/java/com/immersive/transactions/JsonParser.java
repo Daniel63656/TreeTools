@@ -1,19 +1,13 @@
 package com.immersive.transactions;
 
-import static com.immersive.transactions.DataModelInfo.getAllFieldsIncludingInheritedOnes;
-import static com.immersive.transactions.DataModelInfo.isComplexObject;
-
-import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.annotations.AbstractClass;
 import com.immersive.transactions.exceptions.IllegalDataModelException;
 
 import java.lang.reflect.*;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
+import java.util.*;
+
+import static com.immersive.transactions.DataModelInfo.getAllFieldsIncludingInheritedOnes;
+import static com.immersive.transactions.DataModelInfo.isComplexObject;
 
 
 /**
@@ -91,7 +85,7 @@ public final class JsonParser {
             //get content fields
             Field[] contentFields;
             if (dme != null)
-                contentFields = DataModelInfo.getContentFields((MutableObject) object);
+                contentFields = DataModelInfo.getFields((MutableObject) object);
             else
                 contentFields = getAllFieldsIncludingInheritedOnes(object.getClass());
 
@@ -115,8 +109,8 @@ public final class JsonParser {
                     continue;
                 }
 
-                //field is a non-null cross-reference
-                if (field.getAnnotation(CrossReference.class) != null) {
+                //field is a MutableObject
+                if (fieldValue instanceof MutableObject) {
                     MutableObject cr = (MutableObject) fieldValue;
                     if (!createdIDs.containsKey(cr))
                         createdIDs.put(cr, createdIDs.size());
@@ -140,7 +134,7 @@ public final class JsonParser {
 
             //loop over child fields if object is a DataModelEntity (static and transient fields are not in that list)
             if (dme != null) {
-                for (Field field : DataModelInfo.getChildFields(dme)) {
+                for (Field field : DataModelInfo.getCollections(dme)) {
                     field.setAccessible(true);
                     try {
                         //field is null - This is not the same as an empty collection!
@@ -148,17 +142,14 @@ public final class JsonParser {
                             if(prettyPrinting) newIndentedLine(strb, indentation);
                             strb.append("\"").append(field.getName()).append("\":null,");
                         }
-
-                        //field is an array or collection
+                        //field is an array
                         else if (field.getType().isArray()) {
                             printArray(field, (MutableObject[]) field.get(dme), indentation);
                         }
-
                         //field is a collection
                         else if (Collection.class.isAssignableFrom(field.getType())) {
                             printArray(field, ((Collection<MutableObject>)field.get(dme)).toArray(), indentation);
                         }
-
                         //field is a map
                         else if (Map.class.isAssignableFrom(field.getType())) {
                             Collection<ChildEntity<?>> collection = ((Map<?,ChildEntity<?>>)field.get(dme)).values();
@@ -174,14 +165,14 @@ public final class JsonParser {
                                 strb.append("],");
                             }
                         }
-
-                        //field is plain reference to child
+                        else throw new RuntimeException("didn't recognize collection of "+dme.getClass().getSimpleName()+","+field.getName());
+                        /*//field is plain reference to child
                         else {
                             if(prettyPrinting) newIndentedLine(strb, indentation);
                             strb.append("\"").append(field.getName()).append("\":");
                             printObject(field.get(dme), indentation, false);
                             strb.append(",");
-                        }
+                        }*/
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     }
@@ -399,7 +390,7 @@ public final class JsonParser {
             }
 
             //unwrap content fields
-            for (Field field : DataModelInfo.getContentFields(info.dme)) {
+            for (Field field : DataModelInfo.getFields(info.dme)) {
                 //field is non DME-object
                 ObjectInfo pojo = info.complexObjFields.get(field.getName());
                 if (pojo != null) {
@@ -413,7 +404,8 @@ public final class JsonParser {
                     field.set(info.dme, null);
                     continue;
                 }
-                if (field.getAnnotation(CrossReference.class) != null) {
+                //field is another DME
+                if (stringEnclosedBy(value, '|')) {
                     crossReferences.add(new CrossReferenceToDo(info.dme, parseToID(value), field));
                     continue;
                 }

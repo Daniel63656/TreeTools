@@ -57,7 +57,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
     }
 
     private void assignFieldsToObjectState(ObjectState objectState, MutableObject dme) {
-        for (Field field : DataModelInfo.getContentFields(dme)) {
+        for (Field field : DataModelInfo.getFields(dme)) {
             Object fieldValue = null;
             try {
                 field.setAccessible(true);
@@ -84,7 +84,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
 
     /**
      * Class that acts as a key for a given objects state at a given {@link CommitId}. Primarily saves the immutable
-     * {@link com.immersive.transactions.DataModelInfo#contentFields} of an object (that excludes the owner, keys
+     * {@link com.immersive.transactions.DataModelInfo#fields} of an object (that excludes the owner, keys
      * and children). This state is linked up with the corresponding object within the {@link Remote}.
      * This object must be immutable after its full construction within a commit.
      */

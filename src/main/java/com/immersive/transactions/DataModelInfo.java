@@ -1,6 +1,5 @@
 package com.immersive.transactions;
 
-import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.annotations.PolymorphOwner;
 import com.immersive.transactions.exceptions.IllegalDataModelException;
 import org.apache.commons.lang3.ArrayUtils;
@@ -8,6 +7,7 @@ import org.apache.commons.lang3.ClassUtils;
 
 import java.lang.reflect.*;
 import java.util.*;
+
 
 /**
  * Class to cache for transactions relevant information about a {@link MutableObject} class's fields and methods, so they don't have to
@@ -24,15 +24,17 @@ public class DataModelInfo {
     Class<? extends MutableObject> clazz;
 
     /**
-     * all fields that contain children of the described class and superclass(es) (excluding transactional class fields)
-     * either in containers or directly
+     * all fields that contain collections of the described class and superclass(es) (excluding transactional class fields).
+     * This includes arrays, sets, lists and maps. In these collections, only objects of type {@link MutableObject} can be
+     * saved to make tracking of changes possible
      */
-    Field[] childFields;
+    Field[] collections;
 
     /**
-     * all other fields of the described class and superclass(es) (excluding transactional class fields)
+     * all other "plain" fields of the described class and superclass(es) (excluding transactional class fields), including
+     * references to other {@link MutableObject}s
      */
-    Field[] contentFields;
+    Field[] fields;
 
     /**
      * the class constructor used for transactions
@@ -103,16 +105,16 @@ public class DataModelInfo {
         }
     }
 
-    static Field[] getContentFields(MutableObject dme) {
+    static Field[] getFields(MutableObject dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
             dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
-        return dataModelInfo.get(dme.getClass()).contentFields;
+        return dataModelInfo.get(dme.getClass()).fields;
     }
 
-    static Field[] getChildFields(MutableObject dme) {
+    static Field[] getCollections(MutableObject dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
             dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
-        return dataModelInfo.get(dme.getClass()).childFields;
+        return dataModelInfo.get(dme.getClass()).collections;
     }
 
     /**
@@ -127,7 +129,7 @@ public class DataModelInfo {
 
         //collect all children into an ArrayList
         ArrayList<ChildEntity<?>> children = new ArrayList<>();
-        for (Field field : info.childFields) {
+        for (Field field : info.collections) {
             field.setAccessible(true);
             try {
                 //field is an array and also initialized
@@ -140,7 +142,7 @@ public class DataModelInfo {
                 else if (Map.class.isAssignableFrom(field.getType()))
                     children.addAll(new ArrayList<>(((Map<?,ChildEntity<?>>)field.get(dme)).values()));
                 else
-                    children.add((ChildEntity<?>) field.get(dme));
+                    throw new IllegalDataModelException(dme.getClass(), "contains an unknown tape of collection in field" + field.getName());
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
@@ -184,8 +186,8 @@ public class DataModelInfo {
         }
 
         //then sort fields based on functional relation
-        ArrayList<Field> childFieldList = new ArrayList<>();
-        ArrayList<Field> contentFieldList = new ArrayList<>();
+        ArrayList<Field> collectionList = new ArrayList<>();
+        ArrayList<Field> fieldList = new ArrayList<>();
 
         for (Field field : relevantFields) {
             //ignore static fields since they don't belong to an object and are therefore not considered and tracked as
@@ -201,14 +203,14 @@ public class DataModelInfo {
                 Class<?> storedType = type.getComponentType();
                 if (!MutableObject.class.isAssignableFrom(storedType))
                     throw new IllegalDataModelException(clazz, "contains non DataModelEntities in array \""+field.getName()+"\" which is illegal, because changes of this field can't be tracked!");
-                childFieldList.add(field);
+                collectionList.add(field);
             }
             //field is a collection
             else if (Collection.class.isAssignableFrom(type)) {
                 Class<?> storedType = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
                 if (!MutableObject.class.isAssignableFrom(storedType))
                     throw new IllegalDataModelException(clazz, "contains non DataModelEntities in collection \""+field.getName()+"\" which is illegal, because changes of this field can't be tracked!");
-                childFieldList.add(field);
+                collectionList.add(field);
             }
             //field is a map
             else if (Map.class.isAssignableFrom(type)) {
@@ -217,31 +219,21 @@ public class DataModelInfo {
                 Class<?> storedType = (Class<?>) types[types.length-1];
                 if (!MutableObject.class.isAssignableFrom(storedType))
                     throw new IllegalDataModelException(clazz, "contains non DataModelEntities in map \""+field.getName()+"\" which is illegal, because changes of this field can't be tracked!");
-                childFieldList.add(field);
+                collectionList.add(field);
             }
-            //field is other TransactionalEntity
-            else if (MutableObject.class.isAssignableFrom(type)) {
-                //cross-referenced DMEs are not considered to be children of the class //TODO remove this differentiation?
-                if (field.getAnnotation(CrossReference.class) != null)
-                    contentFieldList.add(field);
-                else //child simply owned by reference
-                    childFieldList.add(field);
-            }
-
-            //field is primitive / wrapper class / String / Enum / Void / general non DME-object
+            //field is MutableObject / immutable object / primitive / wrapper class / String / Enum / Void
             else {
-                contentFieldList.add(field);
-                //if the field is not a primitive, wrapper class, String, Enum or Void, make sure it is IMMUTABLE, because changes
-                //within the non DME-object can't be traced
-                if (isComplexObject(type)) {
+                fieldList.add(field);
+                //if the field is not a MutableObject, primitive, wrapper class, String, Enum or Void, make sure it is IMMUTABLE, because changes
+                //within the non MutableObject can't be traced
+                if (!MutableObject.class.isAssignableFrom(type) && isComplexObject(type))
                     throwIfMutable(type);
-                }
             }
         }
 
-        //cache fields
-        contentFields = contentFieldList.toArray(new Field[0]);
-        childFields = childFieldList.toArray(new Field[0]);
+        //to array
+        fields = fieldList.toArray(new Field[0]);
+        collections = collectionList.toArray(new Field[0]);
     }
 
     private static void throwIfMutable(Class<?> type) {
@@ -285,15 +277,15 @@ public class DataModelInfo {
     public String toString() {
         StringBuilder strb = new StringBuilder();
         strb.append(">Info of ").append(clazz.getSimpleName()).append(":");
-        if (contentFields.length > 0) {
+        if (fields.length > 0) {
             strb.append("\ncontentFields: ");
-            for (Field field : contentFields) {
+            for (Field field : fields) {
                 strb.append(field.getName()).append(" ");
             }
         }
-        if (childFields.length > 0) {
+        if (collections.length > 0) {
             strb.append("\nchildFields: ");
-            for (Field field : childFields) {
+            for (Field field : collections) {
                 strb.append(field.getName()).append(" ");
             }
         }

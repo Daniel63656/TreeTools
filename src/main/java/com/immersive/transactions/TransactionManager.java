@@ -1,6 +1,5 @@
 package com.immersive.transactions;
 
-import com.immersive.transactions.annotations.CrossReference;
 import com.immersive.transactions.commits.Commit;
 import com.immersive.transactions.commits.InvertedCommit;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
@@ -93,9 +92,7 @@ public class TransactionManager {
         Repository newRepository = new Repository(newRootEntity, repositories.get(rootEntity).currentCommitId);
 
         //copy content of root entity and put it in emerging remote as well
-        for (Field field : DataModelInfo.getContentFields(newRootEntity)) {
-            if (field.getAnnotation(CrossReference.class) != null)
-                throw new RuntimeException("Cross-references not allowed in Root Entity!");
+        for (Field field : DataModelInfo.getFields(newRootEntity)) {
             field.setAccessible(true);
             try {
                 field.set(newRootEntity, field.get(rootEntity));

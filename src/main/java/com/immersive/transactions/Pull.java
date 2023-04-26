@@ -138,7 +138,7 @@ public class Pull {
     }
 
     private void imprintLogicalContentOntoObject(Remote.ObjectState state, MutableObject dme) throws IllegalAccessException {
-        for (Field field : DataModelInfo.getContentFields(dme)) {
+        for (Field field : DataModelInfo.getFields(dme)) {
             if (state.getFields().containsKey(field)) {
                 field.setAccessible(true);
                 Object value = state.getFields().get(field);

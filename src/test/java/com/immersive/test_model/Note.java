@@ -1,15 +1,13 @@
 package com.immersive.test_model;
 
-import com.immersive.transactions.annotations.CrossReference;
+
 import com.immersive.transactions.ChildEntity;
 
 public class Note extends ChildEntity<NoteGroup> {
     int pitch;
     boolean accidental;
     NoteName noteName;
-    @CrossReference
     Note previousTied;
-    @CrossReference
     Note nextTied;
 
     //this constructor the transactional logic is looking for
