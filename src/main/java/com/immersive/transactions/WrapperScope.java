@@ -14,6 +14,10 @@ import java.util.Map;
 public class WrapperScope {
     protected final Map<MutableObject, Wrapper<?>> registeredWrappers = new HashMap<>();
 
+    public WrapperScope(RootEntity rootEntity) {
+        rootEntity.wrapperScopes.add(this);
+    }
+
     public Collection<Wrapper<?>> getRegisteredWrappers() {
         return Collections.unmodifiableCollection(registeredWrappers.values());
     }

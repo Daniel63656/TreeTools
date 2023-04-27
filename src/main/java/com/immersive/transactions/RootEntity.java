@@ -20,10 +20,6 @@ public abstract class RootEntity implements MutableObject {
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
     final Set<WrapperScope> wrapperScopes = new HashSet<>();
-
-    public void addWrapperScope(WrapperScope scope) {
-        wrapperScopes.add(scope);
-    }
     public void removeWrapperScope(WrapperScope scope) {
         wrapperScopes.remove(scope);
     }

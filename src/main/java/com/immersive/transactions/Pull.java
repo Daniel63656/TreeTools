@@ -38,7 +38,7 @@ public class Pull {
             MutableObject owner = objectToDelete.getOwner();
             objectToDelete.onRemove();
             objectToDelete.notifyRegisteredWrappersAboutRemoval();  //notify own wrapper about deletion
-            owner.notifyRegisteredWrappersAboutChange();            //notify owners' wrapper
+            owner.notifyRegisteredWrappersAboutChange();  //notify owners' wrapper (necessary because only onRemove() called)
 
             remote.removeValue(objectToDelete);
         }
@@ -115,11 +115,9 @@ public class Pull {
                 params[i] = key;
             }
         }
-        //construct the object
+        //construct the object - this automatically notifies the wrappers of the owner
         ChildEntity<?> objectToCreate = DataModelInfo.construct(objKey.clazz, params);
         imprintLogicalContentOntoObject(objKey, objectToCreate);
-        //notify owner that a new child was created
-        objectToCreate.getOwner().notifyRegisteredWrappersAboutChange();
         remote.put(objKey, objectToCreate);
         creationChores.remove(objKey);
     }

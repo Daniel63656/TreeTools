@@ -33,7 +33,8 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
             it = ((ChildEntity<?>)it).getOwner();
         }
         root = (RootEntity) it;
-
+        //notify wrappers of owner
+        owner.notifyRegisteredWrappersAboutChange();
         //log as creation (isn't done by repository when in ongoing pull)
         Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
         if (repository != null) {
@@ -55,6 +56,9 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
         if (removalInProcess)
             return;
         removalInProcess = true;
+        //notify wrappers of owner about change (not done for subsequent children)
+        owner.notifyRegisteredWrappersAboutChange();
+        //start removing all subsequent children
         Repository repository = TransactionManager.getInstance().repositories.get(getRootEntity());
         if (repository != null)
             recursivelyRemove(this, repository);

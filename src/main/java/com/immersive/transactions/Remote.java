@@ -40,8 +40,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         if (containsValue(dme)) {
             return getKey(dme);
         }
-        ObjectState objectState = new ObjectState(dme.getClass(), TransactionManager.objectID);
-        TransactionManager.objectID++;
+        ObjectState objectState = new ObjectState(dme.getClass(), new ObjectId());
         put(objectState, dme);
         assignFieldsToObjectState(objectState, dme);
         return objectState;
@@ -105,13 +104,13 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          * can't use the values of the fields as hash because they can be the same for several objects of the data model.
          * Use a {@link Remote}-wide unique id instead
          */
-        private final long objectId;
+        private final ObjectId objectId;
 
         /**
          * constructor is private so that states are only instantiated via the {@link Remote} that
          * they are held in
          */
-        private ObjectState(Class<? extends MutableObject> clazz, long objectId) {
+        private ObjectState(Class<? extends MutableObject> clazz, ObjectId objectId) {
             this.clazz = clazz;
             this.objectId = objectId;
         }
@@ -143,7 +142,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
 
         @Override
         public int hashCode() {
-            return Long.hashCode(objectId);
+            return objectId.hashCode();
         }
 
         @Override

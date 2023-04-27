@@ -118,7 +118,7 @@ public class DataModelInfo {
     }
 
     /**
-     * get a list of all children stored in a given {@link MutableObject}
+     * get a list of all children stored in all {@link DataModelInfo#collections} of a given {@link MutableObject}
      * @param dme object to get children from
      */
     @SuppressWarnings("unchecked")
@@ -185,7 +185,7 @@ public class DataModelInfo {
             iterator = iterator.getSuperclass();
         }
 
-        //then sort fields based on functional relation
+        //then sort fields based on how they are owned
         ArrayList<Field> collectionList = new ArrayList<>();
         ArrayList<Field> fieldList = new ArrayList<>();
 
@@ -224,8 +224,8 @@ public class DataModelInfo {
             //field is MutableObject / immutable object / primitive / wrapper class / String / Enum / Void
             else {
                 fieldList.add(field);
-                //if the field is not a MutableObject, primitive, wrapper class, String, Enum or Void, make sure it is IMMUTABLE, because changes
-                //within the non MutableObject can't be traced
+                //if the field is a custom non MutableObject, make sure it is IMMUTABLE, because changes
+                //within a MutableObject can't be traced
                 if (!MutableObject.class.isAssignableFrom(type) && isComplexObject(type))
                     throwIfMutable(type);
             }

@@ -1,6 +1,5 @@
 package com.immersive.transactions.commits;
 
-import com.immersive.transactions.CommitId;
 import com.immersive.transactions.Remote;
 import org.apache.commons.collections4.MapUtils;
 
