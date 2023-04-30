@@ -20,9 +20,6 @@ public abstract class RootEntity implements MutableObject {
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
     final Set<WrapperScope> wrapperScopes = new HashSet<>();
-    public void removeWrapperScope(WrapperScope scope) {
-        wrapperScopes.remove(scope);
-    }
 
     @Override
     public List<Wrapper<?>> getRegisteredWrappers() {
@@ -41,7 +38,7 @@ public abstract class RootEntity implements MutableObject {
 
 
     @Override
-    public void notifyRegisteredWrappersAboutRemoval() {
+    public void notifyAndRemoveRegisteredWrappers() {
         //implement and catch this method here to make sure no specific RootEntity can be cleared
         throw new RuntimeException("Can't remove the root of a data model!");
     }

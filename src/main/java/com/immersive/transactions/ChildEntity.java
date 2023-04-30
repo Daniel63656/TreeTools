@@ -66,14 +66,14 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
     }
     private void recursivelyRemove(ChildEntity<?> te) {
         te.onRemove();
-        te.notifyRegisteredWrappersAboutRemoval();
+        te.notifyAndRemoveRegisteredWrappers();
         for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
             recursivelyRemove(t);
         }
     }
     private void recursivelyRemove(ChildEntity<?> te, Repository repository) {
         repository.logLocalDeletion(te);
-        te.notifyRegisteredWrappersAboutRemoval();
+        te.notifyAndRemoveRegisteredWrappers();
         te.onRemove();
         for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
             recursivelyRemove(t, repository);
@@ -104,10 +104,12 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
     }
 
     @Override
-    public void notifyRegisteredWrappersAboutRemoval() {
+    public void notifyAndRemoveRegisteredWrappers() {
         for (WrapperScope scope : root.wrapperScopes) {
-            if (scope.registeredWrappers.containsKey(this))
+            if (scope.registeredWrappers.containsKey(this)) {
                 scope.registeredWrappers.get(this).onWrappedRemoved();
+                scope.registeredWrappers.remove(this);
+            }
         }
     }
     @Override

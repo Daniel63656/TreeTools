@@ -12,10 +12,16 @@ import java.util.Map;
  * Wrappers are added to a scope by using the scope in the wrapper-constructor.
  */
 public class WrapperScope {
+    private final RootEntity rootEntity;
     protected final Map<MutableObject, Wrapper<?>> registeredWrappers = new HashMap<>();
 
     public WrapperScope(RootEntity rootEntity) {
+        this.rootEntity = rootEntity;
         rootEntity.wrapperScopes.add(this);
+    }
+
+    public void remove() {
+        rootEntity.wrapperScopes.remove(this);
     }
 
     public Collection<Wrapper<?>> getRegisteredWrappers() {
@@ -24,10 +30,6 @@ public class WrapperScope {
 
     public Wrapper<?> getWrapper(MutableObject dme) {
         return registeredWrappers.get(dme);
-    }
-
-    public Wrapper<?> removeWrapper(Wrapper<?> wrapper) {
-        return registeredWrappers.remove(wrapper.wrapped);
     }
 
     public Wrapper<?> removeWrapperFor(MutableObject dme) {

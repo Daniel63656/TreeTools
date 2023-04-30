@@ -37,7 +37,7 @@ public class Pull {
             ChildEntity<?> objectToDelete = (ChildEntity<?>) remote.get(entry.getKey());
             MutableObject owner = objectToDelete.getOwner();
             objectToDelete.onRemove();
-            objectToDelete.notifyRegisteredWrappersAboutRemoval();  //notify own wrapper about deletion
+            objectToDelete.notifyAndRemoveRegisteredWrappers();  //notify own wrapper about deletion
             owner.notifyRegisteredWrappersAboutChange();  //notify owners' wrapper (necessary because only onRemove() called)
 
             remote.removeValue(objectToDelete);

@@ -5,11 +5,25 @@ package com.immersive.transactions;
  * THis objects lifetime is linked to an associated {@link WrapperScope}.
  */
 public abstract class Wrapper<WO extends MutableObject> {
-    public WO wrapped;
+    protected final WrapperScope wrapperScope;
+    protected final WO wrapped;
 
-    public Wrapper(WrapperScope ws, WO wrapped) {
+    public Wrapper(WrapperScope wrapperScope, WO wrapped) {
+        this.wrapperScope = wrapperScope;
         this.wrapped = wrapped;
-        ws.registeredWrappers.put(wrapped, this);
+        wrapperScope.registeredWrappers.put(wrapped, this);
+    }
+
+    public WrapperScope getWrapperScope() {
+        return wrapperScope;
+    }
+
+    public WO getWrapped() {
+        return wrapped;
+    }
+
+    public void remove() {
+        wrapperScope.registeredWrappers.remove(wrapped);
     }
 
     //Override these methods to implement wrapper specific behaviour
@@ -17,7 +31,8 @@ public abstract class Wrapper<WO extends MutableObject> {
     /**
      * is invoked when the wrapped object is removed from the data model
      */
-    public void onWrappedRemoved() {}
+    public void onWrappedRemoved() {
+    }
 
     /**
      * is invoked each time the wrapped object is changed or a child is added/removed

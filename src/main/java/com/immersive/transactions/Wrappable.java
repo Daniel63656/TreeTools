@@ -15,7 +15,7 @@ public interface Wrappable {
     /**
      * Notify registered wrappers about the deletion of itself
      */
-    void notifyRegisteredWrappersAboutRemoval();
+    void notifyAndRemoveRegisteredWrappers();
 
     /**
      * Notify registered wrappers about a change
