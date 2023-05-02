@@ -74,11 +74,7 @@ public final class JsonParser {
                 strb.append("'uid':").append(createdIDs.get(dme)).append(",");
                 if (dme instanceof KeyedChildEntity<?,?>) {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
-                    printKey(((KeyedChildEntity<?,?>) dme).getKey(), "key1", indentation);
-                }
-                if (dme instanceof DoubleKeyedChildEntity<?,?>) {
-                    if(prettyPrinting) newIndentedLine(strb, indentation);
-                    printKey(((DoubleKeyedChildEntity<?,?>) dme).getEndKey(), "key2", indentation);
+                    printKey(((KeyedChildEntity<?,?>) dme).getKey(), "key", indentation);
                 }
             }
 
@@ -302,8 +298,7 @@ public final class JsonParser {
                             currentObj.uniqueID = uniqueID;
                             DMEs.put(uniqueID, currentObj);
                             break;
-                        case "'key1'":
-                        case "'key2'":
+                        case "'key'":
                             assert owner != null;
                             assert  currentObj != null;
                             if (currentKeyClass == null)

@@ -1,16 +1,18 @@
 package com.immersive.test_model;
 
 import com.immersive.collection.HasDuration;
-import com.immersive.transactions.DoubleKeyedChildEntity;
 
+import com.immersive.transactions.KeyedChildEntity;
 import org.jetbrains.annotations.NotNull;
 
 
-public class Beam extends DoubleKeyedChildEntity<Voice, Long> implements Comparable<Beam>, HasDuration<Long> {
+public class Beam extends KeyedChildEntity<Voice, Long> implements Comparable<Beam>, HasDuration<Long> {
+	//effectively final
+	private Long endTick;
 
 	//=====TRANSACTIONAL============================================================================
-	public Beam(Voice voice, Long startTick, Long endTick) {
-		super(voice, startTick, endTick);
+	private Beam(Voice voice, Long startTick) {
+		super(voice, startTick);
 		voice.beams.put(startTick, this);
 	}
 
@@ -19,6 +21,17 @@ public class Beam extends DoubleKeyedChildEntity<Voice, Long> implements Compara
 	}
 
 	//=====FUNCTIONAL===============================================================================
+
+	public Beam(Voice voice, Long startTick, Long endTick) {
+		super(voice, startTick);
+		this.endTick = endTick;
+		voice.beams.put(startTick, this);
+	}
+
+	@Override
+	public Long getEndKey() {
+		return endTick;
+	}
 
 	@Override
 	public Long getDuration() {
