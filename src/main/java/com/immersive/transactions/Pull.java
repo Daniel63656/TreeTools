@@ -34,7 +34,7 @@ public class Pull {
         //DELETION - assumes deletion records are present in all subsequent children, so their wrappers get also notified
         for (Map.Entry<Remote.ObjectState, Object[]> entry : deletionChores.entrySet()) {
             if (verbose) System.out.println(">deleting "+entry.getKey().clazz.getSimpleName()+"["+entry.getKey().hashCode()+"]");
-            ChildEntity<?> objectToDelete = (ChildEntity<?>) remote.get(entry.getKey());
+            Child<?> objectToDelete = (Child<?>) remote.get(entry.getKey());
             MutableObject owner = objectToDelete.getOwner();
             objectToDelete.onRemove();
             objectToDelete.notifyAndRemoveRegisteredWrappers();  //notify own wrapper about deletion
@@ -116,7 +116,7 @@ public class Pull {
             }
         }
         //construct the object - this automatically notifies the wrappers of the owner
-        ChildEntity<?> objectToCreate = DataModelInfo.construct(objKey.clazz, params);
+        Child<?> objectToCreate = DataModelInfo.construct(objKey.clazz, params);
         imprintLogicalContentOntoObject(objKey, objectToCreate);
         remote.put(objKey, objectToCreate);
         creationChores.remove(objKey);

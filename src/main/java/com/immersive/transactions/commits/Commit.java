@@ -86,8 +86,8 @@ public class Commit {
 
         //REMEMBER that invertibility also implies that deletion records are present for all subsequent children so
         //that this commit can be fully reverted. ChildEntities remove() function takes care of that
-        List<ChildEntity<?>> removeFromLOT = new ArrayList<>();
-        ChildEntity<?> te = repository.getOneDeletion();
+        List<Child<?>> removeFromLOT = new ArrayList<>();
+        Child<?> te = repository.getOneDeletion();
         while (te != null) {
             deletionRecords.put(remote.getKey(te), te.constructorParameterStates(remote));
             //don't remove from remote yet, because this destroys owner information for possible deletion of children
@@ -111,7 +111,7 @@ public class Commit {
         }
 
         //now it is safe to remove all deleted object states from remote
-        for (ChildEntity<?> t : removeFromLOT) {
+        for (Child<?> t : removeFromLOT) {
             remote.removeValue(t);
         }
     }
@@ -121,14 +121,14 @@ public class Commit {
      * process a local creation into a creationRecord. Makes sure that all {@link ObjectState}s used either
      * for construction parameters or cross-references, are up-to-date
      */
-    private void commitCreation(Repository repository, ChildEntity<?> te) {
+    private void commitCreation(Repository repository, Child<?> te) {
         //creationRecord contains states needed to construct this object. These states have to be present in the
         //remote. The method makes sure this is the case by recursively processing these creation or changes first
 
         //loop over all objects needed for construction. Non MutableObjects are not included
         for (MutableObject dme : te.constructorParameterMutables()) {
-            if (dme instanceof ChildEntity<?> && repository.locallyCreatedContains((ChildEntity<?>) dme))
-                commitCreation(repository, (ChildEntity<?>) dme);
+            if (dme instanceof Child<?> && repository.locallyCreatedContains((Child<?>) dme))
+                commitCreation(repository, (Child<?>) dme);
             else if (repository.locallyChangedContains(dme))
                 commitChange(repository, dme);
         }
@@ -170,7 +170,7 @@ public class Commit {
     private static void parseMutableObject(Remote remote, Commit commit, MutableObject dme) {
         if (!(dme instanceof RootEntity))
             commit.creationRecords.put(remote.getKey(dme), dme.constructorParameterStates(remote));
-        for (ChildEntity<?> child : DataModelInfo.getChildren(dme)) {
+        for (Child<?> child : DataModelInfo.getChildren(dme)) {
             parseMutableObject(remote, commit, child);
         }
     }

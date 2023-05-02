@@ -1,9 +1,9 @@
 package com.immersive.test_model;
 
 
-import com.immersive.transactions.ChildEntity;
+import com.immersive.transactions.Child;
 
-public class Note extends ChildEntity<NoteGroup> {
+public class Note extends Child<NoteGroup> {
     int pitch;
     boolean accidental;
     NoteName noteName;

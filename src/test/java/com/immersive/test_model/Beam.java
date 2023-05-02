@@ -2,11 +2,11 @@ package com.immersive.test_model;
 
 import com.immersive.collection.HasDuration;
 
-import com.immersive.transactions.KeyedChildEntity;
+import com.immersive.transactions.MappedChild;
 import org.jetbrains.annotations.NotNull;
 
 
-public class Beam extends KeyedChildEntity<Voice, Long> implements Comparable<Beam>, HasDuration<Long> {
+public class Beam extends MappedChild<Voice, Long> implements Comparable<Beam>, HasDuration<Long> {
 	//effectively final
 	private Long endTick;
 

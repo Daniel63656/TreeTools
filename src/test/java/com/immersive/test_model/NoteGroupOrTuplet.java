@@ -1,10 +1,10 @@
 package com.immersive.test_model;
 
 import com.immersive.transactions.annotations.AbstractClass;
-import com.immersive.transactions.KeyedChildEntity;
+import com.immersive.transactions.MappedChild;
 
 @AbstractClass(subclasses = {NoteGroup.class, Tuplet.class})
-public abstract class NoteGroupOrTuplet extends KeyedChildEntity<NoteTimeTick, Voice> {
+public abstract class NoteGroupOrTuplet extends MappedChild<NoteTimeTick, Voice> {
     Staff staff;
     int duration;
 

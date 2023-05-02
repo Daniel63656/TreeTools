@@ -1,8 +1,8 @@
 package com.immersive.test_model;
 
-import com.immersive.transactions.ChildEntity;
+import com.immersive.transactions.Child;
 
-public class Staff extends ChildEntity<Track> {
+public class Staff extends Child<Track> {
     boolean treble;
 
     //this constructor the transactional logic is looking for

@@ -5,10 +5,10 @@ import java.util.List;
 
 /**
  * Base class for each class in the data model except the {@link RootEntity}. Each such class has one and only one owner
- * in the data model which can not be changed during the objects lifetime.
+ * in the data model which can not be changed during the object's lifetime.
  * @param <O> class-type of the owner class
  */
-public abstract class ChildEntity<O extends MutableObject> implements MutableObject {
+public abstract class Child<O extends MutableObject> implements MutableObject {
 
     /**
      * cache reference to the root entity of the data model for direct access
@@ -26,11 +26,11 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
      */
     private boolean removalInProcess;
 
-    protected ChildEntity(O owner) {
+    protected Child(O owner) {
         this.owner = owner;
         MutableObject it = owner;
         while(!(it instanceof RootEntity)) {
-            it = ((ChildEntity<?>)it).getOwner();
+            it = ((Child<?>)it).getOwner();
         }
         root = (RootEntity) it;
         //notify wrappers of owner
@@ -48,7 +48,7 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
 
     /**
      * remove this object and all subsequent children from the data model.
-     * This method calls {@link ChildEntity#onRemove()} on each removed object to handle object-specific clean-ups,
+     * This method calls {@link Child#onRemove()} on each removed object to handle object-specific clean-ups,
      * notifies registered wrappers about the removal and
      * creates deltas if a local {@link Repository} exists
      */
@@ -64,24 +64,24 @@ public abstract class ChildEntity<O extends MutableObject> implements MutableObj
             recursivelyRemove(this, repository);
         else recursivelyRemove(this);
     }
-    private void recursivelyRemove(ChildEntity<?> te) {
+    private void recursivelyRemove(Child<?> te) {
         te.onRemove();
         te.notifyAndRemoveRegisteredWrappers();
-        for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
+        for (Child<?> t : DataModelInfo.getChildren(te)) {
             recursivelyRemove(t);
         }
     }
-    private void recursivelyRemove(ChildEntity<?> te, Repository repository) {
+    private void recursivelyRemove(Child<?> te, Repository repository) {
         repository.logLocalDeletion(te);
         te.notifyAndRemoveRegisteredWrappers();
         te.onRemove();
-        for (ChildEntity<?> t : DataModelInfo.getChildren(te)) {
+        for (Child<?> t : DataModelInfo.getChildren(te)) {
             recursivelyRemove(t, repository);
         }
     }
 
     /**
-     * this method needs to be implemented by any {@link ChildEntity}. In it the object must take actions that remove
+     * this method needs to be implemented by any {@link Child}. In it the object must take actions that remove
      * any references to itself to leave an intact data model behind. This typically includes removing itself from an
      * owner collection, removing other objects that are mapped with this as key and setting fields pointing to this
      * object to null

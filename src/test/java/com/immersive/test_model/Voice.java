@@ -2,9 +2,9 @@ package com.immersive.test_model;
 
 
 import com.immersive.collection.DiscontinuousRangeMap;
-import com.immersive.transactions.ChildEntity;
+import com.immersive.transactions.Child;
 
-public class Voice extends ChildEntity<Track> {
+public class Voice extends Child<Track> {
     DiscontinuousRangeMap<Voice, Long, Beam> beams = new DiscontinuousRangeMap<>();
     int voiceId;
 

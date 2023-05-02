@@ -5,14 +5,14 @@ package com.immersive.transactions;
  * @param <O> class-type of the owner class
  * @param <K> class-type of the key used to own this class
  */
-public abstract class KeyedChildEntity<O extends MutableObject, K> extends ChildEntity<O> {
+public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
 
     /**
      * reference to the key the object is saved with
      */
     protected final K key;
 
-    public KeyedChildEntity(O owner, K key) {
+    public MappedChild(O owner, K key) {
         super(owner);
         this.key = key;
     }

@@ -26,9 +26,9 @@ public class Repository {
      */
     boolean ongoingPull;
 
-    private final Set<ChildEntity<?>> locallyCreated = new HashSet<>();
+    private final Set<Child<?>> locallyCreated = new HashSet<>();
 
-    private final Set<ChildEntity<?>> locallyDeleted = new HashSet<>();
+    private final Set<Child<?>> locallyDeleted = new HashSet<>();
 
     private final Set<MutableObject> locallyChanged = new HashSet<>();
 
@@ -47,14 +47,14 @@ public class Repository {
         return locallyCreated.isEmpty() && locallyChanged.isEmpty() && locallyDeleted.isEmpty();
     }
 
-    public void logLocalCreation(ChildEntity<?> te) {
+    public void logLocalCreation(Child<?> te) {
         //pulls are not allowed to create deltas!
         if (ongoingPull)
             return;
         locallyCreated.add(te);
     }
 
-    public void logLocalDeletion(ChildEntity<?> te) {
+    public void logLocalDeletion(Child<?> te) {
         //pulls are not allowed to create deltas!
         if (ongoingPull)
             return;
@@ -75,7 +75,7 @@ public class Repository {
         //pulls are not allowed to create deltas!
         if (ongoingPull)
             return;
-        if (dme instanceof ChildEntity) {
+        if (dme instanceof Child) {
             if (!locallyCreated.contains(dme) && !locallyDeleted.contains(dme)) {
                 locallyChanged.add(dme);
             }
@@ -83,11 +83,11 @@ public class Repository {
         else locallyChanged.add(dme);
     }
 
-    public boolean locallyCreatedContains(ChildEntity<?> te) {
+    public boolean locallyCreatedContains(Child<?> te) {
         return locallyCreated.contains(te);
     }
 
-    boolean locallyDeletedContains(ChildEntity<?> te) {
+    boolean locallyDeletedContains(Child<?> te) {
         return locallyDeleted.contains(te);
     }
 
@@ -96,13 +96,13 @@ public class Repository {
     }
 
 
-    public ChildEntity<?> getOneCreation() {
+    public Child<?> getOneCreation() {
         if (locallyCreated.isEmpty())
             return null;
         return locallyCreated.iterator().next();
     }
 
-    public ChildEntity<?> getOneDeletion() {
+    public Child<?> getOneDeletion() {
         if (locallyDeleted.isEmpty())
             return null;
         return locallyDeleted.iterator().next();
@@ -114,11 +114,11 @@ public class Repository {
         return locallyChanged.iterator().next();
     }
 
-    public void removeCreation(ChildEntity<?> te) {
+    public void removeCreation(Child<?> te) {
         locallyCreated.remove(te);
     }
 
-    public void removeDeletion(ChildEntity<?> te) {
+    public void removeDeletion(Child<?> te) {
         locallyDeleted.remove(te);
     }
 

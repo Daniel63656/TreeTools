@@ -23,8 +23,8 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
     }
     private void buildRemote(Remote remote, MutableObject dme) {
         remote.createObjectState(dme);
-        ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
-        for (ChildEntity<?> child : children) {
+        ArrayList<Child<?>> children = DataModelInfo.getChildren(dme);
+        for (Child<?> child : children) {
             buildRemote(remote, child);
         }
     }
@@ -71,7 +71,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         }
     }
 
-    public ObjectState getLogicalObjectKeyOfOwner(ChildEntity<?> te) {
+    public ObjectState getLogicalObjectKeyOfOwner(Child<?> te) {
         if (getKey(te) == null) {
             throw new TransactionException("remote didn't contain owner of object", getKey(te).hashCode());
         }

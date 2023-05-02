@@ -72,9 +72,9 @@ public final class JsonParser {
                 //print DataModelEntityFields
                 if(prettyPrinting) newIndentedLine(strb, indentation);
                 strb.append("'uid':").append(createdIDs.get(dme)).append(",");
-                if (dme instanceof KeyedChildEntity<?,?>) {
+                if (dme instanceof MappedChild<?,?>) {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
-                    printKey(((KeyedChildEntity<?,?>) dme).getKey(), "key", indentation);
+                    printKey(((MappedChild<?,?>) dme).getKey(), "key", indentation);
                 }
             }
 
@@ -148,7 +148,7 @@ public final class JsonParser {
                         }
                         //field is a map
                         else if (Map.class.isAssignableFrom(field.getType())) {
-                            Collection<ChildEntity<?>> collection = ((Map<?,ChildEntity<?>>)field.get(dme)).values();
+                            Collection<Child<?>> collection = ((Map<?, Child<?>>)field.get(dme)).values();
                             if (collection.size() > 0) {
                                 if(prettyPrinting) newIndentedLine(strb, indentation);
                                 strb.append("\"").append(field.getName()).append("\":[");

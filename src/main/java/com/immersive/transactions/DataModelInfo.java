@@ -87,7 +87,7 @@ public class DataModelInfo {
         throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+"!");
     }
 
-    static ChildEntity<?> construct(Class<? extends MutableObject> clazz, Object...objects) {
+    static Child<?> construct(Class<? extends MutableObject> clazz, Object...objects) {
         if (!dataModelInfo.containsKey(clazz)) {
             Class<?>[] classes = new Class<?>[objects.length];
             for (int i=0; i<objects.length; i++) {
@@ -99,7 +99,7 @@ public class DataModelInfo {
         DataModelInfo info = dataModelInfo.get(clazz);
         info.constructor.setAccessible(true);
         try {
-            return (ChildEntity<?>) info.constructor.newInstance(objects);
+            return (Child<?>) info.constructor.newInstance(objects);
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+" with parameters: "+ Arrays.toString(objects));
         }
@@ -122,25 +122,25 @@ public class DataModelInfo {
      * @param dme object to get children from
      */
     @SuppressWarnings("unchecked")
-    public static ArrayList<ChildEntity<?>> getChildren(MutableObject dme) {
+    public static ArrayList<Child<?>> getChildren(MutableObject dme) {
         if (!dataModelInfo.containsKey(dme.getClass()))
             dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
         DataModelInfo info = dataModelInfo.get(dme.getClass());
 
         //collect all children into an ArrayList
-        ArrayList<ChildEntity<?>> children = new ArrayList<>();
+        ArrayList<Child<?>> children = new ArrayList<>();
         for (Field field : info.collections) {
             field.setAccessible(true);
             try {
                 //field is an array and also initialized
                 if (field.getType().isArray() && field.get(dme) != null)
-                    children.addAll((Collection<? extends ChildEntity<?>>) field.get(dme));
+                    children.addAll((Collection<? extends Child<?>>) field.get(dme));
                     //field is a collection
                 else if (Collection.class.isAssignableFrom(field.getType()))
-                    children.addAll(new ArrayList<>((Collection<ChildEntity<?>>)field.get(dme)));
+                    children.addAll(new ArrayList<>((Collection<Child<?>>)field.get(dme)));
                     //field is a map
                 else if (Map.class.isAssignableFrom(field.getType()))
-                    children.addAll(new ArrayList<>(((Map<?,ChildEntity<?>>)field.get(dme)).values()));
+                    children.addAll(new ArrayList<>(((Map<?, Child<?>>)field.get(dme)).values()));
                 else
                     throw new IllegalDataModelException(dme.getClass(), "contains an unknown tape of collection in field" + field.getName());
             } catch (IllegalAccessException e) {

@@ -1,14 +1,14 @@
 package com.immersive.test_model;
 
 
-import com.immersive.transactions.ChildEntity;
+import com.immersive.transactions.Child;
 
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
 
-public class Track extends ChildEntity<FullScore> {
+public class Track extends Child<FullScore> {
     List<Staff> staffs = new ArrayList<>();
     List<Voice> voices = new ArrayList<>();
     TreeMap<Fraction, NoteTimeTick> noteTimeTicks = new TreeMap<>();
