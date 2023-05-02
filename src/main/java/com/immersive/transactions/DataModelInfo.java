@@ -192,6 +192,7 @@ public class DataModelInfo {
         for (Field field : relevantFields) {
             //ignore static fields since they don't belong to an object and are therefore not considered and tracked as
             //part of the data model. Also ignore transient fields since they are not considered variables worth tracking
+            //final variables aren't mutable but their value is still important to copy an object
             if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers()))
                 continue;
             Class<?> type = field.getType();

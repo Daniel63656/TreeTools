@@ -170,8 +170,7 @@ public class Commit {
     private static void parseMutableObject(Remote remote, Commit commit, MutableObject dme) {
         if (!(dme instanceof RootEntity))
             commit.creationRecords.put(remote.getKey(dme), dme.constructorParameterStates(remote));
-        ArrayList<ChildEntity<?>> children = DataModelInfo.getChildren(dme);
-        for (ChildEntity<?> child : children) {
+        for (ChildEntity<?> child : DataModelInfo.getChildren(dme)) {
             parseMutableObject(remote, commit, child);
         }
     }

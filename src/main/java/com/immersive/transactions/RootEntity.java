@@ -4,6 +4,7 @@ import com.immersive.transactions.Remote.ObjectState;
 import com.immersive.transactions.commits.Commit;
 import com.immersive.transactions.exceptions.NoTransactionsEnabledException;
 import com.immersive.transactions.exceptions.TransactionException;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -12,7 +13,7 @@ import java.util.*;
  * Transactional class for the root element of the data model. This class holds transactional
  * methods like push, pull, redo and undo.
  */
-public abstract class RootEntity implements MutableObject {
+public abstract class RootEntity implements MutableObject, Comparable<RootEntity> {
     final TransactionManager tm = TransactionManager.getInstance();
 
     /**
@@ -113,5 +114,19 @@ public abstract class RootEntity implements MutableObject {
         if (!tm.repositories.containsKey(this))
             throw new NoTransactionsEnabledException();
         return tm.repositories.get(this).currentCommitId;
+    }
+
+    @Override
+    public int compareTo(@NotNull RootEntity rootEntity) {
+        Repository repository = tm.repositories.get(this);
+        if (repository == null)
+            repository = new Repository(this, null);
+        return 0;
+    }
+
+    //two objects are considered the same if their fields
+    private boolean compare(MutableObject left, MutableObject right) {
+
+        return true;
     }
 }
