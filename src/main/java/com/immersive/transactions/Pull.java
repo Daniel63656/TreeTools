@@ -36,7 +36,7 @@ public class Pull {
             if (verbose) System.out.println(">deleting "+entry.getKey().clazz.getSimpleName()+"["+entry.getKey().hashCode()+"]");
             Child<?> objectToDelete = (Child<?>) remote.get(entry.getKey());
             MutableObject owner = objectToDelete.getOwner();
-            objectToDelete.onRemove();
+            objectToDelete.removeFromOwner();
             objectToDelete.notifyAndRemoveRegisteredWrappers();  //notify own wrapper about deletion
             owner.notifyRegisteredWrappersAboutChange();  //notify owners' wrapper (necessary because only onRemove() called)
 

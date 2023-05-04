@@ -48,9 +48,9 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
 
     /**
      * remove this object and all subsequent children from the data model.
-     * This method calls {@link Child#onRemove()} on each removed object to handle object-specific clean-ups,
-     * notifies registered wrappers about the removal and
-     * creates deltas if a local {@link Repository} exists
+     * This method will go through all children recursively and call {@link Child#removeFromOwner()} and {@link Child#onRemove()}
+     * on them, notify their registered wrappers about the removal and create a delta if a local {@link Repository} exists.
+     * Apart from notifying all involved wrappers, this is also necessary to make this removal invertible
      */
     public final void remove() {
         if (removalInProcess)
@@ -65,8 +65,9 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
         else recursivelyRemove(this);
     }
     private void recursivelyRemove(Child<?> te) {
-        te.onRemove();
         te.notifyAndRemoveRegisteredWrappers();
+        te.removeFromOwner();
+        te.onRemove();
         for (Child<?> t : DataModelInfo.getChildren(te)) {
             recursivelyRemove(t);
         }
@@ -74,6 +75,7 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
     private void recursivelyRemove(Child<?> te, Repository repository) {
         repository.logLocalDeletion(te);
         te.notifyAndRemoveRegisteredWrappers();
+        te.removeFromOwner();
         te.onRemove();
         for (Child<?> t : DataModelInfo.getChildren(te)) {
             recursivelyRemove(t, repository);
@@ -81,42 +83,48 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
     }
 
     /**
-     * this method needs to be implemented by any {@link Child}. In it the object must take actions that remove
-     * any references to itself to leave an intact data model behind. This typically includes removing itself from an
-     * owner collection, removing other objects that are mapped with this as key and setting fields pointing to this
-     * object to null
+     * remove itself from the owner's collection. This method needs to be implemented by any {@link Child}
      */
-    protected abstract void onRemove();
+    protected abstract void removeFromOwner();
+
+    /**
+     * this method gets called when this object is being removed from the data model. In it the object
+     * can take actions that remove
+     * any references to itself to leave an intact data model behind. This may include removing other objects
+     * that are mapped with this as key, setting fields pointing to this object to null and other data model specific
+     * clean-ups
+     */
+    protected void onRemove() {}
 
     @Override
     public List<Wrapper<?>> getRegisteredWrappers() {
         List<Wrapper<?>> wrappers = new ArrayList<>();
         for (WrapperScope scope : root.wrapperScopes) {
-            if (scope.registeredWrappers.containsKey(this))
-                wrappers.add(scope.registeredWrappers.get(this));
+            if (scope.getRegisteredWrappers().containsKey(this))
+                wrappers.add(scope.getRegisteredWrappers().get(this));
         }
         return wrappers;
     }
 
     @Override
     public Wrapper<?> getRegisteredWrapper(WrapperScope scope) {
-        return scope.registeredWrappers.get(this);
+        return scope.getRegisteredWrappers().get(this);
     }
 
     @Override
     public void notifyAndRemoveRegisteredWrappers() {
         for (WrapperScope scope : root.wrapperScopes) {
-            if (scope.registeredWrappers.containsKey(this)) {
-                scope.registeredWrappers.get(this).onWrappedRemoved();
-                scope.registeredWrappers.remove(this);
+            if (scope.getRegisteredWrappers().containsKey(this)) {
+                scope.getRegisteredWrappers().get(this).onWrappedRemoved();
+                scope.getRegisteredWrappers().remove(this);
             }
         }
     }
     @Override
     public void notifyRegisteredWrappersAboutChange() {
         for (WrapperScope scope : root.wrapperScopes) {
-            if (scope.registeredWrappers.containsKey(this))
-                scope.registeredWrappers.get(this).onWrappedChanged();
+            if (scope.getRegisteredWrappers().containsKey(this))
+                scope.getRegisteredWrappers().get(this).onWrappedChanged();
         }
     }
 

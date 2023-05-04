@@ -8,10 +8,13 @@ public abstract class Wrapper<WO extends MutableObject> {
     protected final WrapperScope wrapperScope;
     protected final WO wrapped;
 
+    /**
+     * constructed wrappers get automatically put in their owning {@link WrapperScope}
+     */
     public Wrapper(WrapperScope wrapperScope, WO wrapped) {
         this.wrapperScope = wrapperScope;
         this.wrapped = wrapped;
-        wrapperScope.registeredWrappers.put(wrapped, this);
+        wrapperScope.getRegisteredWrappers().put(wrapped, this);
     }
 
     public WrapperScope getWrapperScope() {
@@ -23,7 +26,7 @@ public abstract class Wrapper<WO extends MutableObject> {
     }
 
     public void remove() {
-        wrapperScope.registeredWrappers.remove(wrapped);
+        wrapperScope.getRegisteredWrappers().remove(wrapped);
     }
 
     //Override these methods to implement wrapper specific behaviour

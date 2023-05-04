@@ -1,54 +1,14 @@
 package com.immersive.transactions;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
-
 /**
- * Acts as a "category" for wrappers. Provides direct access to all wrappers of the same scope. Scopes get added to
- * a data models' {@link RootEntity} and removing the scope gets rid of all wrappers without the need for clean up.
- * Wrappers are added to a scope by using the scope in the wrapper-constructor.
+ * Acts as a "category" for wrappers and provides direct access to all wrappers of this scope.
+ * The concrete class must save the wrappers, mapped by their wrapped {@link MutableObject}.
+ * Scopes get added to a data models' {@link RootEntity} and removing the scope gets rid of all wrappers without the need for clean up.
  */
-public class WrapperScope {
-    private final RootEntity rootEntity;
-    protected final Map<MutableObject, Wrapper<?>> registeredWrappers = new HashMap<>();
+public interface WrapperScope {
 
-    public WrapperScope(RootEntity rootEntity) {
-        this.rootEntity = rootEntity;
-        rootEntity.wrapperScopes.add(this);
-    }
+    Map<MutableObject, Wrapper<?>> getRegisteredWrappers();
 
-    public void remove() {
-        rootEntity.wrapperScopes.remove(this);
-    }
-
-    public Collection<Wrapper<?>> getRegisteredWrappers() {
-        return Collections.unmodifiableCollection(registeredWrappers.values());
-    }
-
-    public Wrapper<?> getWrapper(MutableObject dme) {
-        return registeredWrappers.get(dme);
-    }
-
-    public Wrapper<?> removeWrapperFor(MutableObject dme) {
-        return registeredWrappers.remove(dme);
-    }
-
-    public boolean isEmpty() {
-        return registeredWrappers.isEmpty();
-    }
-
-    public boolean contains(MutableObject dme) {
-        return registeredWrappers.containsKey(dme);
-    }
-
-    public int size() {
-        return registeredWrappers.size();
-    }
-
-    public void clear() {
-        registeredWrappers.clear();
-    }
 }

@@ -19,7 +19,7 @@ public class Track extends Child<FullScore> {
         fullScore.tracks.add(this);
     }
     //this method the transactional logic is looking for in order to atomically delete objects
-    protected void onRemove() {
+    protected void removeFromOwner() {
         getOwner().tracks.remove(this);
     }
 

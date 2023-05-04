@@ -14,7 +14,7 @@ public class Voice extends Child<Track> {
         track.voices.add(this);
     }
     //this method the transactional logic is looking for in order to atomically delete objects
-    protected void onRemove() {
+    protected void removeFromOwner() {
         getOwner().voices.remove(this);
         //remove all that used voice as key
         for (NoteTimeTick ntt : getOwner().noteTimeTicks.values()) {

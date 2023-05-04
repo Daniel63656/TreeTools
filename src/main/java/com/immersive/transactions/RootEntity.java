@@ -13,7 +13,7 @@ import java.util.*;
  * Transactional class for the root element of the data model. This class holds transactional
  * methods like push, pull, redo and undo.
  */
-public abstract class RootEntity implements MutableObject, Comparable<RootEntity> {
+public abstract class RootEntity implements MutableObject {
     final TransactionManager tm = TransactionManager.getInstance();
 
     /**
@@ -21,20 +21,25 @@ public abstract class RootEntity implements MutableObject, Comparable<RootEntity
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
     final Set<WrapperScope> wrapperScopes = new HashSet<>();
-
+    public void addWrapperScope(WrapperScope scope) {
+        wrapperScopes.add(scope);
+    }
+    public void removeWrapperScope(WrapperScope scope) {
+        wrapperScopes.remove(scope);
+    }
     @Override
     public List<Wrapper<?>> getRegisteredWrappers() {
         List<Wrapper<?>> wrappers = new ArrayList<>();
         for (WrapperScope scope : wrapperScopes) {
-            if (scope.registeredWrappers.containsKey(this))
-                wrappers.add(scope.registeredWrappers.get(this));
+            if (scope.getRegisteredWrappers().containsKey(this))
+                wrappers.add(scope.getRegisteredWrappers().get(this));
         }
         return wrappers;
     }
 
     @Override
     public Wrapper<?> getRegisteredWrapper(WrapperScope scope) {
-        return scope.registeredWrappers.get(this);
+        return scope.getRegisteredWrappers().get(this);
     }
 
 
@@ -47,8 +52,8 @@ public abstract class RootEntity implements MutableObject, Comparable<RootEntity
     @Override
     public void notifyRegisteredWrappersAboutChange() {
         for (WrapperScope scope : wrapperScopes) {
-            if (scope.registeredWrappers.containsKey(this))
-                scope.registeredWrappers.get(this).onWrappedChanged();
+            if (scope.getRegisteredWrappers().containsKey(this))
+                scope.getRegisteredWrappers().get(this).onWrappedChanged();
         }
     }
 
@@ -114,19 +119,5 @@ public abstract class RootEntity implements MutableObject, Comparable<RootEntity
         if (!tm.repositories.containsKey(this))
             throw new NoTransactionsEnabledException();
         return tm.repositories.get(this).currentCommitId;
-    }
-
-    @Override
-    public int compareTo(@NotNull RootEntity rootEntity) {
-        Repository repository = tm.repositories.get(this);
-        if (repository == null)
-            repository = new Repository(this, null);
-        return 0;
-    }
-
-    //two objects are considered the same if their fields
-    private boolean compare(MutableObject left, MutableObject right) {
-
-        return true;
     }
 }

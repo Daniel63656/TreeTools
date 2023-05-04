@@ -16,7 +16,7 @@ public class Beam extends MappedChild<Voice, Long> implements Comparable<Beam>, 
 		voice.beams.put(startTick, this);
 	}
 
-	protected void onRemove() {
+	protected void removeFromOwner() {
 		getOwner().beams.remove(getKey());
 	}
 

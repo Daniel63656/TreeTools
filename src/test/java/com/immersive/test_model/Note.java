@@ -16,7 +16,7 @@ public class Note extends Child<NoteGroup> {
         noteGroup.notes.add(this);
     }
     //this method the transactional logic is looking for in order to atomically delete objects
-    protected void onRemove() {
+    protected void removeFromOwner() {
         getOwner().notes.remove(this);
         if (nextTied != null) {
             nextTied.previousTied = null;

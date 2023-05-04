@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class WrapperTests {
     TransactionManager tm = TransactionManager.getInstance();
     FullScore fullScore, read;
@@ -96,6 +99,20 @@ public class WrapperTests {
         fullScore.commit();
         read.pull();
         Assertions.assertTrue(readNgw.changeDetected);
+    }
+
+    private static class WrapperScope implements com.immersive.transactions.WrapperScope {
+        private final Map<MutableObject, Wrapper<?>> registeredWrappers = new HashMap<>();
+
+        //it is good practise to add the wrapper to the RootEntity in the constructor
+        public WrapperScope(FullScore fullScore) {
+            fullScore.addWrapperScope(this);
+        }
+
+        @Override
+        public Map<MutableObject, Wrapper<?>> getRegisteredWrappers() {
+            return registeredWrappers;
+        }
     }
 
     private static class NoteWrapper extends Wrapper<Note> {
