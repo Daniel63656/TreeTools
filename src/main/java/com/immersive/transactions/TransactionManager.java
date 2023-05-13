@@ -176,7 +176,7 @@ public class TransactionManager {
         if (commitsToPull.isEmpty())
             return false;
         for (Commit commit : commitsToPull) {
-            if (verbose) System.out.println("\n========== PULLING "+ commit);
+            if (verbose && commit.getCommitId() != null) System.out.println("\n========== PULLING "+ commit);
             new Pull(repository, commit);
         }
         cleanUpUnnecessaryCommits();

@@ -100,7 +100,13 @@ public class DataModelInfo {
         info.constructor.setAccessible(true);
         try {
             return (Child<?>) info.constructor.newInstance(objects);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+        } catch (InvocationTargetException e) {
+            RuntimeException exception = new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()
+                    +", caused by:\n"+e.getTargetException().getMessage());
+            exception.setStackTrace(e.getTargetException().getStackTrace());
+            throw exception;
+        }
+        catch (InstantiationException | IllegalAccessException e) {
             throw new RuntimeException("Error invoking class constructor for "+clazz.getSimpleName()+" with parameters: "+ Arrays.toString(objects));
         }
     }

@@ -121,9 +121,14 @@ public final class JsonParser {
                         strb.append("\"").append(field.getName()).append("\":");
                         printObject(fieldValue, indentation, false);
                     }
+                    //String: parse with quotation marks
                     else if (fieldValue instanceof String)
                         strb.append("\"").append(field.getName()).append("\":\"").append(fieldValue).append("\",");
-                    else    //primitive / primitive wrapper / Enum / Void
+                    //Enum: parse using Enum.name() method
+                    else if (fieldValue instanceof Enum<?>)
+                        strb.append("\"").append(field.getName()).append("\":").append(((Enum<?>) fieldValue).name()).append(",");
+                    //primitive / primitive wrapper / Void: parse by using Object.toString()
+                    else
                         strb.append("\"").append(field.getName()).append("\":").append(fieldValue).append(",");
                 }
             }
