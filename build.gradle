@@ -4,7 +4,7 @@ plugins {
     id 'io.freefair.aspectj' version '6.4.1'
 }
 
-group 'com.immersive'
+group 'net.scoreworks'
 version '1.1.0'
 
 java {
