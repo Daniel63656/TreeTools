@@ -46,8 +46,6 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         return objectState;
     }
 
-    //TODO to make key and owner changeable, add constructorParameterStates in extra Object[] array in ObjectState
-
     public ObjectState updateObjectState(MutableObject dme, ObjectState oldState) {
         ObjectState objectState = new ObjectState(dme.getClass(), dme.constructorParameterObjects(), oldState.objectId);
         //put overrides existing values but not existing keys which we also want -> remove old entry first
@@ -129,6 +127,10 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
                 else this.constructionParams[i] = obj;
             }
             this.objectId = objectId;
+        }
+
+        public Object[] getConstructionParams() {
+            return constructionParams;
         }
 
         public Map<Field, Object> getFields() {

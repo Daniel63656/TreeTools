@@ -1,13 +1,12 @@
 package net.scoreworks.treetools.commits;
 
 import net.scoreworks.treetools.*;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.collections4.SetUtils;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 /**
@@ -26,7 +25,7 @@ public class Commit {
      * {@link Remote.ObjectState}). These params might be used to instantiate the object when reverting, so deletionRecords must
      * reflect the state BEFORE this commit
      */
-    protected final Map<Remote.ObjectState, Object[]> deletionRecords;
+    protected final Set<Remote.ObjectState> deletionRecords;
 
     /**
      * keep track of created objects since the last commit, stored as a pair of an objects' state and corresponding states of the
@@ -34,7 +33,7 @@ public class Commit {
      * {@link Remote.ObjectState}). These params may be used to create the object when pulling, so creationRecords must
      * reflect the state AFTER this commit
      */
-    protected final Map<Remote.ObjectState, Object[]> creationRecords;
+    protected final Set<Remote.ObjectState> creationRecords;
 
     /**
      * keep track of changed (but not created) objects since the last commit. Stored as a pair of their old and
@@ -45,8 +44,8 @@ public class Commit {
 
     public Commit() {
         commitId = null;
-        this.creationRecords = new HashMap<>();
-        this.deletionRecords = new HashMap<>();
+        this.creationRecords = new HashSet<>();
+        this.deletionRecords = new HashSet<>();
         this.changeRecords = new DualHashBidiMap<>();
     }
 
@@ -60,7 +59,7 @@ public class Commit {
         this.changeRecords = commit.changeRecords;
     }
 
-    protected Commit(Map<Remote.ObjectState, Object[]> deletionRecords, Map<Remote.ObjectState, Object[]> creationRecords, DualHashBidiMap<Remote.ObjectState, Remote.ObjectState> changeRecords) {
+    protected Commit(Set<Remote.ObjectState> deletionRecords, Set<Remote.ObjectState> creationRecords, DualHashBidiMap<Remote.ObjectState, Remote.ObjectState> changeRecords) {
         commitId = new CommitId();
         this.deletionRecords = deletionRecords;
         this.creationRecords = creationRecords;
@@ -73,8 +72,8 @@ public class Commit {
      */
     public Commit(Repository repository) {
         commitId = new CommitId();
-        this.creationRecords = new HashMap<>();
-        this.deletionRecords = new HashMap<>();
+        this.creationRecords = new HashSet<>();
+        this.deletionRecords = new HashSet<>();
         this.changeRecords = new DualHashBidiMap<>();
         Remote remote = repository.getRemote();
 
@@ -88,7 +87,7 @@ public class Commit {
         List<Child<?>> removeFromLOT = new ArrayList<>();
         Child<?> te = repository.getOneDeletion();
         while (te != null) {
-            deletionRecords.put(remote.getKey(te), te.constructorParameterStates(remote));
+            deletionRecords.add(remote.getKey(te));
             //don't remove from remote yet, because this destroys owner information for possible deletion of children
             removeFromLOT.add(te);
             repository.removeDeletion(te);
@@ -139,7 +138,7 @@ public class Commit {
         //this state is returned from the remote (and no new one created)
         Remote.ObjectState newKey = repository.getRemote().createObjectState(te);
         //now its save to get the states of owner/keys from the remote and create the creation record with them
-        creationRecords.put(newKey, te.constructorParameterStates(repository.getRemote()));
+        creationRecords.add(newKey);
         //log of from creation tasks
         repository.removeCreation(te);
     }
@@ -171,7 +170,7 @@ public class Commit {
     }
     private static void parseMutableObject(Remote remote, Commit commit, MutableObject dme) {
         if (!(dme instanceof RootEntity))
-            commit.creationRecords.put(remote.getKey(dme), dme.constructorParameterStates(remote));
+            commit.creationRecords.add(remote.getKey(dme));
         for (Child<?> child : DataModelInfo.getChildren(dme)) {
             parseMutableObject(remote, commit, child);
         }
@@ -181,11 +180,11 @@ public class Commit {
         return commitId;
     }
 
-    public Map<Remote.ObjectState, Object[]> getDeletionRecords() {
-        return MapUtils.unmodifiableMap(deletionRecords);
+    public Set<Remote.ObjectState> getDeletionRecords() {
+        return SetUtils.unmodifiableSet(deletionRecords);
     }
-    public Map<Remote.ObjectState, Object[]> getCreationRecords() {
-        return MapUtils.unmodifiableMap(creationRecords);
+    public Set<Remote.ObjectState> getCreationRecords() {
+        return SetUtils.unmodifiableSet(creationRecords);
     }
     public Map<Remote.ObjectState, Remote.ObjectState> getChangeRecords() {
         return MapUtils.unmodifiableMap(changeRecords);
@@ -199,44 +198,41 @@ public class Commit {
     }
 
     public void add(Commit commit) {
-        for (Map.Entry<Remote.ObjectState, Object[]> entry : commit.creationRecords.entrySet()) {
-            Remote.ObjectState creationState = entry.getKey();
-            if (creationRecords.containsKey(creationState) ||
-                    deletionRecords.containsKey(creationState) ||
+        for (Remote.ObjectState creationState : commit.creationRecords) {
+            if (creationRecords.contains(creationState) ||
+                    deletionRecords.contains(creationState) ||
                     changeRecords.containsValue(creationState))
                 throw new RuntimeException("Tried to create an object already present in commit!");
-            creationRecords.put(creationState, entry.getValue());
+            creationRecords.add(creationState);
         }
 
-        for (Map.Entry<Remote.ObjectState, Object[]> entry : commit.deletionRecords.entrySet()) {
-            Remote.ObjectState deleteState = entry.getKey();
+        for (Remote.ObjectState deleteState : commit.deletionRecords) {
             //deletion is contained as after key in a change
             if (changeRecords.containsValue(deleteState)) {
                 Remote.ObjectState beforeState = changeRecords.getKey(deleteState);
-                deletionRecords.put(beforeState, entry.getValue());
+                deletionRecords.add(beforeState);
                 changeRecords.removeValue(deleteState);
             }
             //deletion is in creationRecords
-            else if (creationRecords.containsKey(deleteState)) {
+            else if (creationRecords.contains(deleteState)) {
                 creationRecords.remove(deleteState);
             }
-            else if (deletionRecords.containsKey(deleteState))
+            else if (deletionRecords.contains(deleteState))
                 throw new RuntimeException("Tried to delete an object that is already deleted!");
                 //not contained so far
-            else deletionRecords.put(deleteState, entry.getValue());
+            else deletionRecords.add(deleteState);
         }
 
         for (Map.Entry<Remote.ObjectState, Remote.ObjectState> entry : commit.changeRecords.entrySet()) {
             Remote.ObjectState before = entry.getKey();
             Remote.ObjectState after = entry.getValue();
             //change was considered a creation so far - update creation record
-            if (creationRecords.containsKey(before)) {
+            if (creationRecords.contains(before)) {
                 //put overrides existing values but not existing keys which we also want -> remove old entry first
-                Object[] constructionParams = creationRecords.get(before);
                 creationRecords.remove(before);
-                creationRecords.put(after, constructionParams);
+                creationRecords.add(after);
             }
-            else if (deletionRecords.containsKey(before))
+            else if (deletionRecords.contains(before))
                 throw new RuntimeException("Tried to change an object that is already deleted!");
             //change is contained as after key in existing change - update change record
             else if (changeRecords.containsValue(before)) {
@@ -258,10 +254,10 @@ public class Commit {
             strb.append("commit number ").append(commitId).append(":\n");
         else strb.append("untracked commit:\n");
         //use getter so inverted commit is printed correctly
-        for (Map.Entry<Remote.ObjectState, Object[]> entry : getDeletionRecords().entrySet())
-            strb.append(">Delete ").append(entry.getKey()).append("\n");
-        for (Map.Entry<Remote.ObjectState, Object[]> entry : getCreationRecords().entrySet())
-            strb.append(">Create ").append(entry.getKey()).append("\n");
+        for (Remote.ObjectState entry : getDeletionRecords())
+            strb.append(">Delete ").append(entry).append("\n");
+        for (Remote.ObjectState entry : getCreationRecords())
+            strb.append(">Create ").append(entry).append("\n");
         for (Map.Entry<Remote.ObjectState, Remote.ObjectState> entry : getChangeRecords().entrySet())
             strb.append(">Change ").append(entry.getKey()).append("\n     to ").append(entry.getValue()).append("\n");
         return strb.append("====================================").toString();

@@ -99,7 +99,7 @@ public abstract class RootEntity implements MutableObject {
         CommitId dstCommitId = dstRootEntity.getCurrentCommitId();
         Remote.ObjectState state = tm.repositories.get(this).remote.getKey(dme);
         for (Commit commit : tm.commits.subMap(srcCommitId, false, dstCommitId, true).values()) {
-            if (commit.getDeletionRecords().containsKey(state)) {
+            if (commit.getDeletionRecords().contains(state)) {
                 return null;
             }
             //check if BEFORE exists in changeRecords

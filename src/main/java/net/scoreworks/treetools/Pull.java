@@ -4,16 +4,13 @@ import net.scoreworks.treetools.commits.Commit;
 import net.scoreworks.treetools.exceptions.TransactionException;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static net.scoreworks.treetools.TransactionManager.verbose;
 
 
 public class Pull {
-    private final Map<Remote.ObjectState, Object[]> creationChores;
+    private final Set<Remote.ObjectState> creationChores;
     private final Map<Remote.ObjectState, Remote.ObjectState> changeChores;
     private final Remote remote;
     private final List<CrossReferenceToDo> crossReferences = new ArrayList<>();
@@ -25,16 +22,16 @@ public class Pull {
     public Pull(Repository repository, Commit commit) {
         repository.ongoingPull = true;
         //copy modification- and changeRecords to safely cross things off without changing the commit itself
-        creationChores = new HashMap<>(commit.getCreationRecords());
+        creationChores = new HashSet<>(commit.getCreationRecords());
         changeChores = new HashMap<>(commit.getChangeRecords());
         //no removing here
-        Map<Remote.ObjectState, Object[]> deletionChores = commit.getDeletionRecords();
+        Set<Remote.ObjectState> deletionChores = commit.getDeletionRecords();
         remote = repository.remote;
 
         //DELETION - assumes deletion records are present in all subsequent children, so their wrappers get also notified
-        for (Map.Entry<Remote.ObjectState, Object[]> entry : deletionChores.entrySet()) {
-            if (verbose) System.out.println(">deleting "+entry.getKey().clazz.getSimpleName()+"["+entry.getKey().hashCode()+"]");
-            Child<?> objectToDelete = (Child<?>) remote.get(entry.getKey());
+        for (Remote.ObjectState entry : deletionChores) {
+            if (verbose) System.out.println(">deleting "+entry.clazz.getSimpleName()+"["+entry.hashCode()+"]");
+            Child<?> objectToDelete = (Child<?>) remote.get(entry);
             MutableObject owner = objectToDelete.getOwner();
             objectToDelete.removeFromOwner();
             objectToDelete.notifyAndRemoveRegisteredWrappers();  //notify own wrapper about deletion
@@ -44,11 +41,11 @@ public class Pull {
         }
 
         //CREATION - Recursion possible because of dependency on owner and keys
-        Map.Entry<Remote.ObjectState, Object[]> creationRecord;
+        Remote.ObjectState creationRecord;
         while (!creationChores.isEmpty()) {
-            creationRecord = creationChores.entrySet().iterator().next();
+            creationRecord = creationChores.iterator().next();
             try {
-                pullCreationRecord(creationRecord.getKey(), creationRecord.getValue());
+                pullCreationRecord(creationRecord);
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
@@ -89,17 +86,18 @@ public class Pull {
      * @param constructionParams list of objects needed for construction. These are {@link Remote.ObjectState}s if
      *                           the param is another {@link MutableObject} or an immutable object itself
      */
-    private void pullCreationRecord(Remote.ObjectState objKey, Object[] constructionParams) throws IllegalAccessException {
+    private void pullCreationRecord(Remote.ObjectState objKey) throws IllegalAccessException {
         if (verbose) System.out.println(">creating "+objKey.clazz.getSimpleName()+"["+objKey.hashCode()+"]");
         //parse construction params into array
+        Object[] constructionParams = objKey.getConstructionParams();
         Object[] params = new Object[constructionParams.length];
         for (int i=0; i<constructionParams.length; i++) {
             Object key = constructionParams[i];
             //DMEs need to be resolved to their objects which may need to be created/changed themselves
             if (key instanceof Remote.ObjectState) {
                 Remote.ObjectState state = (Remote.ObjectState) key;
-                if (creationChores.containsKey(state)) {
-                    pullCreationRecord(state, creationChores.get(state));
+                if (creationChores.contains(state)) {
+                    pullCreationRecord(state);
                 }
                 //check if state exists in changeRecords as after
                 else if (changeChores.containsValue(state)) {
@@ -144,15 +142,10 @@ public class Pull {
                     //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
                     crossReferences.add(new CrossReferenceToDo(dme, state, (Remote.ObjectState) value, field));
                 }
-                //TODO test key migration
-                else if (dme instanceof MappedChild && field.getName().equals("key")) {
-                    MappedChild<?, ?> mc = (MappedChild<?, ?>) dme;
-                    if (mc.getKey() != value)
-                        mc.migrate(value);
-                }
                 else field.set(dme, value);
             }
         }
+        //TODO go over construction params to pull migrations
     }
 
     private static class CrossReferenceToDo {

@@ -312,9 +312,9 @@ public class TransactionTests {
         Commit commit = fullScore.commit();
 
         //check that the deletion records "previous tied" and "owner" points at the unchanged states
-        for (Map.Entry<Remote.ObjectState, Object[]> entry : commit.getDeletionRecords().entrySet()) { //only one deletionRecord
-            Assertions.assertEquals(tieStartBeforeChange, entry.getKey().getFields().get(Note.class.getDeclaredField("previousTied")));
-            Assertions.assertEquals(tieEndNoteGroupBeforeChange, entry.getValue()[0]);
+        for (Remote.ObjectState entry : commit.getDeletionRecords()) { //only one deletionRecord
+            Assertions.assertEquals(tieStartBeforeChange, entry.getFields().get(Note.class.getDeclaredField("previousTied")));
+            Assertions.assertEquals(tieEndNoteGroupBeforeChange, entry.getConstructionParams()[0]);
         }
 
         read.pull();

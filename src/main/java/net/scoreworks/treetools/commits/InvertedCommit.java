@@ -2,8 +2,10 @@ package net.scoreworks.treetools.commits;
 
 import net.scoreworks.treetools.Remote;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.collections4.SetUtils;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A {@link Commit} that saves records normally but behaves inverted to the outside of the class (creations become deletions and
@@ -15,11 +17,11 @@ public class InvertedCommit extends Commit {
         super(commit);
     }
 
-    public Map<Remote.ObjectState, Object[]> getDeletionRecords() {
-        return MapUtils.unmodifiableMap(creationRecords);
+    public Set<Remote.ObjectState> getDeletionRecords() {
+        return SetUtils.unmodifiableSet(creationRecords);
     }
-    public Map<Remote.ObjectState, Object[]> getCreationRecords() {
-        return MapUtils.unmodifiableMap(deletionRecords);
+    public Set<Remote.ObjectState> getCreationRecords() {
+        return SetUtils.unmodifiableSet(deletionRecords);
     }
     public Map<Remote.ObjectState, Remote.ObjectState> getChangeRecords() {
         return MapUtils.unmodifiableMap(changeRecords.inverseBidiMap());
