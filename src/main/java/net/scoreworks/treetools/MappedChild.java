@@ -1,5 +1,7 @@
 package net.scoreworks.treetools;
 
+import java.util.Map;
+
 /**
  * Child entity that is owned in a map.
  * @param <O> class-type of the owner class

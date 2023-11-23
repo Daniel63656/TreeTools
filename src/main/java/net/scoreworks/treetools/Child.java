@@ -88,6 +88,11 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
     protected abstract void removeFromOwner();
 
     /**
+     * add itself from the owner's collection or field
+     */
+    protected abstract void addToOwner();
+
+    /**
      * this method gets called when this object is being removed from the data model. In it the object
      * can take actions that remove any references to itself to leave an intact data model behind. This may include
      * removing other objects that are mapped with this as key, setting fields pointing to this object to null and other
