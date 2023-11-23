@@ -1,7 +1,7 @@
 package net.scoreworks.treetools;
 
 /**
- * Necessary methods that each mutable class of the data model must have to make transactions possible
+ * Base interface for any mutable data model class. Defines utility functions needed to make transactions possible
  */
 public interface MutableObject extends Wrappable {
 
@@ -12,7 +12,7 @@ public interface MutableObject extends Wrappable {
 
     /**
      * @param remote access to object states
-     * @return an array of object states used in the transactional constructor. Of type {@link Remote.ObjectState}
+     * @return an array of object {@link Remote.ObjectState}s used in the transactional constructor.
      * if object is an {@link MutableObject}, otherwise the mutable object is its own state
      */
     Object[] constructorParameterStates(Remote remote);

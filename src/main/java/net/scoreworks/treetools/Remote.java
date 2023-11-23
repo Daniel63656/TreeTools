@@ -82,7 +82,7 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
     }
 
     /**
-     * Class that acts as a key for a given objects state at a given {@link CommitId}. Primarily saves the immutable
+     * Class that acts as a key for a given object's state at a given {@link CommitId}. Primarily saves the immutable
      * {@link DataModelInfo#fields} of an object (that excludes the owner, keys
      * and children). This state is linked up with the corresponding object within the {@link Remote}.
      * This object must be immutable after its full construction within a commit.

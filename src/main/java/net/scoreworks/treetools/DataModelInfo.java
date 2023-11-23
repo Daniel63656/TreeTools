@@ -1,6 +1,5 @@
 package net.scoreworks.treetools;
 
-import net.scoreworks.treetools.annotations.PolymorphOwner;
 import net.scoreworks.treetools.exceptions.IllegalDataModelException;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
@@ -25,8 +24,8 @@ public class DataModelInfo {
 
     /**
      * all fields that contain collections of the described class and superclass(es) (excluding transactional class fields).
-     * This includes arrays, sets, lists and maps. In these collections, only objects of type {@link MutableObject} can be
-     * saved to make tracking of changes possible
+     * This includes arrays, sets, and maps. In these collections, only objects of type {@link MutableObject} can be
+     * saved to make tracking of changes possible. Lists are not supported
      */
     Field[] collections;
 
@@ -60,10 +59,6 @@ public class DataModelInfo {
 
         //find and cache the transactional constructor (which has constructionParams as input parameters)
         try {
-            //if class can have different owners, get class-type of the owner from annotation
-            PolymorphOwner polymorphOwner = clazz.getAnnotation(PolymorphOwner.class);
-            if (polymorphOwner != null)
-                constructorParams[0] = polymorphOwner.commonInterface();
             constructor = clazz.getDeclaredConstructor(constructorParams);
         } catch (NoSuchMethodException e) {
             throw new IllegalDataModelException(clazz, " has no suitable constructor!");

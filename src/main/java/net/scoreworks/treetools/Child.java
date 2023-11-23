@@ -24,7 +24,7 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
      * prevent removal to be triggered several times on the same object. As member of this class, this field
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
-    private boolean removalInProcess;
+    private transient boolean removalInProcess;
 
     protected Child(O owner) {
         this.owner = owner;
@@ -83,16 +83,15 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
     }
 
     /**
-     * remove itself from the owner's collection. This method needs to be implemented by any {@link Child}
+     * remove itself from the owner's collection or field
      */
     protected abstract void removeFromOwner();
 
     /**
      * this method gets called when this object is being removed from the data model. In it the object
-     * can take actions that remove
-     * any references to itself to leave an intact data model behind. This may include removing other objects
-     * that are mapped with this as key, setting fields pointing to this object to null and other data model specific
-     * clean-ups
+     * can take actions that remove any references to itself to leave an intact data model behind. This may include
+     * removing other objects that are mapped with this as key, setting fields pointing to this object to null and other
+     * data model specific clean-ups. Implementation is optional
      */
     protected void onRemove() {}
 
