@@ -92,7 +92,7 @@ public class WrapperTests {
 
     @Test
     public void testCreationNotifiesOwner() {
-        new Note(note.owner, 40, false, NoteName.B);
+        new Note(note.getOwner(), 40, false, NoteName.B);
         Assertions.assertTrue(writeNgw.changeDetected);
         Assertions.assertFalse(readNgw.changeDetected);
 

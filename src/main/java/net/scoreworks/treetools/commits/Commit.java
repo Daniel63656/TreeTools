@@ -124,12 +124,15 @@ public class Commit {
         //creationRecord contains states needed to construct this object. These states have to be present in the
         //remote. The method makes sure this is the case by recursively processing these creation or changes first
 
-        //loop over all objects needed for construction. Non MutableObjects are not included
-        for (MutableObject dme : te.constructorParameterMutables()) {
-            if (dme instanceof Child<?> && repository.locallyCreatedContains((Child<?>) dme))
-                commitCreation(repository, (Child<?>) dme);
-            else if (repository.locallyChangedContains(dme))
-                commitChange(repository, dme);
+        //loop over all objects needed for construction. Exclude Immutable objects
+        for (Object obj : te.constructorParameterObjects()) {
+            if (obj instanceof MutableObject) {
+                MutableObject dme = (MutableObject) obj;
+                if (dme instanceof Child<?> && repository.locallyCreatedContains((Child<?>) dme))
+                    commitCreation(repository, (Child<?>) dme);
+                else if (repository.locallyChangedContains(dme))
+                    commitChange(repository, dme);
+            }
         }
         //object is not currently present in remote, so generate a NEW state and put it in remote. This will also create
         //states for cross-references if needed. If this objects' state already got created through this mechanism,

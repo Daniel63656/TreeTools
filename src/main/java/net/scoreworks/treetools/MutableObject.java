@@ -18,10 +18,9 @@ public interface MutableObject extends Wrappable {
     Object[] constructorParameterStates(Remote remote);
 
     /**
-     * @return an array of all {@link MutableObject}s used in the transactional constructor. Any immutable objects
-     * are omitted here
+     * @return an array of all objects used in the transactional constructor
      */
-    MutableObject[] constructorParameterMutables();
+    Object[] constructorParameterObjects();
 
     /**
      * @return the root of the data model

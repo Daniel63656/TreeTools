@@ -12,13 +12,13 @@ import java.util.*;
  * methods like push, pull, redo and undo.
  */
 public abstract class RootEntity implements MutableObject {
-    final TransactionManager tm = TransactionManager.getInstance();
+    final transient TransactionManager tm = TransactionManager.getInstance();
 
     /**
      * Set that holds all {@link WrapperScope}s. As member of this class, this field
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
-    final Set<WrapperScope> wrapperScopes = new HashSet<>();
+    final transient Set<WrapperScope> wrapperScopes = new HashSet<>();
     public void addWrapperScope(WrapperScope scope) {
         wrapperScopes.add(scope);
     }
@@ -65,7 +65,7 @@ public abstract class RootEntity implements MutableObject {
     }
 
     @Override
-    public MutableObject[] constructorParameterMutables() { return new MutableObject[0];}
+    public MutableObject[] constructorParameterObjects() { return new MutableObject[0];}
 
     @Override
     public RootEntity getRootEntity() {

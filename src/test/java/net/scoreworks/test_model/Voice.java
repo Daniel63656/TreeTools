@@ -4,7 +4,7 @@ package net.scoreworks.test_model;
 import net.scoreworks.collection.DiscontinuousRangeMap;
 import net.scoreworks.treetools.Child;
 
-public class Voice extends Child<Track> {
+public final class Voice extends Child<Track> {
     DiscontinuousRangeMap<Voice, Long, Beam> beams = new DiscontinuousRangeMap<>();
     int voiceId;
 

@@ -18,7 +18,7 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
     /**
      * reference to the owner of the class
      */
-    protected final O owner;
+    private final O owner;
 
     /**
      * prevent removal to be triggered several times on the same object. As member of this class, this field
@@ -141,8 +141,8 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
         return new Object[]{remote.getLogicalObjectKeyOfOwner(this)};
     }
     @Override
-    public MutableObject[] constructorParameterMutables() {
-        return new MutableObject[]{owner};
+    public Object[] constructorParameterObjects() {
+        return new Object[]{owner};
     }
     @Override
     public RootEntity getRootEntity() {

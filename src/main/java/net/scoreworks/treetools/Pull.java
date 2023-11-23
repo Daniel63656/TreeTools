@@ -144,7 +144,13 @@ public class Pull {
                     //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
                     crossReferences.add(new CrossReferenceToDo(dme, state, (Remote.ObjectState) value, field));
                 }
-                else field.set(dme, state.getFields().get(field));
+                //TODO test key migration
+                else if (dme instanceof MappedChild && field.getName().equals("key")) {
+                    MappedChild<?, ?> mc = (MappedChild<?, ?>) dme;
+                    if (mc.getKey() != value)
+                        mc.migrate(value);
+                }
+                else field.set(dme, value);
             }
         }
     }

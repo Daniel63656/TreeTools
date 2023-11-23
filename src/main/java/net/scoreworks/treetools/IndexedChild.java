@@ -22,14 +22,14 @@ public abstract class IndexedChild<O extends MutableObject> extends Child<O> {
 
     @Override
     public Class<?>[] constructorParameterTypes() {
-        return new Class<?>[]{owner.getClass(), int.class};
+        return new Class<?>[]{getOwner().getClass(), int.class};
     }
     @Override
     public Object[] constructorParameterStates(Remote remote) {
         return new Object[]{remote.getLogicalObjectKeyOfOwner(this), index};
     }
     @Override
-    public MutableObject[] constructorParameterMutables() {
-        return new MutableObject[]{owner};
+    public Object[] constructorParameterObjects() {
+        return new Object[]{getOwner(), index};
     }
 }

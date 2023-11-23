@@ -1,7 +1,5 @@
 package net.scoreworks.treetools;
 
-import java.util.Map;
-
 /**
  * Child entity that is owned in a map.
  * @param <O> class-type of the owner class
@@ -12,7 +10,7 @@ public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
     /**
      * reference to the key the object is saved with
      */
-    protected final K key;
+    private K key;
 
     public MappedChild(O owner, K key) {
         super(owner);
@@ -23,9 +21,19 @@ public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
         return key;
     }
 
+    /**
+     * change the key of a MappedChild without destroying the object
+     */
+    @SuppressWarnings("unchecked")
+    public void migrate(Object newKey) {
+        removeFromOwner();
+        key = (K) newKey;
+        addToOwner();
+    }
+
     @Override
     public Class<?>[] constructorParameterTypes() {
-        return new Class<?>[]{owner.getClass(), key.getClass()};
+        return new Class<?>[]{getOwner().getClass(), key.getClass()};
     }
     @Override
     public Object[] constructorParameterStates(Remote remote) {
@@ -35,10 +43,7 @@ public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
             return new Object[]{remote.getLogicalObjectKeyOfOwner(this), key};
     }
     @Override
-    public MutableObject[] constructorParameterMutables() {
-        if (key instanceof MutableObject)
-            return new MutableObject[]{owner, (MutableObject) key};
-        else
-            return new MutableObject[]{owner};
+    public Object[] constructorParameterObjects() {
+        return new Object[]{getOwner(), key};
     }
 }

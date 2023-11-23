@@ -40,14 +40,16 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         if (containsValue(dme)) {
             return getKey(dme);
         }
-        ObjectState objectState = new ObjectState(dme.getClass(), new ObjectId());
+        ObjectState objectState = new ObjectState(dme.getClass(), dme.constructorParameterObjects(), new ObjectId());
         put(objectState, dme);
         assignFieldsToObjectState(objectState, dme);
         return objectState;
     }
 
+    //TODO to make key and owner changeable, add constructorParameterStates in extra Object[] array in ObjectState
+
     public ObjectState updateObjectState(MutableObject dme, ObjectState oldState) {
-        ObjectState objectState = new ObjectState(dme.getClass(), oldState.objectId);
+        ObjectState objectState = new ObjectState(dme.getClass(), dme.constructorParameterObjects(), oldState.objectId);
         //put overrides existing values but not existing keys which we also want -> remove old entry first
         remove(oldState);
         put(objectState, dme);
@@ -87,12 +89,18 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
      * and children). This state is linked up with the corresponding object within the {@link Remote}.
      * This object must be immutable after its full construction within a commit.
      */
-    public static class ObjectState {
+    public class ObjectState {
 
         /**
          * corresponding class-type whose content is saved by this state
          */
         final Class<? extends MutableObject> clazz;
+
+        /**
+         * save constructor parameters as they might also be subject to change (migration). If the param holds another
+         * {@link MutableObject}, then the corresponding {@link ObjectState} is used
+         */
+        private final Object[] constructionParams;
 
         /**
          * map fields to their corresponding values. If the field holds another {@link MutableObject}, then the corresponding
@@ -110,8 +118,16 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
          * constructor is private so that states are only instantiated via the {@link Remote} that
          * they are held in
          */
-        private ObjectState(Class<? extends MutableObject> clazz, ObjectId objectId) {
+        private ObjectState(Class<? extends MutableObject> clazz, Object[] constructionParams, ObjectId objectId) {
             this.clazz = clazz;
+            this.constructionParams = new Object[constructionParams.length];
+            for (int i=0; i<constructionParams.length; i++) {
+                Object obj = constructionParams[i];
+                if (obj instanceof MutableObject) {
+                    this.constructionParams[i] = createObjectState((MutableObject) obj);
+                }
+                else this.constructionParams[i] = obj;
+            }
             this.objectId = objectId;
         }
 
