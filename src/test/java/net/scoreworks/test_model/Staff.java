@@ -8,12 +8,15 @@ public class Staff extends Child<Track> {
     //this constructor the transactional logic is looking for
     private Staff(Track track) {
         super(track);
-        track.staffs.add(this);
+        addToOwner();
     }
 
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void removeFromOwner() {
         getOwner().staffs.remove(this);
+    }
+    protected void addToOwner() {
+        getOwner().staffs.add(this);
     }
 
     public Staff(Track track, boolean treble) {

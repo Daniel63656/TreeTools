@@ -18,7 +18,14 @@ public abstract class NoteGroupOrTuplet extends MappedChild<NoteTimeTick, Voice>
     //this constructor the transactional logic is looking for
     protected NoteGroupOrTuplet(NoteTimeTick noteTimeTick, Voice voice) {
         super(noteTimeTick, voice);
-        noteTimeTick.noteGroupOrTuplets.put(voice, this);
+        addToOwner();
+    }
+
+    protected void removeFromOwner() {
+        getOwner().noteGroupOrTuplets.remove(getKey());
+    }
+    protected void addToOwner() {
+        getOwner().noteGroupOrTuplets.put(getKey(), this);
     }
 
     public NoteGroupOrTuplet(NoteTimeTick noteTimeTick, Staff staff, Voice voice, int duration) {

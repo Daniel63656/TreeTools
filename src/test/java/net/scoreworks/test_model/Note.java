@@ -13,17 +13,22 @@ public class Note extends Child<NoteGroup> {
     //this constructor the transactional logic is looking for
     private Note(NoteGroup noteGroup) {
         super(noteGroup);
-        noteGroup.notes.add(this);
+        addToOwner();
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void removeFromOwner() {
         getOwner().notes.remove(this);
+    }
+    protected void onRemove() {
         if (nextTied != null) {
             nextTied.previousTied = null;
         }
         if (previousTied != null) {
             previousTied.nextTied = null;
         }
+    }
+    protected void addToOwner() {
+        getOwner().notes.add(this);
     }
 
     public Note(NoteGroup noteGroup, int pitch, boolean accidental, NoteName noteName) {

@@ -13,11 +13,14 @@ public class Beam extends MappedChild<Voice, Long> implements Comparable<Beam>, 
 	//=====TRANSACTIONAL============================================================================
 	private Beam(Voice voice, Long startTick) {
 		super(voice, startTick);
-		voice.beams.put(startTick, this);
+		addToOwner();
 	}
 
 	protected void removeFromOwner() {
 		getOwner().beams.remove(getKey());
+	}
+	protected void addToOwner() {
+		getOwner().beams.put(getKey(), this);
 	}
 
 	//=====FUNCTIONAL===============================================================================

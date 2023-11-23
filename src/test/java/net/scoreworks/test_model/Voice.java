@@ -11,15 +11,20 @@ public class Voice extends Child<Track> {
     //this constructor the transactional logic is looking for
     private Voice(Track track) {
         super(track);
-        track.voices.add(this);
+        addToOwner();
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void removeFromOwner() {
         getOwner().voices.remove(this);
+    }
+    protected void onRemove() {
         //remove all that used voice as key
         for (NoteTimeTick ntt : getOwner().noteTimeTicks.values()) {
             ntt.noteGroupOrTuplets.remove(this);
         }
+    }
+    protected void addToOwner() {
+        getOwner().voices.add(this);
     }
 
     public Voice(Track track, int voiceId) {

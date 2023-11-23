@@ -16,11 +16,14 @@ public class Track extends Child<FullScore> {
     //this constructor the transactional logic is looking for
     public Track(FullScore fullScore) {
         super(fullScore);
-        fullScore.tracks.add(this);
+        addToOwner();
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void removeFromOwner() {
         getOwner().tracks.remove(this);
+    }
+    protected void addToOwner() {
+        getOwner().tracks.add(this);
     }
 
     public Staff getStaff(int idx) {

@@ -10,14 +10,16 @@ import java.util.Map;
 public class NoteTimeTick extends MappedChild<Track, Fraction> {
     Map<Voice, NoteGroupOrTuplet> noteGroupOrTuplets = new HashMap<>();
 
-    //this method the transactional logic is looking for in order to atomically delete objects
     protected void removeFromOwner() {
         getOwner().noteTimeTicks.remove(getKey());
+    }
+    protected void addToOwner() {
+        getOwner().noteTimeTicks.put(getKey(), this);
     }
 
     public NoteTimeTick(Track track, Fraction tick) {
         super(track, tick);
-        track.noteTimeTicks.put(tick, this);
+        addToOwner();
     }
 
     public NoteGroupOrTuplet getNGOT(Voice voice) {
