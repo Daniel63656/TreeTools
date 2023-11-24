@@ -20,14 +20,9 @@ public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
     public K getKey() {
         return key;
     }
-
-    /**
-     * change the key of a MappedChild without destroying the object
-     */
-    @SuppressWarnings("unchecked")
-    public void migrate(Object newKey) {
+    public void changeKey(K newKey) {
         removeFromOwner();
-        key = (K) newKey;
+        key = newKey;
         addToOwner();
     }
 

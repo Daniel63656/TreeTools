@@ -18,7 +18,7 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
     /**
      * reference to the owner of the class
      */
-    private final O owner;
+    private O owner;
 
     /**
      * prevent removal to be triggered several times on the same object. As member of this class, this field
@@ -44,6 +44,12 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
 
     public O getOwner() {
         return owner;
+    }
+
+    public void changeOwner(O newOwner) {
+        removeFromOwner();
+        owner = newOwner;
+        addToOwner();
     }
 
     /**

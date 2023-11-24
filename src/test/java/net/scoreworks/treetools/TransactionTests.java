@@ -342,7 +342,7 @@ public class TransactionTests {
     public void testKeyMigration() {
         Voice newVoice = new Voice(track, 1);
         NoteGroup noteGroup = note.getOwner();
-        noteGroup.migrate(newVoice);
+        noteGroup.changeKey(newVoice);
         Assertions.assertTrue(repository.locallyChangedContains(noteGroup));
         fullScore.commit();
         read.pull();

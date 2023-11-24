@@ -13,7 +13,6 @@ public class Pull {
     private final Set<Remote.ObjectState> creationChores;
     private final Map<Remote.ObjectState, Remote.ObjectState> changeChores;
     private final Remote remote;
-    private final List<CrossReferenceToDo> crossReferences = new ArrayList<>();
 
     /**
      * pull one commit from the remote and apply its changes to the data model
@@ -36,10 +35,10 @@ public class Pull {
             objectToDelete.removeFromOwner();
             objectToDelete.notifyAndRemoveRegisteredWrappers();  //notify own wrapper about deletion
             owner.notifyRegisteredWrappersAboutChange();  //notify owners' wrapper (necessary because only onRemove() called)
-
             remote.removeValue(objectToDelete);
         }
 
+        // loop over creation and change records and update the LOT to contain all new states and objects
         //CREATION - Recursion possible because of dependency on owner and keys
         Remote.ObjectState creationRecord;
         while (!creationChores.isEmpty()) {
@@ -50,8 +49,7 @@ public class Pull {
                 e.printStackTrace();
             }
         }
-
-        //CHANGE
+        //CHANGE - No recursion
         Map.Entry<Remote.ObjectState, Remote.ObjectState> changeRecord;
         while (!changeChores.isEmpty()) {
             changeRecord = changeChores.entrySet().iterator().next();
@@ -62,19 +60,19 @@ public class Pull {
             }
         }
 
-        //at last link the open cross-reference dependencies
-        for (CrossReferenceToDo cr : crossReferences) {
-            MutableObject referencedObject = remote.get(cr.crossReferencedState);
-            if (referencedObject == null)
-                throw new TransactionException("can't find "+cr.crossReferencedState.clazz.getSimpleName()+"["+cr.crossReferencedState.hashCode()+"] in remote, cross referenced by "+remote.getKey(cr.dme).clazz.getSimpleName(), remote.getKey(cr.dme).hashCode());
-            cr.objectField.setAccessible(true);
-            try {
-                cr.objectField.set(cr.dme, referencedObject);
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
+        // apply the actual changes at last when all objects are created and accessible via LOT
+        try {
+            for (Remote.ObjectState state : commit.getCreationRecords()) {
+                applyState(state);
             }
+            for (Remote.ObjectState state : commit.getChangeRecords().values()) {
+                applyState(state);
+                remote.get(state).notifyRegisteredWrappersAboutChange();
+            }
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
         }
-        crossReferences.clear();
+
         if (commit.getCommitId() != null)
             repository.currentCommitId = commit.getCommitId();
         repository.ongoingPull = false;
@@ -83,8 +81,6 @@ public class Pull {
     /**
      * creates an object from a creation record and put its key into the {@link Remote}
      * @param objKey key of the object to be created
-     * @param constructionParams list of objects needed for construction. These are {@link Remote.ObjectState}s if
-     *                           the param is another {@link MutableObject} or an immutable object itself
      */
     private void pullCreationRecord(Remote.ObjectState objKey) throws IllegalAccessException {
         if (verbose) System.out.println(">creating "+objKey.clazz.getSimpleName()+"["+objKey.hashCode()+"]");
@@ -115,7 +111,6 @@ public class Pull {
         }
         //construct the object - this automatically notifies the wrappers of the owner
         Child<?> objectToCreate = DataModelInfo.construct(objKey.clazz, params);
-        imprintLogicalContentOntoObject(objKey, objectToCreate);
         remote.put(objKey, objectToCreate);
         creationChores.remove(objKey);
     }
@@ -125,38 +120,31 @@ public class Pull {
         MutableObject objectToChange = remote.get(before);
         if (objectToChange == null)
             throw new TransactionException("remote didn't contain "+before.clazz.getSimpleName(), before.hashCode());
-
-        imprintLogicalContentOntoObject(after, objectToChange);
-        //notify potential wrappers about the change
-        objectToChange.notifyRegisteredWrappersAboutChange();
         remote.put(after, objectToChange);
         changeChores.remove(after);
     }
 
-    private void imprintLogicalContentOntoObject(Remote.ObjectState state, MutableObject dme) throws IllegalAccessException {
+    private void applyState(Remote.ObjectState state) throws IllegalAccessException {
+        MutableObject dme = remote.get(state);
         for (Field field : DataModelInfo.getFields(dme)) {
             if (state.getFields().containsKey(field)) {
                 field.setAccessible(true);
                 Object value = state.getFields().get(field);
                 if (value instanceof Remote.ObjectState) {
-                    //save cross-references to do at the very end to avoid infinite recursion when cross-references point at each other!
-                    crossReferences.add(new CrossReferenceToDo(dme, state, (Remote.ObjectState) value, field));
+                    Remote.ObjectState referencedState = (Remote.ObjectState) value;
+                    MutableObject referencedObject = remote.get(referencedState);
+                    if (referencedObject == null)
+                        throw new TransactionException("can't find "+referencedState.clazz.getSimpleName()+"["+referencedState.hashCode()+"] in remote, cross referenced by "+remote.getKey(dme).clazz.getSimpleName(), remote.getKey(dme).hashCode());
+                    field.setAccessible(true);
+                    try {
+                        field.set(dme, referencedObject);
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
                 }
                 else field.set(dme, value);
             }
         }
-        //TODO go over construction params to pull migrations
-    }
-
-    private static class CrossReferenceToDo {
-        MutableObject dme;
-        Remote.ObjectState state, crossReferencedState;
-        Field objectField;
-        CrossReferenceToDo(MutableObject dme, Remote.ObjectState state, Remote.ObjectState crossReferencedState, Field objectField) {
-            this.dme = dme;
-            this.state = state;
-            this.crossReferencedState = crossReferencedState;
-            this.objectField = objectField;
-        }
+        //TODO loop over constructionParams to apply potential migrations
     }
 }
