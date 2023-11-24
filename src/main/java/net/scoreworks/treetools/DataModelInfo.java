@@ -1,5 +1,6 @@
 package net.scoreworks.treetools;
 
+import net.scoreworks.treetools.annotations.PolymorphOwner;
 import net.scoreworks.treetools.exceptions.IllegalDataModelException;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
@@ -59,6 +60,11 @@ public class DataModelInfo {
 
         //find and cache the transactional constructor (which has constructionParams as input parameters)
         try {
+            //if class can have different owners, get class-type of the owner from annotation
+            //TODO write tests for this (and yes this seems to be necessary)
+            PolymorphOwner polymorphOwner = clazz.getAnnotation(PolymorphOwner.class);
+            if (polymorphOwner != null)
+                constructorParams[0] = polymorphOwner.commonInterface();
             constructor = clazz.getDeclaredConstructor(constructorParams);
         } catch (NoSuchMethodException e) {
             throw new IllegalDataModelException(clazz, " has no suitable constructor!");

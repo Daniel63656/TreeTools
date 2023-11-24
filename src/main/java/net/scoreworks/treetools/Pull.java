@@ -20,11 +20,10 @@ public class Pull {
      */
     public Pull(Repository repository, Commit commit) {
         repository.ongoingPull = true;
-        //copy modification- and changeRecords to safely cross things off without changing the commit itself
+        //copy creation- and changeRecords to get collections to cross things off
         creationChores = new HashSet<>(commit.getCreationRecords());
         changeChores = new HashMap<>(commit.getChangeRecords());
-        //no removing here
-        Set<Remote.ObjectState> deletionChores = commit.getDeletionRecords();
+        Set<Remote.ObjectState> deletionChores = commit.getDeletionRecords();   //here no copying required
         remote = repository.remote;
 
         //DELETION - assumes deletion records are present in all subsequent children, so their wrappers get also notified
@@ -34,7 +33,7 @@ public class Pull {
             MutableObject owner = objectToDelete.getOwner();
             objectToDelete.removeFromOwner();
             objectToDelete.notifyAndRemoveRegisteredWrappers();  //notify own wrapper about deletion
-            owner.notifyRegisteredWrappersAboutChange();  //notify owners' wrapper (necessary because only onRemove() called)
+            owner.notifyRegisteredWrappersAboutChange();  //notify owners' wrapper (necessary because only removeFromOwner() called)
             remote.removeValue(objectToDelete);
         }
 
@@ -60,7 +59,7 @@ public class Pull {
             }
         }
 
-        // apply the actual changes at last when all objects are created and accessible via LOT
+        //at last, apply the actual changes when all objects are created and accessible via LOT
         try {
             for (Remote.ObjectState state : commit.getCreationRecords()) {
                 applyState(state);
@@ -73,6 +72,7 @@ public class Pull {
             throw new RuntimeException(e);
         }
 
+        //finalize the pull
         if (commit.getCommitId() != null)
             repository.currentCommitId = commit.getCommitId();
         repository.ongoingPull = false;
