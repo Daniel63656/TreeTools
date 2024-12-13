@@ -1,0 +1,16 @@
+@startuml
+
+class Repository {
+CommitID : currentCommitId
+Set<MutableObject> : localChanges
+}
+class RootEntity {
+}
+class Remote {
+DualHashBidiMap<ObjectState, MutableObject>
+}
+
+Repository *-- RootEntity
+Repository *-- Remote
+
+@enduml

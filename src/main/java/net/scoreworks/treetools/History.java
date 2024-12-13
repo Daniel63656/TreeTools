@@ -8,13 +8,11 @@ package net.scoreworks.treetools;
 import net.scoreworks.treetools.commits.Commit;
 
 class History {
-    private final int capacity;     //TODO respect capacity
     Commit ongoingCommit = new Commit();
     Node initialNode;  //node without commit to mark the start
     Node head;
 
-    History(int capacity) {
-        this.capacity = capacity;
+    History() {
         initialNode = new Node(null);
         head = initialNode;
     }

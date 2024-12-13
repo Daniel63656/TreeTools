@@ -15,7 +15,7 @@ public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
     /**
      * Reference to the key the object is saved with
      */
-    private K key;
+    private final K key;
 
     public MappedChild(O owner, K key) {
         super(owner);
@@ -24,11 +24,6 @@ public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
 
     public K getKey() {
         return key;
-    }
-    public void changeKey(K newKey) {
-        removeFromOwner();
-        key = newKey;
-        addToOwner();
     }
 
     @Override

@@ -1,0 +1,20 @@
+@startuml
+interface MutableObject {
+}
+abstract class RootEntity implements MutableObject {
+commit()
+pull()
+undo()
+redo()
+}
+abstract class Child<O> implements MutableObject {
+final RootEntity : root
+final O : owner
+}
+abstract MappedChild<O, K> extends Child {
+final K : key
+}
+abstract class IndexedChild<O> extends Child {
+final Integer : index
+}
+@enduml

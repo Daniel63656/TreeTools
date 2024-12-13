@@ -15,7 +15,7 @@ public abstract class IndexedChild<O extends MutableObject> extends Child<O> {
     /**
      * Reference to the key the object is saved with
      */
-    private Integer index;
+    private final Integer index;
 
     public IndexedChild(O owner, Integer index) {
         super(owner);
@@ -24,11 +24,6 @@ public abstract class IndexedChild<O extends MutableObject> extends Child<O> {
 
     public int getIndex() {
         return index;
-    }
-    public void changeIndex(int index) {
-        removeFromOwner();
-        this.index = index;
-        addToOwner();
     }
 
     @Override

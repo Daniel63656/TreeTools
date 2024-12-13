@@ -74,8 +74,8 @@ public class TransactionManager {
      * Enables the tracking of (squashed) commits for undo/redo purposes. Use {@link TransactionManager#createUndoState()}
      * to create a new state on the history stack.
      */
-    public void enableUndoRedos(int capacity) {
-        history = new History(capacity);
+    public void enableUndoRedos() {
+        history = new History();
     }
 
     /**
