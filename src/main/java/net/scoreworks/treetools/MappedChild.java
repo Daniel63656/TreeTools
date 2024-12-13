@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 /**
@@ -8,7 +13,7 @@ package net.scoreworks.treetools;
 public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
 
     /**
-     * reference to the key the object is saved with
+     * Reference to the key the object is saved with
      */
     private K key;
 

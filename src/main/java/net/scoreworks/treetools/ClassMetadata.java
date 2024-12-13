@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import net.scoreworks.treetools.annotations.PolymorphOwner;
@@ -10,43 +15,44 @@ import java.util.*;
 
 
 /**
- * Class to cache for transactions relevant information about a {@link MutableObject} class's fields and methods, so they don't have to
- * be obtained for each class each time with reflections
+ * Class to cache transactions relevant information about a {@link MutableObject} class' fields and methods, so they don't have to
+ * be obtained for each class each time with reflections.
  */
-public class DataModelInfo {
+public class ClassMetadata {
 
-    /** store {@link DataModelInfo} of analyzed classes for quick access */
-    private static final Map<Class<? extends MutableObject>, DataModelInfo> dataModelInfo = new HashMap<>();
+    /** Store {@link ClassMetadata} of analyzed classes for quick access */
+    private static final Map<Class<? extends MutableObject>, ClassMetadata> metadata = new HashMap<>();
 
     /**
-     * class-type whose content is described
+     * Class-type whose content is described
      */
     Class<? extends MutableObject> clazz;
 
     /**
-     * all fields that contain collections of the described class and superclass(es) (excluding transactional class fields).
+     * All fields that contain collections of the described class and superclass(es) (excluding transactional class fields).
      * This includes arrays, sets, and maps. In these collections, only objects of type {@link MutableObject} can be
      * saved to make tracking of changes possible. Lists are not supported
      */
     Field[] collections;
 
     /**
-     * all other "plain" fields of the described class and superclass(es) (excluding transactional class fields), including
+     * All other "plain" fields of the described class and superclass(es) (excluding transactional class fields), including
      * references to other {@link MutableObject}s
      */
     Field[] fields;
 
     /**
-     * the class constructor used for transactions
+     * The class constructor used for transactions. This constructor should be marked with {@link net.scoreworks.treetools.annotations.TransactionalConstructor}
+     * to avoid accidental deletion of a seemingly unused constructor. However, this is not necessary to ensure functionality
      */
     Constructor<?> constructor;
 
     /**
-     * create detailed class info
+     * Create detailed class info
      * @param clazz class to be described
      * @param constructorParams classes used in the transactional constructor
      */
-    DataModelInfo(Class<? extends MutableObject> clazz, Class<?>...constructorParams) {
+    ClassMetadata(Class<? extends MutableObject> clazz, Class<?>...constructorParams) {
         this.clazz = clazz;
         traceClassFields();
 
@@ -61,7 +67,7 @@ public class DataModelInfo {
         //find and cache the transactional constructor (which has constructionParams as input parameters)
         try {
             //if class can have different owners, get class-type of the owner from annotation
-            //TODO write tests for this (and yes this seems to be necessary)
+            //TODO write tests for this (and yes this is necessary)
             PolymorphOwner polymorphOwner = clazz.getAnnotation(PolymorphOwner.class);
             if (polymorphOwner != null)
                 constructorParams[0] = polymorphOwner.commonInterface();
@@ -72,13 +78,13 @@ public class DataModelInfo {
     }
 
     /**
-     * construct a data model specific {@link RootEntity}
+     * Construct a data model specific {@link RootEntity} object
      */
     static RootEntity constructRootEntity(Class<? extends RootEntity> clazz) {
-        if (!dataModelInfo.containsKey(clazz)) {
-            dataModelInfo.put(clazz, new DataModelInfo(clazz));
+        if (!metadata.containsKey(clazz)) {
+            metadata.put(clazz, new ClassMetadata(clazz));
         }
-        DataModelInfo info = dataModelInfo.get(clazz);
+        ClassMetadata info = metadata.get(clazz);
         info.constructor.setAccessible(true);
         try {
             return (RootEntity) info.constructor.newInstance();
@@ -89,15 +95,15 @@ public class DataModelInfo {
     }
 
     static Child<?> construct(Class<? extends MutableObject> clazz, Object...objects) {
-        if (!dataModelInfo.containsKey(clazz)) {
+        if (!metadata.containsKey(clazz)) {
             Class<?>[] classes = new Class<?>[objects.length];
             for (int i=0; i<objects.length; i++) {
                 classes[i] = objects[i].getClass();
             }
-            dataModelInfo.put(clazz, new DataModelInfo(clazz, classes));
+            metadata.put(clazz, new ClassMetadata(clazz, classes));
         }
 
-        DataModelInfo info = dataModelInfo.get(clazz);
+        ClassMetadata info = metadata.get(clazz);
         info.constructor.setAccessible(true);
         try {
             return (Child<?>) info.constructor.newInstance(objects);
@@ -112,27 +118,27 @@ public class DataModelInfo {
         }
     }
 
-    static Field[] getFields(MutableObject dme) {
-        if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
-        return dataModelInfo.get(dme.getClass()).fields;
+    static Field[] getFields(MutableObject mo) {
+        if (!metadata.containsKey(mo.getClass()))
+            metadata.put(mo.getClass(), new ClassMetadata(mo.getClass(), mo.constructorParameterTypes()));
+        return metadata.get(mo.getClass()).fields;
     }
 
-    static Field[] getCollections(MutableObject dme) {
-        if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
-        return dataModelInfo.get(dme.getClass()).collections;
+    static Field[] getCollections(MutableObject mo) {
+        if (!metadata.containsKey(mo.getClass()))
+            metadata.put(mo.getClass(), new ClassMetadata(mo.getClass(), mo.constructorParameterTypes()));
+        return metadata.get(mo.getClass()).collections;
     }
 
     /**
-     * get a list of all children stored in all {@link DataModelInfo#collections} of a given {@link MutableObject}
-     * @param dme object to get children from
+     * Get a list of all children stored in all {@link ClassMetadata#collections} of a given {@link MutableObject}
+     * @param mo object to get children from
      */
     @SuppressWarnings("unchecked")
-    public static ArrayList<Child<?>> getChildren(MutableObject dme) {
-        if (!dataModelInfo.containsKey(dme.getClass()))
-            dataModelInfo.put(dme.getClass(), new DataModelInfo(dme.getClass(), dme.constructorParameterTypes()));
-        DataModelInfo info = dataModelInfo.get(dme.getClass());
+    public static ArrayList<Child<?>> getChildren(MutableObject mo) {
+        if (!metadata.containsKey(mo.getClass()))
+            metadata.put(mo.getClass(), new ClassMetadata(mo.getClass(), mo.constructorParameterTypes()));
+        ClassMetadata info = metadata.get(mo.getClass());
 
         //collect all children into an ArrayList
         ArrayList<Child<?>> children = new ArrayList<>();
@@ -140,16 +146,16 @@ public class DataModelInfo {
             field.setAccessible(true);
             try {
                 //field is an array and also initialized
-                if (field.getType().isArray() && field.get(dme) != null)
-                    children.addAll((Collection<? extends Child<?>>) field.get(dme));
+                if (field.getType().isArray() && field.get(mo) != null)
+                    children.addAll((Collection<? extends Child<?>>) field.get(mo));
                     //field is a collection
                 else if (Collection.class.isAssignableFrom(field.getType()))
-                    children.addAll(new ArrayList<>((Collection<Child<?>>)field.get(dme)));
+                    children.addAll(new ArrayList<>((Collection<Child<?>>)field.get(mo)));
                     //field is a map
                 else if (Map.class.isAssignableFrom(field.getType()))
-                    children.addAll(new ArrayList<>(((Map<?, Child<?>>)field.get(dme)).values()));
+                    children.addAll(new ArrayList<>(((Map<?, Child<?>>)field.get(mo)).values()));
                 else
-                    throw new IllegalDataModelException(dme.getClass(), "contains an unknown tape of collection in field" + field.getName());
+                    throw new IllegalDataModelException(mo.getClass(), "contains an unknown tape of collection in field" + field.getName());
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
@@ -158,7 +164,7 @@ public class DataModelInfo {
     }
 
     /**
-     * returns true if the specified type is not a primitive, primitive wrapper, String, Enum or Void
+     * Returns true if the specified type is not a primitive, primitive wrapper, String, Enum or Void
      */
     static boolean isComplexObject(Class<?> type) {
         return (!ClassUtils.isPrimitiveOrWrapper(type)
@@ -260,7 +266,7 @@ public class DataModelInfo {
         for (Field f : getAllFieldsIncludingInheritedOnes(type)) {
             Class<?> fieldType = f.getType();
 
-            //don't allow non DME-objects to be DME-owners!
+            //don't allow immutable objects to be owners of MutableObjects!
             if (MutableObject.class.isAssignableFrom(fieldType))
                 throw new IllegalDataModelException(type, "can't be owner of a DataModelEntity!");
 

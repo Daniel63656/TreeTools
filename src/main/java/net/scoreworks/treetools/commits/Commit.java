@@ -1,7 +1,11 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools.commits;
 
 import net.scoreworks.treetools.*;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.collections4.SetUtils;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
@@ -10,7 +14,7 @@ import java.util.*;
 
 
 /**
- * An immutable class that resembles a specific commit. Holds corresponding deltas since the last commit
+ * An immutable class that resembles a specific commit. Holds corresponding deltas compared to the last commit
  */
 public class Commit {
 
@@ -20,7 +24,7 @@ public class Commit {
     private final CommitId commitId;
 
     /**
-     * keep track of deleted objects since the last commit, stored as a pair of an objects' state and corresponding states of the
+     * Keep track of deleted objects since the last commit, stored as a pair of an objects' state and corresponding states of the
      * construction parameters (immutable objects act as their own state, {@link MutableObject}s are saved as
      * {@link Remote.ObjectState}). These params might be used to instantiate the object when reverting, so deletionRecords must
      * reflect the state BEFORE this commit
@@ -28,7 +32,7 @@ public class Commit {
     protected final Set<Remote.ObjectState> deletionRecords;
 
     /**
-     * keep track of created objects since the last commit, stored as a pair of an objects' state and corresponding states of the
+     * Keep track of created objects since the last commit, stored as a pair of an objects' state and corresponding states of the
      * construction parameters (immutable objects act as their own key, {@link MutableObject}s are saved as
      * {@link Remote.ObjectState}). These params may be used to create the object when pulling, so creationRecords must
      * reflect the state AFTER this commit
@@ -36,7 +40,7 @@ public class Commit {
     protected final Set<Remote.ObjectState> creationRecords;
 
     /**
-     * keep track of changed (but not created) objects since the last commit. Stored as a pair of their old and
+     * Keep track of changed (but not created) objects since the last commit. Stored as a pair of their old and
      * new {@link Remote.ObjectState}
      */
     protected final DualHashBidiMap<Remote.ObjectState, Remote.ObjectState> changeRecords;
@@ -50,7 +54,7 @@ public class Commit {
     }
 
     /**
-     * copy an existing {@link Commit} and give it its own proper id
+     * Copy an existing {@link Commit} and give it its own proper id
      */
     public Commit(Commit commit) {
         commitId = new CommitId();
@@ -67,7 +71,7 @@ public class Commit {
     }
 
     /**
-     * this is the main constructor used to build a commit from the current uncommitted changes of a {@link Repository}
+     * This is the main constructor used to build a commit from the current uncommitted changes of a {@link Repository}
      * @param repository repository to fetch local changes from
      */
     public Commit(Repository repository) {
@@ -78,100 +82,100 @@ public class Commit {
         Remote remote = repository.getRemote();
 
         //create ModificationRecords for DELETED objects
-        //this becomes tricky because commits need to invertible in which case deletionRecords become creationRecords.
+        //this becomes tricky because commits need to be invertible in which case deletionRecords become creationRecords.
         //therefore, a deletionRecords objectState must contain the state BEFORE this commit. In order to achieve this,
         //deletions are handled first (to not include changes in owner/key)
 
-        //REMEMBER that invertibility also implies that deletion records are present for all subsequent children so
+        //REMEMBER that invertability also implies that deletion records are present for all subsequent children so
         //that this commit can be fully reverted. ChildEntities remove() function takes care of that
-        List<Child<?>> removeFromLOT = new ArrayList<>();
-        Child<?> te = repository.getOneDeletion();
-        while (te != null) {
-            deletionRecords.add(remote.getKey(te));
+        List<Child<?>> removeFromRemote = new ArrayList<>();
+        Child<?> ch = repository.getOneDeletion();
+        while (ch != null) {
+            deletionRecords.add(remote.getKey(ch));
             //don't remove from remote yet, because this destroys owner information for possible deletion of children
-            removeFromLOT.add(te);
-            repository.removeDeletion(te);
-            te = repository.getOneDeletion();
+            removeFromRemote.add(ch);
+            repository.removeDeletion(ch);
+            ch = repository.getOneDeletion();
         }
 
         //create ModificationRecords for CREATED objects. This may cause other creation or changes to be handled first
-        te = repository.getOneCreation();
-        while (te != null) {
-            commitCreation(repository, te);
-            te = repository.getOneCreation();
+        ch = repository.getOneCreation();
+        while (ch != null) {
+            commitCreation(repository, ch);
+            ch = repository.getOneCreation();
         }
 
         //create ModificationRecords for remaining CHANGED objects. This may cause other creation or changes to be handled first
-        MutableObject dme = repository.getOneChange();
-        while (dme != null) {
-            commitChange(repository, dme);
-            dme = repository.getOneChange();
+        MutableObject mo = repository.getOneChange();
+        while (mo != null) {
+            commitChange(repository, mo);
+            mo = repository.getOneChange();
         }
 
         //now it is safe to remove all deleted object states from remote
-        for (Child<?> t : removeFromLOT) {
+        for (Child<?> t : removeFromRemote) {
             remote.removeValue(t);
         }
     }
 
 
     /**
-     * process a local creation into a creationRecord. Makes sure that all {@link Remote.ObjectState}s used either
+     * Process a local creation into a creationRecord. Makes sure that all {@link Remote.ObjectState}s used either
      * for construction parameters or cross-references, are up-to-date
      */
-    private void commitCreation(Repository repository, Child<?> te) {
+    private void commitCreation(Repository repository, Child<?> ch) {
         //creationRecord contains states needed to construct this object. These states have to be present in the
         //remote. The method makes sure this is the case by recursively processing these creation or changes first
 
         //loop over all objects needed for construction. Exclude Immutable objects
-        for (Object obj : te.constructorParameterObjects()) {
+        for (Object obj : ch.constructorParameterObjects()) {
             if (obj instanceof MutableObject) {
-                MutableObject dme = (MutableObject) obj;
-                if (dme instanceof Child<?> && repository.locallyCreatedContains((Child<?>) dme))
-                    commitCreation(repository, (Child<?>) dme);
-                else if (repository.locallyChangedContains(dme))
-                    commitChange(repository, dme);
+                MutableObject mo = (MutableObject) obj;
+                if (mo instanceof Child<?> && repository.locallyCreatedContains((Child<?>) mo))
+                    commitCreation(repository, (Child<?>) mo);
+                else if (repository.locallyChangedContains(mo))
+                    commitChange(repository, mo);
             }
         }
         //object is not currently present in remote, so generate a NEW state and put it in remote. This will also create
         //states for cross-references if needed. If this objects' state already got created through this mechanism,
         //this state is returned from the remote (and no new one created)
-        Remote.ObjectState newKey = repository.getRemote().createObjectState(te);
+        Remote.ObjectState newKey = repository.getRemote().createObjectState(ch);
         //now its save to get the states of owner/keys from the remote and create the creation record with them
         creationRecords.add(newKey);
         //log of from creation tasks
-        repository.removeCreation(te);
+        repository.removeCreation(ch);
     }
 
 
     /**
-     * process a local change into a changeRecord. Makes sure that all {@link Remote.ObjectState}s used in
+     * Process a local change into a changeRecord. Makes sure that all {@link Remote.ObjectState}s used in
      * cross-references, are up-to-date
      */
-    private void commitChange(Repository repository, MutableObject dme) {
-        Remote.ObjectState before = repository.getRemote().getKey(dme);
+    private void commitChange(Repository repository, MutableObject mo) {
+        Remote.ObjectState before = repository.getRemote().getKey(mo);
         //updates the state by creating a new state with the same hashCode, so that other states that point to the
         //before state will access the new after state automatically
         //This will also create states for cross-references if needed
-        Remote.ObjectState after = repository.getRemote().updateObjectState(dme, before);
+        Remote.ObjectState after = repository.getRemote().updateObjectState(mo, before);
         changeRecords.put(before, after);
         //log of from change tasks
-        repository.removeChange(dme);
+        repository.removeChange(mo);
     }
 
     /**
-     * build an untracked commit used for initialization by parsing the content of a given {@link RootEntity} recursively
-     * into a {@link Remote} and adding the object to the commits' {@link Commit#creationRecords}
+     * Build an untracked commit used for initial cloning of a data model by parsing the content of a given {@link RootEntity}
+     * recursively into a {@link Remote} and adding the object to the commits' {@link Commit#creationRecords}
      */
     public static Commit buildInitializationCommit(Remote remote, RootEntity rootEntity) {
         Commit commit = new Commit();
         parseMutableObject(remote, commit, rootEntity);
         return commit;
     }
-    private static void parseMutableObject(Remote remote, Commit commit, MutableObject dme) {
-        if (!(dme instanceof RootEntity))
-            commit.creationRecords.add(remote.getKey(dme));
-        for (Child<?> child : DataModelInfo.getChildren(dme)) {
+    private static void parseMutableObject(Remote remote, Commit commit, MutableObject mo) {
+        if (!(mo instanceof RootEntity))
+            commit.creationRecords.add(remote.getKey(mo));
+        for (Child<?> child : ClassMetadata.getChildren(mo)) {
             parseMutableObject(remote, commit, child);
         }
     }

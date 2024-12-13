@@ -1,13 +1,19 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 /**
- * Child entity that is owned by a final index (e.g. in an array)
+ * Child entity that is owned by a final index (e.g. in an array). Lists are not supported, as they have non-final
+ * indices by definition.
  * @param <O> class-type of the owner class
  */
 public abstract class IndexedChild<O extends MutableObject> extends Child<O> {
 
     /**
-     * reference to the key the object is saved with
+     * Reference to the key the object is saved with
      */
     private Integer index;
 

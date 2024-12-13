@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import net.scoreworks.treetools.annotations.AbstractClass;
@@ -8,14 +13,14 @@ import java.util.*;
 
 
 /**
- * Class to read and write (formatted) Json-Strings for data models. Uses {@link DataModelInfo} to get specific class information.
+ * Class to automatically read and write (formatted) Json-strings for data models. Uses {@link ClassMetadata} to get specific class information.
  * Static and transient fields are ignored by the parser.
  * To make json work for the diverse requirements posed by a complex data model (collections, maps, cross-references, polymorphisms),
- * a few extra fields were introduced. These include:
+ * a few extra fields were introduced to the JSON output. These include:
  *
  * <ul>
  *  <li>'class':    save classname to reconstruct class even in polymorphic cases</li>
- *  <li>'uid':      a unique ID for each DataModelEntity. Can be inserted instead of the object to avoid cross-referencing
+ *  <li>'uid':      a unique ID for each {@link MutableObject}. Can be inserted instead of the object to avoid cross-referencing
  *  problems. When used in fields, IDs are wrapped with "|" to tell the parser that this is indeed a
  *  placeholder for an object and not a field value</li>
  *  <li>'key':      signify to the parser, that this field is used to save the object with by the owner and is therefore
@@ -33,12 +38,12 @@ public final class JsonParser {
     private static class Serialization {
 
         /**
-         * cache created {@link MutableObject} with their ID to be able to use ID placeholders for objects
+         * Cache created {@link MutableObject} with their ID to be able to use ID placeholders for objects
          */
         private final Map<MutableObject, Integer> createdIDs = new HashMap<>();
 
         /**
-         * adds line breaks and indentations if set to true
+         * Adds line breaks and indentations if set to true
          */
         private final boolean prettyPrinting;
 
@@ -56,31 +61,31 @@ public final class JsonParser {
                 newIndentedLine(strb, indentation);
             strb.append("{");
             indentation++;
-            MutableObject dme = null;
+            MutableObject mo = null;
             if(prettyPrinting) newIndentedLine(strb, indentation);
             strb.append("'class':").append(object.getClass().getSimpleName()).append(",");
 
             //check if object is a DataModelEntity and equip with uid and other functional fields if so
             if (object instanceof MutableObject) {
-                dme = (MutableObject) object;
-                if (!createdIDs.containsKey(dme))
-                    createdIDs.put(dme, createdIDs.size());
+                mo = (MutableObject) object;
+                if (!createdIDs.containsKey(mo))
+                    createdIDs.put(mo, createdIDs.size());
 
                 //print DataModelEntityFields
                 if(prettyPrinting) newIndentedLine(strb, indentation);
-                strb.append("'uid':").append(createdIDs.get(dme)).append(",");
-                if (dme instanceof MappedChild<?,?>) {
+                strb.append("'uid':").append(createdIDs.get(mo)).append(",");
+                if (mo instanceof MappedChild<?,?>) {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
-                    printKey(((MappedChild<?,?>) dme).getKey(), "key", indentation);
+                    printKey(((MappedChild<?,?>) mo).getKey(), "key", indentation);
                 }
             }
 
             //get content fields
             Field[] contentFields;
-            if (dme != null)
-                contentFields = DataModelInfo.getFields((MutableObject) object);
+            if (mo != null)
+                contentFields = ClassMetadata.getFields((MutableObject) object);
             else
-                contentFields = DataModelInfo.getAllFieldsIncludingInheritedOnes(object.getClass());
+                contentFields = ClassMetadata.getAllFieldsIncludingInheritedOnes(object.getClass());
 
             //and loop over them
             for (Field field : contentFields) {
@@ -111,10 +116,10 @@ public final class JsonParser {
                     strb.append("\"").append(field.getName()).append("\":").append("|").append(createdIDs.get(cr)).append("|,");
                 }
 
-                //field is primitive / primitive wrapper / String / Enum / Void / non DME-object (because DME are children)
+                //field is primitive / primitive wrapper / String / Enum / Void / non MutableObject (because MutableObject are children)
                 else {
                     if(prettyPrinting) newIndentedLine(strb, indentation);
-                    if (DataModelInfo.isComplexObject(field.getType())) {
+                    if (ClassMetadata.isComplexObject(field.getType())) {
                         strb.append("\"").append(field.getName()).append("\":");
                         printObject(fieldValue, indentation, false);
                     }
@@ -131,26 +136,26 @@ public final class JsonParser {
             }
 
             //loop over child fields if object is a DataModelEntity (static and transient fields are not in that list)
-            if (dme != null) {
-                for (Field field : DataModelInfo.getCollections(dme)) {
+            if (mo != null) {
+                for (Field field : ClassMetadata.getCollections(mo)) {
                     field.setAccessible(true);
                     try {
                         //field is null - This is not the same as an empty collection!
-                        if (field.get(dme) == null) {
+                        if (field.get(mo) == null) {
                             if(prettyPrinting) newIndentedLine(strb, indentation);
                             strb.append("\"").append(field.getName()).append("\":null,");
                         }
                         //field is an array
                         else if (field.getType().isArray()) {
-                            printArray(field, (MutableObject[]) field.get(dme), indentation);
+                            printArray(field, (MutableObject[]) field.get(mo), indentation);
                         }
                         //field is a collection
                         else if (Collection.class.isAssignableFrom(field.getType())) {
-                            printArray(field, ((Collection<MutableObject>)field.get(dme)).toArray(), indentation);
+                            printArray(field, ((Collection<MutableObject>)field.get(mo)).toArray(), indentation);
                         }
                         //field is a map
                         else if (Map.class.isAssignableFrom(field.getType())) {
-                            Collection<Child<?>> collection = ((Map<?, Child<?>>)field.get(dme)).values();
+                            Collection<Child<?>> collection = ((Map<?, Child<?>>)field.get(mo)).values();
                             if (collection.size() > 0) {
                                 if(prettyPrinting) newIndentedLine(strb, indentation);
                                 strb.append("\"").append(field.getName()).append("\":[");
@@ -163,14 +168,7 @@ public final class JsonParser {
                                 strb.append("],");
                             }
                         }
-                        else throw new RuntimeException("didn't recognize collection of "+dme.getClass().getSimpleName()+","+field.getName());
-                        /*//field is plain reference to child
-                        else {
-                            if(prettyPrinting) newIndentedLine(strb, indentation);
-                            strb.append("\"").append(field.getName()).append("\":");
-                            printObject(field.get(dme), indentation, false);
-                            strb.append(",");
-                        }*/
+                        else throw new RuntimeException("didn't recognize collection of "+mo.getClass().getSimpleName()+","+field.getName());
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     }
@@ -192,7 +190,7 @@ public final class JsonParser {
                     createdIDs.put((MutableObject) key, createdIDs.size());
                 strb.append("|").append(createdIDs.get(key)).append("|");
             }
-            else if (!DataModelInfo.isComplexObject(key.getClass())) {
+            else if (!ClassMetadata.isComplexObject(key.getClass())) {
                 if (key instanceof String)
                     strb.append("\"").append(key).append("\"");
                 else    //primitive / primitive wrapper / Enum / Void
@@ -202,11 +200,11 @@ public final class JsonParser {
             strb.append(",");
         }
 
-        private void printArray(Field field, Object[] DMEs, int indentation) {
-            if (DMEs.length > 0) {
+        private void printArray(Field field, Object[] MOs, int indentation) {
+            if (MOs.length > 0) {
                 if(prettyPrinting) newIndentedLine(strb, indentation);
                 strb.append("\"").append(field.getName()).append("\":[");
-                for (Object obj : DMEs) {
+                for (Object obj : MOs) {
                     printObject(obj, indentation+1, true);
                     strb.append(",");
                 }
@@ -220,11 +218,11 @@ public final class JsonParser {
 
     @SuppressWarnings("unchecked")
     public static <R extends RootEntity> R fromJson(String json, Class<R> rootClass) {
-        return (R) new Deserialization(json, rootClass).rootEntity.dme;
+        return (R) new Deserialization(json, rootClass).rootEntity.mo;
     }
 
     private static class Deserialization {
-        Map<Integer, ObjectInfo> DMEs = new HashMap<>();
+        Map<Integer, ObjectInfo> MOs = new HashMap<>();
         List<CrossReferenceToDo> crossReferences = new ArrayList<>();
         ObjectInfo rootEntity;
 
@@ -240,7 +238,7 @@ public final class JsonParser {
             }
 
             //create creationChores from parsed information
-            Map<Integer, ObjectInfo> creationChores = new HashMap<>(DMEs);  //cross off
+            Map<Integer, ObjectInfo> creationChores = new HashMap<>(MOs);  //cross off
             Map.Entry<Integer, ObjectInfo> creationChore;
             while (!creationChores.isEmpty()) {
                 creationChore = creationChores.entrySet().iterator().next();
@@ -254,7 +252,7 @@ public final class JsonParser {
             for (CrossReferenceToDo cr : crossReferences) {
                 cr.ObjectField.setAccessible(true);
                 try {
-                    cr.ObjectField.set(cr.dme, DMEs.get(cr.crossReferenceID).dme);
+                    cr.ObjectField.set(cr.mo, MOs.get(cr.crossReferenceID).mo);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
@@ -298,7 +296,7 @@ public final class JsonParser {
                             }
                             int uniqueID = Integer.parseInt(pair[1]);
                             currentObj.uniqueID = uniqueID;
-                            DMEs.put(uniqueID, currentObj);
+                            MOs.put(uniqueID, currentObj);
                             break;
                         case "'key'":
                             assert owner != null;
@@ -309,10 +307,10 @@ public final class JsonParser {
                             //key is another object
                             if (pair.length == 1) {
                                 ObjectInfo info = readObject(objectSeparator, currentObj, currentKeyClass, null);
-                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, createNonDmeObject(info)));
+                                currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, createNonMutableObject(info)));
 
                             }
-                            //field is another DME
+                            //field is another MutableObject
                             else if (stringEnclosedBy(pair[1], '|'))
                                 currentObj.constructionParams.add(new KeyValuePair<>(currentKeyClass, parseToID(pair[1])));
                             //primitive, primitive wrapper
@@ -332,10 +330,10 @@ public final class JsonParser {
                             } catch (NoSuchFieldException ignored) {}
                         }
                         assert field != null;
-                        //single child or non DME-object
+                        //single child or immutable object
                         if (pair.length == 1) {
                             ObjectInfo info = readObject(objectSeparator, currentObj, field.getType(), null);
-                            if (info.uniqueID == null)  //not a DME
+                            if (info.uniqueID == null)  //not a MutableObject
                                 currentObj.complexObjFields.put(key.substring(1, key.length() - 1), info);
                         }
                         //child collection
@@ -366,7 +364,7 @@ public final class JsonParser {
         @SuppressWarnings("unchecked")
         private void createDataModelEntity(Map<Integer, ObjectInfo> creationChores, ObjectInfo info) throws IllegalAccessException {
             if (RootEntity.class.isAssignableFrom(info.clazz)) {
-                info.dme = DataModelInfo.constructRootEntity((Class<? extends RootEntity>) info.clazz);
+                info.mo = ClassMetadata.constructRootEntity((Class<? extends RootEntity>) info.clazz);
             }
             else {
                 Object[] params = new Object[info.constructionParams.size()];
@@ -378,57 +376,56 @@ public final class JsonParser {
                             createDataModelEntity(creationChores, creationChores.get(uniqueID));
                         }
                         //now object can be safely assigned from objects list
-                        params[i] = DMEs.get(uniqueID).dme;
+                        params[i] = MOs.get(uniqueID).mo;
                     } else {
                         params[i] = kvp.value;
                     }
                 }
-                info.dme = DataModelInfo.construct((Class<? extends MutableObject>) info.clazz, params);
+                info.mo = ClassMetadata.construct((Class<? extends MutableObject>) info.clazz, params);
             }
 
             //unwrap content fields
-            for (Field field : DataModelInfo.getFields(info.dme)) {
-                //field is non DME-object
+            for (Field field : ClassMetadata.getFields(info.mo)) {
+                //field is immutable object
                 ObjectInfo pojo = info.complexObjFields.get(field.getName());
                 if (pojo != null) {
                     field.setAccessible(true);
-                    field.set(info.dme, createNonDmeObject(pojo));
+                    field.set(info.mo, createNonMutableObject(pojo));
                     continue;
                 }
                 String value = info.fields.get(field.getName());
                 if (value.equals("null")) {
                     field.setAccessible(true);
-                    field.set(info.dme, null);
+                    field.set(info.mo, null);
                     continue;
                 }
-                //field is another DME
+                //field is another MutableObject
                 if (stringEnclosedBy(value, '|')) {
-                    crossReferences.add(new CrossReferenceToDo(info.dme, parseToID(value), field));
+                    crossReferences.add(new CrossReferenceToDo(info.mo, parseToID(value), field));
                     continue;
                 }
                 //set the field
                 field.setAccessible(true);
-                field.set(info.dme, parseToPrimitiveWrapper(field.getType(), value));
+                field.set(info.mo, parseToPrimitiveWrapper(field.getType(), value));
             }
             creationChores.remove(info.uniqueID);
         }
     }
 
-    //TODO remove dependency on default constructor?
-    private static Object createNonDmeObject(ObjectInfo info) {
+    private static Object createNonMutableObject(ObjectInfo info) {
         Object object = null;
         try {
             Constructor<?> constructor = info.clazz.getDeclaredConstructor();
             constructor.setAccessible(true);
             object = constructor.newInstance();
-            for (Field field : DataModelInfo.getAllFieldsIncludingInheritedOnes(info.clazz)) {
+            for (Field field : ClassMetadata.getAllFieldsIncludingInheritedOnes(info.clazz)) {
                 if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers()))
                     continue;
                 field.setAccessible(true);
                 ObjectInfo pojo = info.complexObjFields.get(field.getName());
                 String value = info.fields.get(field.getName());
                 if (pojo != null)
-                    field.set(object, createNonDmeObject(pojo));
+                    field.set(object, createNonMutableObject(pojo));
                 else if (value != null)
                     field.set(object, parseToPrimitiveWrapper(field.getType(), value));
             }
@@ -440,12 +437,12 @@ public final class JsonParser {
 
     private static class ObjectInfo {
         Class<?> clazz;
-        Integer uniqueID;   //null if no DME
+        Integer uniqueID;   //null if no MutableObject
         int ownerID;
         List<KeyValuePair<Class<?>, Object>> constructionParams = new ArrayList<>();
         Map<String, String> fields = new HashMap<>();
-        MutableObject dme;
-        //for complex non-DME objects
+        MutableObject mo;
+        //for immutable classes
         Map<String, ObjectInfo> complexObjFields = new HashMap<>();
 
 
@@ -455,11 +452,11 @@ public final class JsonParser {
     }
 
     private static class CrossReferenceToDo {
-        MutableObject dme;
+        MutableObject mo;
         int crossReferenceID;
         Field ObjectField;
-        CrossReferenceToDo(MutableObject dme, int crossReferenceID, Field ObjectField) {
-            this.dme = dme;
+        CrossReferenceToDo(MutableObject mo, int crossReferenceID, Field ObjectField) {
+            this.mo = mo;
             this.crossReferenceID = crossReferenceID;
             this.ObjectField = ObjectField;
         }

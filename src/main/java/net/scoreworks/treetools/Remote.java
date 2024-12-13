@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import net.scoreworks.treetools.exceptions.TransactionException;
@@ -12,8 +17,8 @@ import java.util.Objects;
 
 
 /**
- * A data structure providing a two-way-link between a {@link MutableObject} and its corresponding
- * {@link ObjectState} (at a particular {@link CommitId}). Because {@link ObjectState}s are immutable, this
+ * A data structure providing a two-way link between {@link MutableObject}s and corresponding
+ * {@link ObjectState}s (at a particular {@link CommitId}). Because {@link ObjectState}s are immutable, this
  * acts as a remote state the data model can revert to while uncommitted changes exist.
  */
 public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
@@ -21,46 +26,46 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
     Remote(RootEntity rootEntity) {
         buildRemote(this, rootEntity);
     }
-    private void buildRemote(Remote remote, MutableObject dme) {
-        remote.createObjectState(dme);
-        ArrayList<Child<?>> children = DataModelInfo.getChildren(dme);
+    private void buildRemote(Remote remote, MutableObject mo) {
+        remote.createObjectState(mo);
+        ArrayList<Child<?>> children = ClassMetadata.getChildren(mo);
         for (Child<?> child : children) {
             buildRemote(remote, child);
         }
     }
 
     /**
-     * create an {@link ObjectState}. Instantiating a state via the {@link Remote} makes sure, they are only created once per object and
+     * Create an {@link ObjectState}. Instantiating a state via the {@link Remote} makes sure, they are only created once per object and
      * nasty stuff like cross-references are properly handled
-     * @param dme object to create the logical key for
+     * @param mo object to create the logical key for
      */
-    public ObjectState createObjectState(MutableObject dme) {
+    public ObjectState createObjectState(MutableObject mo) {
         //avoid creating duplicate states for same object within a remote. This also avoids infinite recursion when
         //two cross-references point at each other!
-        if (containsValue(dme)) {
-            return getKey(dme);
+        if (containsValue(mo)) {
+            return getKey(mo);
         }
-        ObjectState objectState = new ObjectState(dme.getClass(), dme.constructorParameterObjects(), new ObjectId());
-        put(objectState, dme);
-        assignFieldsToObjectState(objectState, dme);
+        ObjectState objectState = new ObjectState(mo.getClass(), mo.constructorParameterObjects(), new ObjectId());
+        put(objectState, mo);
+        assignFieldsToObjectState(objectState, mo);
         return objectState;
     }
 
-    public ObjectState updateObjectState(MutableObject dme, ObjectState oldState) {
-        ObjectState objectState = new ObjectState(dme.getClass(), dme.constructorParameterObjects(), oldState.objectId);
+    public ObjectState updateObjectState(MutableObject mo, ObjectState oldState) {
+        ObjectState objectState = new ObjectState(mo.getClass(), mo.constructorParameterObjects(), oldState.objectId);
         //put overrides existing values but not existing keys which we also want -> remove old entry first
         remove(oldState);
-        put(objectState, dme);
-        assignFieldsToObjectState(objectState, dme);
+        put(objectState, mo);
+        assignFieldsToObjectState(objectState, mo);
         return objectState;
     }
 
-    private void assignFieldsToObjectState(ObjectState objectState, MutableObject dme) {
-        for (Field field : DataModelInfo.getFields(dme)) {
+    private void assignFieldsToObjectState(ObjectState objectState, MutableObject mo) {
+        for (Field field : ClassMetadata.getFields(mo)) {
             Object fieldValue = null;
             try {
                 field.setAccessible(true);
-                fieldValue = field.get(dme);
+                fieldValue = field.get(mo);
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
@@ -71,49 +76,49 @@ public class Remote extends DualHashBidiMap<Remote.ObjectState, MutableObject> {
         }
     }
 
-    public ObjectState getLogicalObjectKeyOfOwner(Child<?> te) {
-        if (getKey(te) == null) {
-            throw new TransactionException("remote didn't contain owner of object", getKey(te).hashCode());
+    public ObjectState getLogicalObjectKeyOfOwner(Child<?> ch) {
+        if (getKey(ch) == null) {
+            throw new TransactionException("remote didn't contain owner of object", getKey(ch).hashCode());
         }
-        if (!this.containsValue(te.getOwner())) {
-            throw new TransactionException("remote didn't contain owner of object", getKey(te).hashCode());
+        if (!this.containsValue(ch.getOwner())) {
+            throw new TransactionException("remote didn't contain owner of object", getKey(ch).hashCode());
         }
-        return this.getKey(te.getOwner());
+        return this.getKey(ch.getOwner());
     }
 
     /**
      * Class that acts as a key for a given object's state at a given {@link CommitId}. Primarily saves the immutable
-     * {@link DataModelInfo#fields} of an object (that excludes the owner, keys
+     * {@link ClassMetadata#fields} of an object (that excludes the owner, keys
      * and children). This state is linked up with the corresponding object within the {@link Remote}.
      * This object must be immutable after its full construction within a commit.
      */
     public class ObjectState {
 
         /**
-         * corresponding class-type whose content is saved by this state
+         * Corresponding class-type whose content is saved by this state
          */
         final Class<? extends MutableObject> clazz;
 
         /**
-         * save constructor parameters as they might also be subject to change (migration). If the param holds another
+         * Save constructor parameters as they might also be subject to change (migration). If the param holds another
          * {@link MutableObject}, then the corresponding {@link ObjectState} is used
          */
         private final Object[] constructionParams;
 
         /**
-         * map fields to their corresponding values. If the field holds another {@link MutableObject}, then the corresponding
+         * Map fields to their corresponding values. If the field holds another {@link MutableObject}, then the corresponding
          * {@link ObjectState} is used
          */
         private final HashMap<Field, Object> fields = new HashMap<>();
 
         /**
-         * can't use the values of the fields as hash because they can be the same for several objects of the data model.
+         * Can't use the values of the fields as hash because they can be the same for several objects of the data model.
          * Use a {@link Remote}-wide unique id instead
          */
         private final ObjectId objectId;
 
         /**
-         * constructor is private so that states are only instantiated via the {@link Remote} that
+         * Constructor is private so that states are only instantiated via the {@link Remote} that
          * they are held in
          */
         private ObjectState(Class<? extends MutableObject> clazz, Object[] constructionParams, ObjectId objectId) {

@@ -8,10 +8,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Map;
-
 public class TransactionTests {
     TransactionManager tm = TransactionManager.getInstance();
     Repository repository;
@@ -56,9 +52,9 @@ public class TransactionTests {
         repository = tm.repositories.get(fullScore);
     }
 
-    private void verifyTying(Remote LOT) throws NoSuchFieldException {
-        Remote.ObjectState lok_tieStart = LOT.getKey(tieStart);
-        Remote.ObjectState lok_tieEnd   = LOT.getKey(tieEnd);
+    private void verifyTying(Remote remote) throws NoSuchFieldException {
+        Remote.ObjectState lok_tieStart = remote.getKey(tieStart);
+        Remote.ObjectState lok_tieEnd   = remote.getKey(tieEnd);
         Assertions.assertSame(lok_tieEnd, lok_tieStart.getFields().get(note.getClass().getDeclaredField("nextTied")));
         Assertions.assertSame(null, lok_tieStart.getFields().get(note.getClass().getDeclaredField("previousTied")));
         Assertions.assertSame(lok_tieStart, lok_tieEnd.getFields().get(note.getClass().getDeclaredField("previousTied")));
@@ -79,9 +75,9 @@ public class TransactionTests {
     }
 
     @Test
-    public void testLOTCreation() throws NoSuchFieldException {
+    public void testRemoteCreation() throws NoSuchFieldException {
         Remote remote = repository.remote;
-        //test if LOT contains all classes of JOT and nothing more
+        //test if remote contains all classes of JOT and nothing more
         Assertions.assertEquals(remote.size(), 13);
         Assertions.assertTrue(remote.containsValue(fullScore));
         Assertions.assertTrue(remote.containsValue(track));

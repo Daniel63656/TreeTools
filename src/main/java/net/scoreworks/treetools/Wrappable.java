@@ -1,10 +1,15 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 
 import java.util.List;
 
 /**
- * Specifies methods a wrappable object must have to send notifications to its registered {@link Wrapper}s.
+ * Specifies methods any wrappable object must have to send notifications to its registered {@link Wrapper}s.
  */
 public interface Wrappable {
 

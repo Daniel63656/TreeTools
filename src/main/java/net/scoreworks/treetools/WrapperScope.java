@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import java.util.Map;
@@ -8,7 +13,5 @@ import java.util.Map;
  * Scopes get added to a data models' {@link RootEntity} and removing the scope gets rid of all wrappers without the need for clean up.
  */
 public interface WrapperScope {
-
     Map<MutableObject, Wrapper<?>> getRegisteredWrappers();
-
 }

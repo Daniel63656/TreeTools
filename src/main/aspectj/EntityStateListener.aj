@@ -7,16 +7,16 @@ private static TransactionManager tm = TransactionManager.getInstance();
 
     //create a pointcut to detect changes made to all non static, non final, non transient fields of any return type
     //for all classes extending MutableObject in any method
-    pointcut contentFieldSetter(MutableObject dme, Object newValue) : set(!static !final !transient * MutableObject+.*)
-        && target(dme)
+    pointcut contentFieldSetter(MutableObject mo, Object newValue) : set(!static !final !transient * MutableObject+.*)
+        && target(mo)
         && args(newValue);
 
     //fields set with reflections in a pull do not trigger this aspect
-    before(MutableObject dme, Object newValue) : contentFieldSetter(dme, newValue) {
-        Repository repository = tm.repositories.get(dme.getRootEntity());
+    before(MutableObject mo, Object newValue) : contentFieldSetter(mo, newValue) {
+        Repository repository = tm.repositories.get(mo.getRootEntity());
         if (repository != null) {
-            repository.logLocalChange(dme);
-            dme.notifyRegisteredWrappersAboutChange();
+            repository.logLocalChange(mo);
+            mo.notifyRegisteredWrappersAboutChange();
         }
     }
 }

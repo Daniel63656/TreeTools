@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import net.scoreworks.treetools.commits.Commit;
@@ -23,7 +28,7 @@ import java.util.TreeMap;
 public class TransactionManager {
 
     /**
-     * this class is a singleton!
+     * This class is a singleton!
      */
     private static final TransactionManager transactionManager = new TransactionManager();
     private TransactionManager() {}
@@ -32,17 +37,17 @@ public class TransactionManager {
         return transactionManager;
     }
 
-    /** keep track of every existing {@link Repository} */
+    /** Keep track of every existing {@link Repository} for the data model */
     Map<RootEntity, Repository> repositories = new HashMap<>();
 
-    /** save all commits in a time-ordered manner. Commits document and coordinate changes across all repositories */
+    /** Save all commits in a time-ordered manner. Commits document and coordinate changes across all repositories */
     final TreeMap<CommitId, Commit> commits = new TreeMap<>();
 
-    /** object responsible for grouping commits and providing a history for {@link TransactionManager#undo(RootEntity)}
+    /** Object responsible for grouping commits and providing a history for {@link TransactionManager#undo(RootEntity)}
      * and {@link TransactionManager#redo(RootEntity)} */
     History history;
 
-    /** print messages for debug purposes */
+    /** Print messages for debug purposes */
     static boolean verbose;
     public void setVerbose(boolean verbose) {
         TransactionManager.verbose = verbose;
@@ -53,7 +58,7 @@ public class TransactionManager {
     }
 
     /**
-     * enables transactions for a data model. After this method is called once on the data model,
+     * Enables transactions for a data model. After this method is called once on the data model,
      * new workable copies can be retrieved with {@link TransactionManager#clone(RootEntity)}
      */
     public void enableTransactionsForRootEntity(RootEntity rootEntity) {
@@ -65,6 +70,10 @@ public class TransactionManager {
         }
     }
 
+    /**
+     * Enables the tracking of (squashed) commits for undo/redo purposes. Use {@link TransactionManager#createUndoState()}
+     * to create a new state on the history stack.
+     */
     public void enableUndoRedos(int capacity) {
         history = new History(capacity);
     }
@@ -78,7 +87,7 @@ public class TransactionManager {
             throw new NoTransactionsEnabledException();
 
         //get a new data model-specific rootEntity
-        RootEntity newRootEntity = DataModelInfo.constructRootEntity(rootEntity.getClass());
+        RootEntity newRootEntity = ClassMetadata.constructRootEntity(rootEntity.getClass());
         Remote remoteToClone = repositories.get(rootEntity).remote;
         //build an untracked initialization commit on the repository that is to be cloned
         Commit initializationCommit = Commit.buildInitializationCommit(remoteToClone, rootEntity);
@@ -86,7 +95,7 @@ public class TransactionManager {
         Repository newRepository = new Repository(newRootEntity, repositories.get(rootEntity).currentCommitId);
 
         //copy content of root entity and put it in emerging remote as well
-        for (Field field : DataModelInfo.getFields(newRootEntity)) {
+        for (Field field : ClassMetadata.getFields(newRootEntity)) {
             field.setAccessible(true);
             try {
                 field.set(newRootEntity, field.get(rootEntity));
@@ -103,7 +112,7 @@ public class TransactionManager {
     }
 
     /**
-     * disable transactions and clean up
+     * Disable transactions and clean up
      */
     public void shutdown() {
         CommitId.reset();       //reset commit id counter
@@ -120,7 +129,7 @@ public class TransactionManager {
     }
 
     /**
-     * removes obsolete commits that are no longer used by any {@link Repository}
+     * Removes obsolete commits that are no longer used by any {@link Repository}
      */
     private void cleanUpUnnecessaryCommits() {
         synchronized(commits) {
@@ -134,8 +143,11 @@ public class TransactionManager {
     }
 
 
-    //=============these methods are called synchronized per RootEntity and therefore package-private=================//
+    //=============these methods are called synchronized per RootEntity and are therefore package-private=============//
 
+    /**
+     * Package local changes into a {@link Commit} object
+     */
     Commit commit(RootEntity rootEntity) {
         Repository repository = repositories.get(rootEntity);
         //ensure transactions are enabled for rootEntity
@@ -159,6 +171,9 @@ public class TransactionManager {
         return commit;
     }
 
+    /**
+     * Perform a pull ont the specified {@link RootEntity}. Returns {@code false} if there are no commits to pull
+     */
     boolean pull(RootEntity rootEntity) {
         Repository repository = repositories.get(rootEntity);
         if (repository == null)
@@ -178,12 +193,13 @@ public class TransactionManager {
             if (verbose && commit.getCommitId() != null) System.out.println("\n========== PULLING "+ commit);
             new Pull(repository, commit);
         }
+        // Remove commits that are not used by any remote anymore
         cleanUpUnnecessaryCommits();
         return true;
     }
 
     /**
-     * take the current commit at {@link History#head}, invert it and insert it with a proper {@link CommitId} in
+     * Take the current commit at {@link History#head}, invert it and insert it with a proper {@link CommitId} in
      * {@link TransactionManager#commits}
      */
     Commit undo(RootEntity rootEntity) {
@@ -210,7 +226,7 @@ public class TransactionManager {
     }
 
     /**
-     * take the current commit at {@link History#head}, and insert it with a proper {@link CommitId} in
+     * Take the current commit at {@link History#head}, and insert it with a proper {@link CommitId} in
      * {@link TransactionManager#commits}
      */
     Commit redo(RootEntity rootEntity) {

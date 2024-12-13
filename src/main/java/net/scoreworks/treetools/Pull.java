@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import net.scoreworks.treetools.commits.Commit;
@@ -15,7 +20,7 @@ public class Pull {
     private final Remote remote;
 
     /**
-     * pull one commit from the remote and apply its changes to the data model
+     * Pull one commit by applying its changes to both the data model and the corresponding {@link Remote}
      * @param commit the commit to be pulled
      */
     public Pull(Repository repository, Commit commit) {
@@ -37,7 +42,7 @@ public class Pull {
             remote.removeValue(objectToDelete);
         }
 
-        // loop over creation and change records and update the LOT to contain all new states and objects
+        // loop over creation and change records and update the remote to contain all new states and objects
         //CREATION - Recursion possible because of dependency on owner and keys
         Remote.ObjectState creationRecord;
         while (!creationChores.isEmpty()) {
@@ -59,7 +64,7 @@ public class Pull {
             }
         }
 
-        //at last, apply the actual changes when all objects are created and accessible via LOT
+        //at last, apply the actual changes when all objects are created and accessible via remote
         try {
             for (Remote.ObjectState state : commit.getCreationRecords()) {
                 applyState(state);
@@ -89,7 +94,7 @@ public class Pull {
         Object[] params = new Object[constructionParams.length];
         for (int i=0; i<constructionParams.length; i++) {
             Object key = constructionParams[i];
-            //DMEs need to be resolved to their objects which may need to be created/changed themselves
+            //MutableObjects need to be resolved to their objects which may need to be created/changed themselves
             if (key instanceof Remote.ObjectState) {
                 Remote.ObjectState state = (Remote.ObjectState) key;
                 if (creationChores.contains(state)) {
@@ -99,18 +104,18 @@ public class Pull {
                 else if (changeChores.containsValue(state)) {
                     pullChangeRecord(state, changeChores.get(state));
                 }
-                //now object can be safely accessed via LOT
+                //now object can be safely accessed via remote
                 params[i] = remote.get(key);
                 if (params[i] == null)
                     throw new TransactionException("remote didn't contain "+state.clazz.getSimpleName()+" with id["+key.hashCode()+"] needed during creation of "+objKey.clazz.getSimpleName(), objKey.hashCode());
             }
-            //object is an immutable, no parsing needed
+            //object is immutable, no parsing needed
             else {
                 params[i] = key;
             }
         }
-        //construct the object - this automatically notifies the wrappers of the owner
-        Child<?> objectToCreate = DataModelInfo.construct(objKey.clazz, params);
+        //construct the object
+        Child<?> objectToCreate = ClassMetadata.construct(objKey.clazz, params);
         remote.put(objKey, objectToCreate);
         creationChores.remove(objKey);
     }
@@ -125,8 +130,8 @@ public class Pull {
     }
 
     private void applyState(Remote.ObjectState state) throws IllegalAccessException {
-        MutableObject dme = remote.get(state);
-        for (Field field : DataModelInfo.getFields(dme)) {
+        MutableObject mo = remote.get(state);
+        for (Field field : ClassMetadata.getFields(mo)) {
             if (state.getFields().containsKey(field)) {
                 field.setAccessible(true);
                 Object value = state.getFields().get(field);
@@ -134,17 +139,16 @@ public class Pull {
                     Remote.ObjectState referencedState = (Remote.ObjectState) value;
                     MutableObject referencedObject = remote.get(referencedState);
                     if (referencedObject == null)
-                        throw new TransactionException("can't find "+referencedState.clazz.getSimpleName()+"["+referencedState.hashCode()+"] in remote, cross referenced by "+remote.getKey(dme).clazz.getSimpleName(), remote.getKey(dme).hashCode());
+                        throw new TransactionException("can't find "+referencedState.clazz.getSimpleName()+"["+referencedState.hashCode()+"] in remote, cross referenced by "+remote.getKey(mo).clazz.getSimpleName(), remote.getKey(mo).hashCode());
                     field.setAccessible(true);
                     try {
-                        field.set(dme, referencedObject);
+                        field.set(mo, referencedObject);
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
                     }
                 }
-                else field.set(dme, value);
+                else field.set(mo, value);
             }
         }
-        //TODO loop over constructionParams to apply potential migrations
     }
 }

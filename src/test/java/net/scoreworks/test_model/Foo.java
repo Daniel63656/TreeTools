@@ -5,7 +5,7 @@ public final class Foo extends FooParent {
     static String string = "A String";
     final Integer f;
 
-    //can have other non DME-objects if they are also immutable and have the right constructor
+    //can have other non MutableObjects if they are also immutable and have the right constructor
     final Fo fo;
 
 

@@ -1,10 +1,15 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import org.jetbrains.annotations.NotNull;
 
 
 /**
- * Acts like a timestamp. Each instantiation increments the id
+ * Acts like a unique timestamp for {@link net.scoreworks.treetools.commits.Commit}s. Each instantiation increments the id
  */
 public class CommitId implements Comparable<CommitId> {
     private static int currentCommitId;

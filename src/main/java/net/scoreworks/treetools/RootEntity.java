@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import net.scoreworks.treetools.commits.Commit;
@@ -43,7 +48,6 @@ public abstract class RootEntity implements MutableObject {
 
     @Override
     public void notifyAndRemoveRegisteredWrappers() {
-        //implement and catch this method here to make sure no specific RootEntity can be cleared
         throw new RuntimeException("Can't remove the root of a data model!");
     }
 
@@ -77,10 +81,16 @@ public abstract class RootEntity implements MutableObject {
         return getObjectSynchronizedIn(this, dstRootEntity);
     }
 
+    /**
+     * Commit (and push) local changes to the {@link Remote}.
+     */
     public synchronized Commit commit() {
         return tm.commit(this);
     }
 
+    /**
+     * Commit (and push) local changes to the {@link Remote}.
+     */
     public synchronized boolean pull() {
         return tm.pull(this);
     }
@@ -94,10 +104,10 @@ public abstract class RootEntity implements MutableObject {
     }
 
 
-    synchronized MutableObject getObjectSynchronizedIn(MutableObject dme, RootEntity dstRootEntity) {
+    synchronized MutableObject getObjectSynchronizedIn(MutableObject mo, RootEntity dstRootEntity) {
         CommitId srcCommitId = getCurrentCommitId();
         CommitId dstCommitId = dstRootEntity.getCurrentCommitId();
-        Remote.ObjectState state = tm.repositories.get(this).remote.getKey(dme);
+        Remote.ObjectState state = tm.repositories.get(this).remote.getKey(mo);
         for (Commit commit : tm.commits.subMap(srcCommitId, false, dstCommitId, true).values()) {
             if (commit.getDeletionRecords().contains(state)) {
                 return null;

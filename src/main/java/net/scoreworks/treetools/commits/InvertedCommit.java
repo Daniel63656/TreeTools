@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools.commits;
 
 import net.scoreworks.treetools.Remote;
@@ -9,7 +14,7 @@ import java.util.Set;
 
 /**
  * A {@link Commit} that saves records normally but behaves inverted to the outside of the class (creations become deletions and
- * vice versa, changes are inverted).
+ * vice versa, changes are inverted). Useful for undos.
  */
 public class InvertedCommit extends Commit {
 

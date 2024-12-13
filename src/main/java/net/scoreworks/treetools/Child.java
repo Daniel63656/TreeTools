@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023 Daniel Maier.
+ * Licensed under the MIT License.
+ */
+
 package net.scoreworks.treetools;
 
 import java.util.ArrayList;
@@ -11,17 +16,17 @@ import java.util.List;
 public abstract class Child<O extends MutableObject> implements MutableObject {
 
     /**
-     * cache reference to the root entity of the data model for direct access
+     * Cache reference to the root entity of the data model for direct access
      */
     private final RootEntity root;
 
     /**
-     * reference to the owner of the class
+     * Reference to the owner of the class
      */
     private O owner;
 
     /**
-     * prevent removal to be triggered several times on the same object. As member of this class, this field
+     * Prevent removal to be triggered several times on the same object. As member of this class, this field
      * is not part of the data model itself and is ignored by the transactional system and {@link JsonParser}
      */
     private transient boolean removalInProcess;
@@ -53,7 +58,7 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
     }
 
     /**
-     * remove this object and all subsequent children from the data model.
+     * Remove this object and all subsequent children from the data model.
      * This method will go through all children recursively and call {@link Child#removeFromOwner()} and {@link Child#onRemove()}
      * on them, notify their registered wrappers about the removal and create a delta if a local {@link Repository} exists.
      * Apart from notifying all involved wrappers, this is also necessary to make this removal invertible
@@ -70,36 +75,38 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
             recursivelyRemove(this, repository);
         else recursivelyRemove(this);
     }
-    private void recursivelyRemove(Child<?> te) {
-        te.notifyAndRemoveRegisteredWrappers();
-        te.removeFromOwner();
-        te.onRemove();
-        for (Child<?> t : DataModelInfo.getChildren(te)) {
+    private void recursivelyRemove(Child<?> ch) {
+        ch.notifyAndRemoveRegisteredWrappers();
+        ch.removeFromOwner();
+        ch.onRemove();
+        for (Child<?> t : ClassMetadata.getChildren(ch)) {
             recursivelyRemove(t);
         }
     }
-    private void recursivelyRemove(Child<?> te, Repository repository) {
-        repository.logLocalDeletion(te);
-        te.notifyAndRemoveRegisteredWrappers();
-        te.removeFromOwner();
-        te.onRemove();
-        for (Child<?> t : DataModelInfo.getChildren(te)) {
+    private void recursivelyRemove(Child<?> ch, Repository repository) {
+        repository.logLocalDeletion(ch);
+        ch.notifyAndRemoveRegisteredWrappers();
+        ch.removeFromOwner();
+        ch.onRemove();
+        for (Child<?> t : ClassMetadata.getChildren(ch)) {
             recursivelyRemove(t, repository);
         }
     }
 
     /**
-     * remove itself from the owner's collection or field
+     * Remove itself from the owner's collection or field. Since name of the owning field is unknown, this must be
+     * implemented by each implementing data class
      */
     protected abstract void removeFromOwner();
 
     /**
-     * add itself from the owner's collection or field
+     * Add itself from the owner's collection or field. Since name of the owning field is unknown, this must be
+     * implemented by each implementing data class
      */
     protected abstract void addToOwner();
 
     /**
-     * this method gets called when this object is being removed from the data model. In it the object
+     * This method gets called when this object is being removed from the data model. In it, the object
      * can take actions that remove any references to itself to leave an intact data model behind. This may include
      * removing other objects that are mapped with this as key, setting fields pointing to this object to null and other
      * data model specific clean-ups. Implementation is optional
