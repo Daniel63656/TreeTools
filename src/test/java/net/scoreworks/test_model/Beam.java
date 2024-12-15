@@ -3,6 +3,7 @@ package net.scoreworks.test_model;
 import net.scoreworks.collection.HasDuration;
 
 import net.scoreworks.treetools.MappedChild;
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
 import org.jetbrains.annotations.NotNull;
 
 
@@ -11,9 +12,9 @@ public class Beam extends MappedChild<Voice, Long> implements Comparable<Beam>, 
 	private Long endTick;
 
 	//=====TRANSACTIONAL============================================================================
+	@TransactionalConstructor
 	private Beam(Voice voice, Long startTick) {
 		super(voice, startTick);
-		addToOwner();
 	}
 
 	protected void removeFromOwner() {
@@ -28,7 +29,6 @@ public class Beam extends MappedChild<Voice, Long> implements Comparable<Beam>, 
 	public Beam(Voice voice, Long startTick, Long endTick) {
 		super(voice, startTick);
 		this.endTick = endTick;
-		voice.beams.put(startTick, this);
 	}
 
 	@Override

@@ -33,11 +33,15 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
 
     protected Child(O owner) {
         this.owner = owner;
+        //save direct reference to model root
         MutableObject it = owner;
         while(!(it instanceof RootEntity)) {
             it = ((Child<?>)it).getOwner();
         }
         root = (RootEntity) it;
+        //call addToOwner only if the current instance is a direct Child. If not, derivations will call it once fields are set
+        if (isDirectChild())
+            addToOwner();
         //notify wrappers of owner
         owner.notifyRegisteredWrappersAboutChange();
         //log as creation (isn't done by repository when in ongoing pull)
@@ -85,6 +89,14 @@ public abstract class Child<O extends MutableObject> implements MutableObject {
         for (Child<?> t : ClassMetadata.getChildren(ch)) {
             recursivelyRemove(t, repository);
         }
+    }
+
+    /**
+     * Internal method to differentiate Child from its derivations which must call addTOOwner() only after setting all
+     * construction parameters
+     */
+    protected boolean isDirectChild() {
+        return true;
     }
 
     /**

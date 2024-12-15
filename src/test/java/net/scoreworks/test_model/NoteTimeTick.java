@@ -2,6 +2,7 @@ package net.scoreworks.test_model;
 
 
 import net.scoreworks.treetools.MappedChild;
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
 
 
 import java.util.HashMap;
@@ -17,9 +18,9 @@ public class NoteTimeTick extends MappedChild<Track, Fraction> {
         getOwner().noteTimeTicks.put(getKey(), this);
     }
 
+    @TransactionalConstructor
     public NoteTimeTick(Track track, Fraction tick) {
         super(track, tick);
-        addToOwner();
     }
 
     public NoteGroupOrTuplet getNGOT(Voice voice) {

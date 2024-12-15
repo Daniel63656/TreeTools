@@ -20,10 +20,16 @@ public abstract class MappedChild<O extends MutableObject, K> extends Child<O> {
     public MappedChild(O owner, K key) {
         super(owner);
         this.key = key;
+        addToOwner();   // now key can be used
     }
 
     public K getKey() {
         return key;
+    }
+
+    @Override
+    protected boolean isDirectChild() {
+        return false;
     }
 
     @Override

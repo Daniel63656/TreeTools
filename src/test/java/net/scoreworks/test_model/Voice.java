@@ -3,15 +3,15 @@ package net.scoreworks.test_model;
 
 import net.scoreworks.collection.DiscontinuousRangeMap;
 import net.scoreworks.treetools.Child;
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
 
 public final class Voice extends Child<Track> {
     DiscontinuousRangeMap<Voice, Long, Beam> beams = new DiscontinuousRangeMap<>();
     int voiceId;
 
-    //this constructor the transactional logic is looking for
+    @TransactionalConstructor
     private Voice(Track track) {
         super(track);
-        addToOwner();
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void removeFromOwner() {

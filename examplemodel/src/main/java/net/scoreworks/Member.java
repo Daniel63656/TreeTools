@@ -14,7 +14,6 @@ public abstract class Member extends MappedChild<University, Integer> {
         super(owner, key);  // constructor of MappedChild
         this.name = name;
         this.info = info;
-        addToOwner();       // add to owner since derivations call this constructor!
     }
 
     @TransactionalConstructor

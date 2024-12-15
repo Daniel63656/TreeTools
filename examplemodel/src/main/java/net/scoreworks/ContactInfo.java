@@ -11,7 +11,6 @@ public class ContactInfo extends Child<Member> {
 
     public ContactInfo(Member owner, String emailAddress, int phoneNumber) {
         super(owner);
-        addToOwner();
         this.emailAddress = emailAddress;
         this.phoneNumber = phoneNumber;
     }

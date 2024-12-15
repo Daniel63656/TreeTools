@@ -20,10 +20,16 @@ public abstract class IndexedChild<O extends MutableObject> extends Child<O> {
     public IndexedChild(O owner, Integer index) {
         super(owner);
         this.index = index;
+        addToOwner();   // now index can be used
     }
 
     public int getIndex() {
         return index;
+    }
+
+    @Override
+    protected boolean isDirectChild() {
+        return false;
     }
 
     @Override

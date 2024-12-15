@@ -7,7 +7,6 @@ public class Tuplet extends NoteGroupOrTuplet {
 
     List<NoteGroup> noteGroups = new ArrayList<>();
 
-    //this constructor the transactional logic is looking for
     private Tuplet(NoteTimeTick noteTimeTick, Voice voice) {
         super(noteTimeTick, voice);
     }

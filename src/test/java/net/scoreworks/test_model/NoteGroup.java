@@ -1,6 +1,8 @@
 package net.scoreworks.test_model;
 
 
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,7 +15,6 @@ public class NoteGroup extends NoteGroupOrTuplet {
         this.stemUp = stemUp;
     }
 
-    //this constructor the transactional logic is looking for
     private NoteGroup(NoteTimeTick noteTimeTick, Voice voice) {
         super(noteTimeTick, voice);
     }

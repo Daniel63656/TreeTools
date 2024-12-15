@@ -2,6 +2,7 @@ package net.scoreworks.test_model;
 
 
 import net.scoreworks.treetools.Child;
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
 
 public class Note extends Child<NoteGroup> {
     int pitch;
@@ -10,10 +11,9 @@ public class Note extends Child<NoteGroup> {
     Note previousTied;
     Note nextTied;
 
-    //this constructor the transactional logic is looking for
+    @TransactionalConstructor
     private Note(NoteGroup noteGroup) {
         super(noteGroup);
-        addToOwner();
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void removeFromOwner() {
@@ -36,7 +36,6 @@ public class Note extends Child<NoteGroup> {
         this.pitch = pitch;
         this.noteName = noteName;
         this.accidental = accidental;
-        noteGroup.notes.add(this);
     }
 
     public void setPitch(int pitch) {

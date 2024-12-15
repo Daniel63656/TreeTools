@@ -13,7 +13,6 @@ public class Department extends Child<University> {
     // This is the constructor publicly used
     public Department(University parent, String name) {
         super(parent);      // Call superclass (Child) constructor
-        addToOwner();
         // Do other class specific things...
         this.name = name;
     }

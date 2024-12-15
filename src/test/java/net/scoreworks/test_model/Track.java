@@ -2,6 +2,7 @@ package net.scoreworks.test_model;
 
 
 import net.scoreworks.treetools.Child;
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
 
 
 import java.util.ArrayList;
@@ -13,10 +14,9 @@ public class Track extends Child<FullScore> {
     List<Voice> voices = new ArrayList<>();
     TreeMap<Fraction, NoteTimeTick> noteTimeTicks = new TreeMap<>();
 
-    //this constructor the transactional logic is looking for
+    @TransactionalConstructor
     public Track(FullScore fullScore) {
         super(fullScore);
-        addToOwner();
     }
     //this method the transactional logic is looking for in order to atomically delete objects
     protected void removeFromOwner() {

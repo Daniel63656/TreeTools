@@ -2,6 +2,7 @@ package net.scoreworks.test_model;
 
 import net.scoreworks.treetools.annotations.AbstractClass;
 import net.scoreworks.treetools.MappedChild;
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
 
 @AbstractClass(subclasses = {NoteGroup.class, Tuplet.class})
 public abstract class NoteGroupOrTuplet extends MappedChild<NoteTimeTick, Voice> {
@@ -15,10 +16,9 @@ public abstract class NoteGroupOrTuplet extends MappedChild<NoteTimeTick, Voice>
         return staff;
     }
 
-    //this constructor the transactional logic is looking for
+    @TransactionalConstructor
     protected NoteGroupOrTuplet(NoteTimeTick noteTimeTick, Voice voice) {
         super(noteTimeTick, voice);
-        addToOwner();
     }
 
     protected void removeFromOwner() {

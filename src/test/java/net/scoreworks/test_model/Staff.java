@@ -1,14 +1,14 @@
 package net.scoreworks.test_model;
 
 import net.scoreworks.treetools.Child;
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
 
 public class Staff extends Child<Track> {
     boolean treble;
 
-    //this constructor the transactional logic is looking for
+    @TransactionalConstructor
     private Staff(Track track) {
         super(track);
-        addToOwner();
     }
 
     //this method the transactional logic is looking for in order to atomically delete objects
