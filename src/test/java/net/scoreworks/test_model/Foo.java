@@ -1,5 +1,7 @@
 package net.scoreworks.test_model;
 
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
+
 public final class Foo extends FooParent {
     //static, non-final members can exist!
     static String string = "A String";
@@ -21,7 +23,7 @@ public final class Foo extends FooParent {
         this.fo = fo;
     }
 
-    //transactional constructor
+    @TransactionalConstructor
     private Foo() {
         super(0);
         f = null;

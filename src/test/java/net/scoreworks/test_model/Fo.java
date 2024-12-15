@@ -1,5 +1,7 @@
 package net.scoreworks.test_model;
 
+import net.scoreworks.treetools.annotations.TransactionalConstructor;
+
 public final class Fo {
     final int f;
     final Integer F;
@@ -9,7 +11,7 @@ public final class Fo {
         F = f1;
     }
 
-    //transactional constructor
+    @TransactionalConstructor
     private Fo() {
         f = 0;
         F = null;

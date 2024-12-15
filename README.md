@@ -13,7 +13,7 @@ calling required.
 - Automatic tracking and synchronization of changes across different workcopies of a data model using operations like
   **commit** and **pull**
 - Ability to save states and use **redo/undo** operations
-- Automatic cloning (deepcopying) of the data model
+- Automatic cloning (deep copying) of the data model
 - JSON serialization and deserialization
 - Wrapper mechanism to attach decorator objects to data model classes, with the ability to get notified when the underlying object changes or is removed
 
@@ -24,6 +24,11 @@ All these features are available while allowing the creation of highly complex d
 - Arbitrary data types (including custom immutable objects)
 - Collections, Maps, Arrays and direct references to other data model classes (Lists not possible)
 - Usage of data model classes as map keys
+
+Limitations:
+- Object's lifetimes are coupled to owner
+- container only can hold MutableObjects
+- No lists
 
 ## Getting Started
 
@@ -53,19 +58,9 @@ artifact and import it.
     }
     ```
 
-To ensure proper tracking of changes for your data model, each mutable data model class must extend one of the following
-four classes:
-
-- `RootEntity`: Root of the data model. Each data model has exactly one class of this type. Transactional methods like **commit()** and **pull()** are called on it.
-- `Child`: Every other class that has an owner. Has two more specific variants
-- `MappedChild`: Child that is owned in a map by the owner.
-- `IndexedChild`: Child that is owned in an array by the owner. In this case, the index acts as identification key
-
-![Data model classes](docs/dataModelClasses.png)
-
-For an in-depth tutorial on how to construct a data model that can use TreeTools, see xxx. wrappers
-
 ## Usage
+
+see tutorial
 
 ### Engage Transactions
 
@@ -116,7 +111,8 @@ tm.enableUndoRedos();
 
 Now you can archive a version of the data model by calling `tm.createUndoState()`. Under the hood, the `TransactionManager`
 will keep a squash commit around, that captures all the commited changes since the last undo state (or beginning of transactions).
-Use `originalModelRootInstance.undo()` and `originalModelRootInstance.redo()` to visit these preserved states.
+Use `originalModelRootInstance.undo()` and `originalModelRootInstance.redo()` to visit these preserved states.  
+Changes introduced to the original data model by undo/redo can be pulled by workcopies like any other commit.
 
 ### Disengage Transactions
 

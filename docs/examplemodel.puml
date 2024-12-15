@@ -1,0 +1,37 @@
+@startuml
+class University {
+String : name
+}
+class Department {
+String : name
+}
+class Course {
+String : name
+SemesterType : semesterType
+}
+abstract class Member {
+}
+class Student extends Member {
+}
+class Professor extends Member {
+Department : department
+}
+class ContactInfo {
+String : emailAddress
+int : phoneNumber
+}
+class LectureEvent {
+EventTime : eventTime
+}
+
+University "*" *-- Department
+University "ID" *-- Member
+Department "*" *-- Course
+Course "ID" *.. Student
+Student "1" *-- ContactInfo
+Professor "1" *-- ContactInfo
+Course "7" *-- LectureEvent
+
+
+
+@enduml

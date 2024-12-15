@@ -1,2 +1,4 @@
 rootProject.name = 'TreeTools'
+include 'examplemodel'
+include 'examplemodel'
 
