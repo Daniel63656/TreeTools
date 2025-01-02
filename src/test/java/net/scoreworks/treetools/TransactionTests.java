@@ -1,7 +1,7 @@
 package net.scoreworks.treetools;
 
 
-import net.scoreworks.test_model.*;
+import net.scoreworks.testmodel.*;
 import net.scoreworks.treetools.commits.Commit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;

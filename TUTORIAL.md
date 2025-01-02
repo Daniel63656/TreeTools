@@ -6,7 +6,7 @@ toy model:
 
 ![Example model](docs/examplemodel.png)
 
-The code for the data model can be found in the `examplemodel` module.
+The code for the data model can be found in the `src/test/java/net/scoreworks/examplemodel` module.
 
 ### Mutable Objects and Basic Data Model Classes
 
@@ -62,37 +62,34 @@ system needs to provide adding and removing itself from its owner
 in these two functions. The owner can be obtained with the `getOwner()` method of `Child`. You can see these functions
 implemented in the `Department` class. The system will use these two functions to reproduce creation or deletion of `Child`
 classes.  
-Next, let's look at the basic constructor:
+We also need to use a basic constructor to call the super constructor:
 ```java
 protected Department(University owner) {
     super(owner);
 }
 ```
-In this case, we want to use a different custom constructor that also provides a `name` attribute. This public constructor will be
+Calling `super(owner)` calls `addToOwner()` internally to properly add the class to the owner.  
+In this case, hwever, we want to use a different custom constructor that also provides a `name` attribute. This public constructor will be
 used in practise to initialize the `Department` class:
 ```java
 public Department(University parent, String name) {
     super(parent);      // Call superclass (Child) constructor
-    addToOwner();       // This must be called by every public constructor eventually!!!
-    // Do other class specific things...
     this.name = name;
 }
 ```
 
-
-
-The second constructor can be left protected. Importantly, this constructor can not be removed as it is used **by the
-transactional system** to create classes. Therefore, each `Child` class needs a constructor that takes only the owner
+Importantly, if we write our own constructors, the original constructor that only has the owner as parameter can not be
+removed as it is used **by the
+transactional system** to create classes. Each `Child` class needs a constructor that takes only the owner
 as input parameter. If we remove this constructor, the system will throw an `IllegalDataModelException` complaining that
 "Department has no suitable constructor". To avoid somebody removing this constructor because it seems to be unused, it
 is best practise to mark it with the `TransactionalConstructor` annotation.  
 If our class happens to have no other non-child attributes,
-one can also directly use this constructor by making it public. In this case, don't forget to add itself to the owner:
+one can also directly use this constructor by making it public, like so:
 ```java
-    @TransactionalConstructor
+@TransactionalConstructor
 public Department(University owner) {
     super(owner);
-    addToOwner();   // Don't forget this line or otherwise, Departments created manually will not be added to owner!
 }
 ```
 
@@ -180,8 +177,16 @@ possible derivative types. This makes it possible for the JSON parser to resolve
 
 ## Modifying the Data Model
 
-dsds
+On big advantage of **TreeTools** is that it automatically tracks changes for a data model once transactions are enabled
+(see [README.md](README.md)). You can instantiate objects as usual via constructors. Changes made to an object's fields 
+are automatically tracked thanks to additional code being weaved into the classes at compile-time.  
 
-## Wrapper Classes
+When modifying the data model, it is important to remove objects using the dedicated ``remove()`` function. This ensures
+proper tracking of deletions and makes them revertible. When calling ``remove()``, each deleted object (this includes all
+subsequent children of a removed object) will receive the ``onRemove()`` event. This method can be used to perform data
+model specific actions to ensure data model integrity. For example, this may include:
+- Removing other objects that use the current object as a key.
+- Setting fields in other objects pointing to this object to null.
+- Performing other model-specific clean-up tasks.
 
-asas
+Note: Implementation of this method is optional. If no specific clean up is required, ignore it.
